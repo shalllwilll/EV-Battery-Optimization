@@ -76,3 +76,20 @@ Improvement of the selected model over the naive one: 5.0 percentage points (boo
 Features: capacity at cycle 1, capacity change between cycle 10 and 100, fade slope over cycles 10 to 100, minimum capacity in the first 100 cycles. Only cycles up to 100 are used (tested). Coefficients (scaled features): change 10 to 100 = -0.42, slope = +0.43, minimum capacity = +0.20, first-cycle capacity = -0.04. The first two are strongly collinear and nearly cancel, so read them as "the early fade rate matters", not as separate effects.
 
 Limits: 77 cells, one cell type and batch, own split (not comparable with published benchmarks). Refuses input with fewer than 100 cycles.
+
+## Uncertainty bands (M3.1)
+
+Each prediction draws 2,000 (default; maximum 5,000) Monte Carlo samples: one bootstrap calendar parameter set, one bootstrap cycle parameter set, a lognormal calendar residual (sigma = 0.196, from leave-one-condition-out residuals) and a cell-to-cell scale effect on the cycle term (sigma(log B) = 0.37). The reported band is p10 to p90 of retention (nominal 80 %). Scenarios can share the same draws, so what-if differences are not simulation noise.
+
+Coverage of the nominal 80 % band, checked by leaving data out:
+
+| Part | Point-weighted coverage | Per-unit mean | Worst unit |
+|---|---|---|---|
+| Cycle, leave one cell out (77 cells, proper refit) | 72.5 % | 72.8 % | one cell fully outside |
+| Calendar, leave one condition out | 79.6 % | 73.1 % | one condition fully outside |
+
+Target was 70 to 90 %: met, but read with care. The calendar sigma is calibrated on the same out-of-fold residuals, so its 79.6 % is close to circular. The cycle number is a genuine test. Both coverages hide that some individual cells and conditions are missed entirely, which is what a 77-cell, one-batch dataset gives.
+
+Extrapolation: when temperature, SOC, C-rate or cycle count leave the training range, both spreads are multiplied by 1.5. This factor is an ASSUMPTION, not measured.
+
+Not modelled: correlation between calendar and cycle uncertainty (treated as independent), batch-to-batch variation, and any bus-specific effect.

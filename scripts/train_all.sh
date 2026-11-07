@@ -8,4 +8,5 @@ $PY -m engine.train.fit_calendar >/dev/null
 $PY -m engine.train.validate_calendar >/dev/null
 $PY -m engine.train.fit_cycle >/dev/null
 $PY -m engine.train.fit_early_life >/dev/null
+$PY -m engine.train.fit_uncertainty >/dev/null
 echo "artifacts rebuilt"

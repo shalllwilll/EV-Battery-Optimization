@@ -92,5 +92,21 @@
   ],
   "improvement_vs_mean_pct_points": 5.000264179286365,
   "winner": "ElasticNet capacity features"
+ },
+ "uncertainty": {
+  "calendar": {
+   "coverage_condition_mean": 0.731285885999351,
+   "coverage_condition_min": 0.0,
+   "coverage_point_weighted": 0.795880149812734,
+   "log_ratio_mean": -0.00996054217520567,
+   "n_points": 5874,
+   "sigma_cal": 0.1958423587202476
+  },
+  "cycle": {
+   "coverage_cell_mean": 0.7280425805288397,
+   "coverage_cell_min": 0.0,
+   "coverage_point_weighted": 0.7251468348923211,
+   "n_cells": 77
+  }
  }
 }
