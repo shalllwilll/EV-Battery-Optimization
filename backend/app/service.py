@@ -5,8 +5,9 @@ import hashlib
 import threading
 from collections import OrderedDict
 
-from backend.app.schemas import PredictionResult, PredictRequest, DISCLAIMER, DriverSplit
+from backend.app.schemas import CompareRequest, CompareResult, DISCLAIMER, DriverSplit, PredictionResult, PredictRequest
 from engine.cell.uncertainty import Models, make_draws
+from engine.decide.compare import compare
 from engine.decide.cost import cost_per_km
 from engine.decide.range import monthly_range
 from engine.decide.replacement import replacement_window, simulate_scenario
@@ -33,13 +34,24 @@ def run_prediction(req: PredictRequest, models: Models, model_version: str) -> P
                             range=rng, cost=cost, driver_split=split, warnings=warnings)
 
 
+def run_compare(req: CompareRequest, models: Models, model_version: str) -> CompareResult:
+    from engine.decide.replacement import ReplacementResult
+    res = compare(req.scenarios, n_draws=req.n_draws, seed=req.seed, models=models)
+    reps = [ReplacementResult.model_validate(d) for d in [res.base, *res.variants]]
+    warnings: list[str] = [DISCLAIMER]
+    for r in reps:
+        warnings += [w for w in r.warnings if w not in warnings]
+    return CompareResult(model_version=model_version, scenarios=req.scenarios, replacements=reps, deltas=res.deltas,
+                         notes=res.notes, warnings=warnings)
+
+
 class LRUCache:
     def __init__(self, size: int = 128):
         self.size, self._d, self._lock = size, OrderedDict(), threading.Lock()
 
     @staticmethod
-    def key(req: PredictRequest, model_version: str) -> str:
-        return hashlib.sha256((model_version + req.model_dump_json()).encode()).hexdigest()
+    def key(req, model_version: str) -> str:
+        return hashlib.sha256((type(req).__name__ + model_version + req.model_dump_json()).encode()).hexdigest()
 
     def get(self, k):
         with self._lock:

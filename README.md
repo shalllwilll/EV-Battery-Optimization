@@ -17,3 +17,15 @@ Datasets are not included in this repository (size and licences). See `data/READ
 - `docs/phase0-report.md` - what the public data can and cannot support
 - `docs/software-design-document.md` - architecture and models
 - `docs/development-playbook.md` - milestone-by-milestone build and test plan
+
+## Backend API (Phase 4)
+
+```bash
+scripts/dev_backend.sh          # http://localhost:8000, interactive docs at /docs
+scripts/smoke_api.sh            # starts a throwaway server and checks every endpoint
+.venv/bin/python scripts/export_openapi.py   # regenerate docs/openapi.json after any API change
+```
+
+Endpoints under `/api/v1`: `GET /health`, `GET /presets`, `GET /zones`, `GET /evidence`, `POST /predict`, `POST /compare`.
+Every number in a prediction carries `{value, unit, evidence_level, validated_on_buses: false}`; responses state `mode: "prior"`.
+Settings (all optional): `EV_ALLOWED_ORIGINS`, `EV_MAX_BODY_BYTES`, `EV_ARTIFACT_DIR` (see `.env.example`).

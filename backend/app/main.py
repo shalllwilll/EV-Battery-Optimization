@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app import errors, routes, service
+from backend.app import errors, reference, routes, service
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
 
@@ -34,6 +34,10 @@ async def lifespan(app: FastAPI):
     app.state.models = load_models(st.artifact_dir)
     app.state.model_version = hashlib.sha256(json.dumps(app.state.versions, sort_keys=True).encode()).hexdigest()[:12]
     app.state.cache = service.LRUCache(128)
+    app.state.presets = [{**p, "fields": {k: {kk: (vv.model_dump() if vv is not None else None) for kk, vv in f.items()}
+                                           for k, f in p["fields"].items()}} for p in reference.presets()]
+    app.state.zones = reference.zones()
+    app.state.evidence = reference.evidence(st.artifact_dir, app.state.versions, app.state.model_version, app.state.models)
     yield
 
 

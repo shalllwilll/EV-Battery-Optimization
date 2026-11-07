@@ -1,0 +1,995 @@
+{
+  "components": {
+    "schemas": {
+      "CellConditions": {
+        "properties": {
+          "c_rate_eff": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "calendar_equivalent_soc_pct": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "charge_hours": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "efc_per_day": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "efc_per_year": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "effective_temp_c": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "energy_per_day_kwh": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "idle_hours_at_soc_max": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "mean_soc_pct": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "monthly_cell_temp_c": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "pack_penalty_max": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "pack_penalty_min": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "usable_kwh": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "energy_per_day_kwh",
+          "usable_kwh",
+          "efc_per_day",
+          "efc_per_year",
+          "mean_soc_pct",
+          "calendar_equivalent_soc_pct",
+          "idle_hours_at_soc_max",
+          "charge_hours",
+          "c_rate_eff",
+          "effective_temp_c",
+          "monthly_cell_temp_c",
+          "pack_penalty_min",
+          "pack_penalty_max",
+          "warnings"
+        ],
+        "title": "CellConditions",
+        "type": "object"
+      },
+      "CompareRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "n_draws": {
+            "default": 2000,
+            "maximum": 5000.0,
+            "minimum": 200.0,
+            "title": "N Draws",
+            "type": "integer"
+          },
+          "scenarios": {
+            "description": "first scenario is the base; the rest are variants",
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "seed": {
+            "default": 0,
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scenarios"
+        ],
+        "title": "CompareRequest",
+        "type": "object"
+      },
+      "CompareResult": {
+        "properties": {
+          "deltas": {
+            "description": "variant minus base, one per variant (months to threshold)",
+            "items": {
+              "$ref": "#/components/schemas/Delta"
+            },
+            "title": "Deltas",
+            "type": "array"
+          },
+          "disclaimer": {
+            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "mode": {
+            "const": "prior",
+            "default": "prior",
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "replacements": {
+            "description": "aligned with `scenarios`; computed on shared random draws",
+            "items": {
+              "$ref": "#/components/schemas/ReplacementResult"
+            },
+            "title": "Replacements",
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_version",
+          "scenarios",
+          "replacements",
+          "deltas",
+          "notes",
+          "warnings"
+        ],
+        "title": "CompareResult",
+        "type": "object"
+      },
+      "CostResult": {
+        "properties": {
+          "battery_cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "censored_fraction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost_per_km_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost_per_km_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lifetime_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tornado": {
+            "items": {
+              "$ref": "#/components/schemas/TornadoBar"
+            },
+            "title": "Tornado",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cost_per_km_p10",
+          "cost_per_km_p50",
+          "cost_per_km_p90",
+          "battery_cost",
+          "lifetime_km_p50",
+          "censored_fraction",
+          "tornado",
+          "warnings"
+        ],
+        "title": "CostResult",
+        "type": "object"
+      },
+      "Delta": {
+        "properties": {
+          "censored_note": {
+            "title": "Censored Note",
+            "type": "string"
+          },
+          "months_p10": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p50": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p90": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "prob_variant_later": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "months_p10",
+          "months_p50",
+          "months_p90",
+          "prob_variant_later",
+          "censored_note"
+        ],
+        "title": "Delta",
+        "type": "object"
+      },
+      "DriverSplit": {
+        "properties": {
+          "calendar_share": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "cycling_share": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "calendar_share",
+          "cycling_share"
+        ],
+        "title": "DriverSplit",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Labelled": {
+        "description": "A number (or list of numbers) with its unit and what it rests on.\n\nlab        = fitted on public laboratory data (never validated on buses)\nassumption = a scenario input or default with no data behind it for buses\nderived    = computed from the above; inherits the weakest evidence of its inputs",
+        "properties": {
+          "evidence_level": {
+            "enum": [
+              "lab",
+              "assumption",
+              "derived"
+            ],
+            "title": "Evidence Level",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "validated_on_buses": {
+            "const": false,
+            "default": false,
+            "title": "Validated On Buses",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "evidence_level"
+        ],
+        "title": "Labelled",
+        "type": "object"
+      },
+      "PredictRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "n_draws": {
+            "default": 2000,
+            "description": "Monte Carlo draws; fixed seed makes results repeatable",
+            "maximum": 5000.0,
+            "minimum": 200.0,
+            "title": "N Draws",
+            "type": "integer"
+          },
+          "range_temperature_mode": {
+            "default": "none",
+            "enum": [
+              "none",
+              "datasheet_example"
+            ],
+            "title": "Range Temperature Mode",
+            "type": "string"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "seed": {
+            "default": 0,
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scenario"
+        ],
+        "title": "PredictRequest",
+        "type": "object"
+      },
+      "PredictionResult": {
+        "properties": {
+          "conditions": {
+            "$ref": "#/components/schemas/CellConditions"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/CostResult"
+          },
+          "disclaimer": {
+            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "driver_split": {
+            "$ref": "#/components/schemas/DriverSplit"
+          },
+          "mode": {
+            "const": "prior",
+            "default": "prior",
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/RangeResult"
+          },
+          "replacement": {
+            "$ref": "#/components/schemas/ReplacementResult"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_version",
+          "scenario",
+          "conditions",
+          "replacement",
+          "range",
+          "cost",
+          "driver_split",
+          "warnings"
+        ],
+        "title": "PredictionResult",
+        "type": "object"
+      },
+      "RangeResult": {
+        "properties": {
+          "ages_years": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ages Years",
+            "type": "array"
+          },
+          "new_pack_range_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "range_km_p10": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Labelled"
+            },
+            "title": "Range Km P10",
+            "type": "object"
+          },
+          "range_km_p50": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Labelled"
+            },
+            "title": "Range Km P50",
+            "type": "object"
+          },
+          "temperature_factor_mode": {
+            "title": "Temperature Factor Mode",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ages_years",
+          "range_km_p50",
+          "range_km_p10",
+          "new_pack_range_km",
+          "temperature_factor_mode",
+          "warnings"
+        ],
+        "title": "RangeResult",
+        "type": "object"
+      },
+      "ReplacementResult": {
+        "properties": {
+          "calendar_share_of_loss": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "extrapolated": {
+            "title": "Extrapolated",
+            "type": "boolean"
+          },
+          "extrapolation_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extrapolation Reasons",
+            "type": "array"
+          },
+          "mode": {
+            "default": "prior",
+            "title": "Mode",
+            "type": "string"
+          },
+          "months": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "months_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "probability_by_month": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "probability_within_horizon": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p10": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p50": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p90": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "threshold": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "months_p10",
+          "months_p50",
+          "months_p90",
+          "probability_by_month",
+          "probability_within_horizon",
+          "calendar_share_of_loss",
+          "retention_p10",
+          "retention_p50",
+          "retention_p90",
+          "months",
+          "threshold",
+          "extrapolated",
+          "extrapolation_reasons",
+          "warnings"
+        ],
+        "title": "ReplacementResult",
+        "type": "object"
+      },
+      "Scenario": {
+        "additionalProperties": false,
+        "properties": {
+          "archetype": {
+            "default": "12m",
+            "enum": [
+              "12m",
+              "9m"
+            ],
+            "title": "Archetype",
+            "type": "string"
+          },
+          "battery_cost_per_kwh_inr": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Battery Cost Per Kwh Inr"
+          },
+          "charge_power_kw": {
+            "exclusiveMinimum": 1.0,
+            "maximum": 500.0,
+            "title": "Charge Power Kw",
+            "type": "number"
+          },
+          "charge_start_hour": {
+            "default": 22.0,
+            "exclusiveMaximum": 24.0,
+            "minimum": 0.0,
+            "title": "Charge Start Hour",
+            "type": "number"
+          },
+          "departure_hour": {
+            "default": 5.0,
+            "exclusiveMaximum": 24.0,
+            "minimum": 0.0,
+            "title": "Departure Hour",
+            "type": "number"
+          },
+          "heat_rise_c": {
+            "default": 3.0,
+            "description": "ASSUMED average cell temperature above ambient",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Heat Rise C",
+            "type": "number"
+          },
+          "horizon_years": {
+            "default": 15,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Horizon Years",
+            "type": "integer"
+          },
+          "km_per_day": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 700.0,
+            "title": "Km Per Day",
+            "type": "number"
+          },
+          "kwh_per_km": {
+            "exclusiveMinimum": 0.2,
+            "maximum": 3.0,
+            "title": "Kwh Per Km",
+            "type": "number"
+          },
+          "operating_days_per_year": {
+            "exclusiveMinimum": 50.0,
+            "maximum": 366.0,
+            "title": "Operating Days Per Year",
+            "type": "number"
+          },
+          "pack_kwh": {
+            "description": "nominal pack energy, kWh",
+            "exclusiveMinimum": 20.0,
+            "maximum": 700.0,
+            "title": "Pack Kwh",
+            "type": "number"
+          },
+          "pack_penalty_max": {
+            "default": 0.08,
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Pack Penalty Max",
+            "type": "number"
+          },
+          "pack_penalty_min": {
+            "default": 0.0,
+            "description": "ASSUMED weakest-cell earlier-end-of-life fraction",
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Pack Penalty Min",
+            "type": "number"
+          },
+          "soc_max_pct": {
+            "default": 100.0,
+            "maximum": 100.0,
+            "minimum": 40.0,
+            "title": "Soc Max Pct",
+            "type": "number"
+          },
+          "soc_min_pct": {
+            "default": 10.0,
+            "maximum": 60.0,
+            "minimum": 0.0,
+            "title": "Soc Min Pct",
+            "type": "number"
+          },
+          "threshold": {
+            "default": 0.8,
+            "description": "replace when retention falls to this",
+            "exclusiveMaximum": 0.95,
+            "exclusiveMinimum": 0.5,
+            "title": "Threshold",
+            "type": "number"
+          },
+          "zone": {
+            "default": "hot_dry",
+            "enum": [
+              "hot_dry",
+              "hot_humid",
+              "composite",
+              "cool"
+            ],
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_kwh",
+          "kwh_per_km",
+          "km_per_day",
+          "operating_days_per_year",
+          "charge_power_kw"
+        ],
+        "title": "Scenario",
+        "type": "object"
+      },
+      "TornadoBar": {
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "high_case": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "low_case": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "swing": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "input",
+          "low_case",
+          "high_case",
+          "swing",
+          "base"
+        ],
+        "title": "TornadoBar",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Prior mode only: models trained on public lab data, scenario inputs are assumptions, nothing is validated on buses.",
+    "title": "E-bus battery lifecycle tool",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/compare": {
+      "post": {
+        "operationId": "compare_api_v1_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Paired what-if comparison of 2-4 scenarios on shared random draws",
+        "tags": [
+          "predict"
+        ]
+      }
+    },
+    "/api/v1/evidence": {
+      "get": {
+        "operationId": "get_evidence_api_v1_evidence_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Datasets, measured model errors, training coverage and known limitations",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/v1/predict": {
+      "post": {
+        "operationId": "predict_api_v1_predict_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forecast battery retention, replacement window, range and cost per km for one scenario",
+        "tags": [
+          "predict"
+        ]
+      }
+    },
+    "/api/v1/presets": {
+      "get": {
+        "operationId": "get_presets_api_v1_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Bus archetypes with every default's source and evidence level",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/api/v1/zones": {
+      "get": {
+        "operationId": "get_zones_api_v1_zones_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Climate zones: monthly air-temperature statistics and data provenance",
+        "tags": [
+          "reference"
+        ]
+      }
+    }
+  }
+}

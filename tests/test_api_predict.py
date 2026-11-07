@@ -1,6 +1,5 @@
 """M4.2 tests: POST /api/v1/predict."""
 import json
-import math
 import threading
 import time
 
@@ -9,10 +8,11 @@ from fastapi.testclient import TestClient
 
 from backend.app import service
 from backend.app.main import create_app
+from tests.helpers import find_bare_numbers
 
 BODY = {"scenario": {"pack_kwh": 350, "kwh_per_km": 1.2, "km_per_day": 200, "operating_days_per_year": 340,
                      "charge_power_kw": 120, "battery_cost_per_kwh_inr": 12000}}
-UNLABELLED_OK = {"scenario", "months", "ages_years"}     # inputs echo and axis grids; everything else must be labelled
+
 
 
 @pytest.fixture()
@@ -29,26 +29,6 @@ def body(**over):
         else:
             b["scenario"][k] = v
     return b
-
-
-def find_bare_numbers(obj, path="", out=None):
-    out = [] if out is None else out
-    if isinstance(obj, dict):
-        if {"value", "unit", "evidence_level", "validated_on_buses"} <= obj.keys():
-            assert obj["validated_on_buses"] is False
-            assert obj["evidence_level"] in ("assumption", "derived")      # bus outputs are never "lab"
-            vals = obj["value"] if isinstance(obj["value"], list) else [obj["value"]]
-            assert all(math.isfinite(v) for v in vals), path
-            return out
-        for k, v in obj.items():
-            if k not in UNLABELLED_OK:
-                find_bare_numbers(v, f"{path}.{k}", out)
-    elif isinstance(obj, list):
-        for i, v in enumerate(obj):
-            find_bare_numbers(v, f"{path}[{i}]", out)
-    elif isinstance(obj, (int, float)) and not isinstance(obj, bool):
-        out.append(path)
-    return out
 
 
 def test_predict_ok_shape_and_mode(client):

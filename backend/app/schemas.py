@@ -11,6 +11,7 @@ from engine.decide.cost import CostResult
 from engine.decide.range import RangeResult
 from engine.decide.replacement import ReplacementResult
 from engine.labels import Labelled
+from engine.decide.compare import Delta
 
 DISCLAIMER = ("Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. "
               "Nothing here has been validated on buses.")
@@ -40,4 +41,22 @@ class PredictionResult(BaseModel):
     range: RangeResult
     cost: CostResult
     driver_split: DriverSplit
+    warnings: list[str]
+
+
+class CompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scenarios: list[Scenario] = Field(min_length=2, max_length=4, description="first scenario is the base; the rest are variants")
+    n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS)
+    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+
+
+class CompareResult(BaseModel):
+    mode: Literal["prior"] = "prior"
+    model_version: str
+    disclaimer: str = DISCLAIMER
+    scenarios: list[Scenario]
+    replacements: list[ReplacementResult] = Field(description="aligned with `scenarios`; computed on shared random draws")
+    deltas: list[Delta] = Field(description="variant minus base, one per variant (months to threshold)")
+    notes: list[str]
     warnings: list[str]
