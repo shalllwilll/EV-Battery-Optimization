@@ -1,0 +1,78 @@
+"""FastAPI app: thin HTTP layer over the engine. Run: uvicorn backend.app.main:app --port 8000"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from backend.app import errors
+from backend.app.config import get_settings
+from engine.cell.uncertainty import load_models
+
+ARTIFACTS = ("calendar_params.json", "cycle_params.json", "early_life.json", "uncertainty.json", "metrics.json")
+
+
+def artifact_versions(art_dir: str) -> dict[str, str]:
+    out = {}
+    for name in ARTIFACTS:
+        path = os.path.join(art_dir, name)
+        if not os.path.exists(path):
+            raise RuntimeError(f"required model artifact missing: {name} (run scripts/train_all.sh)")
+        out[name] = hashlib.sha256(open(path, "rb").read()).hexdigest()[:12]
+    return out
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    st = get_settings()
+    app.state.versions = artifact_versions(st.artifact_dir)     # fails fast with the missing artifact named
+    app.state.models = load_models(st.artifact_dir)
+    app.state.model_version = hashlib.sha256(json.dumps(app.state.versions, sort_keys=True).encode()).hexdigest()[:12]
+    yield
+
+
+def create_app() -> FastAPI:
+    st = get_settings()
+    app = FastAPI(title="E-bus battery lifecycle tool", version="0.1.0", lifespan=lifespan,
+                  description="Prior mode only: models trained on public lab data, scenario inputs are assumptions, "
+                              "nothing is validated on buses.")
+    app.add_middleware(CORSMiddleware, allow_origins=st.allowed_origins, allow_methods=["GET", "POST", "OPTIONS"],
+                       allow_headers=["Content-Type"])
+
+    @app.middleware("http")
+    async def limit_body(request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl is not None and cl.isdigit() and int(cl) > st.max_body_bytes:
+            return JSONResponse(status_code=413, content={"error": {"code": "payload_too_large",
+                                "message": f"Body larger than {st.max_body_bytes} bytes", "fields": []}})
+        if request.method in ("POST", "PUT", "PATCH") and cl is None:
+            total, chunks = 0, []
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > st.max_body_bytes:
+                    return JSONResponse(status_code=413, content={"error": {"code": "payload_too_large",
+                                        "message": "Body too large", "fields": []}})
+                chunks.append(chunk)
+            body = b"".join(chunks)
+
+            async def receive():
+                return {"type": "http.request", "body": body, "more_body": False}
+            request = Request(request.scope, receive)
+        return await call_next(request)
+
+    errors.install(app)
+
+    @app.get("/api/v1/health", tags=["meta"])
+    async def health(request: Request):
+        return {"status": "ok", "mode": "prior", "model_version": request.app.state.model_version,
+                "artifacts": request.app.state.versions}
+
+    return app
+
+
+app = create_app()

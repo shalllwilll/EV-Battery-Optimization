@@ -11,3 +11,6 @@ pytest
 hypothesis
 matplotlib
 pydantic
+fastapi
+uvicorn
+httpx
