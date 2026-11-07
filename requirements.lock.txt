@@ -1,3 +1,4 @@
+annotated-types==0.8.0
 certifi==2026.10.23
 charset-normalizer==3.5.2
 cloudpickle==3.1.2
@@ -22,6 +23,8 @@ patsy==1.0.3
 pillow==13.0.0
 pluggy==1.7.0
 pyarrow==26.0.1
+pydantic==2.14.3
+pydantic_core==2.50.4
 Pygments==2.21.0
 pyparsing==3.3.3
 pytest==9.2.0
@@ -32,6 +35,7 @@ scipy==1.18.1
 sortedcontainers==2.4.0
 statsmodels==0.15.0
 threadpoolctl==3.8.0
+typing-inspection==0.4.5
 typing_extensions==4.16.0
 tzdata==2026.6
 urllib3==2.8.0

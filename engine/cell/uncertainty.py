@@ -15,7 +15,6 @@ import numpy as np
 
 from engine.cell.calendar import R, SOC_NODES, TREF, VALID_SOC, VALID_T
 from engine.cell.cycle import CycleParams
-from engine.cell.cycle import is_extrapolated as cyc_extrap
 
 MAX_DRAWS = 5000
 PCT = (10, 50, 90)
@@ -40,6 +39,22 @@ class Draws:
     @property
     def n(self) -> int:
         return len(self.cal_idx)
+
+
+def extrapolation_reasons(efc_max: float, temp_c: float, soc_pct: float, c_rate: float, models: "Models") -> list[str]:
+    r = []
+    if not VALID_T[0] <= temp_c <= VALID_T[1]:
+        r.append(f"calendar temperature {temp_c:.1f} C outside {VALID_T} C")
+    if not VALID_SOC[0] <= soc_pct <= VALID_SOC[1]:
+        r.append("SOC outside 0-100 %")
+    p = models.cyc
+    if not p.valid_temp_c[0] <= temp_c <= p.valid_temp_c[1]:
+        r.append(f"cycling temperature {temp_c:.1f} C outside the 25-35 C range of the cycling data (HUST, 30 C only)")
+    if not p.valid_c_rate[0] <= c_rate <= p.valid_c_rate[1]:
+        r.append(f"effective C-rate {c_rate:.2f} outside the {p.valid_c_rate[0]:.1f}-{p.valid_c_rate[1]:.1f} C of the cycling data")
+    if efc_max > p.valid_efc_max:
+        r.append(f"{efc_max:.0f} equivalent full cycles exceeds the {p.valid_efc_max:.0f} covered by the cycling data")
+    return r
 
 
 def load_models(art_dir: str = "engine/artifacts") -> Models:
@@ -70,8 +85,8 @@ def simulate_loss(t_days, efc, temp_c: float, soc_pct: float, c_rate: float, mod
         raise ValueError("time and EFC must be >= 0")
     if c_rate <= 0:
         raise ValueError("c_rate must be > 0")
-    extrap = bool(not (VALID_T[0] <= temp_c <= VALID_T[1] and VALID_SOC[0] <= soc_pct <= VALID_SOC[1])
-                  or cyc_extrap(n.max() if len(n) else 0.0, temp_c, c_rate, models.cyc))
+    reasons = extrapolation_reasons(float(n.max()) if len(n) else 0.0, temp_c, soc_pct, c_rate, models)
+    extrap = bool(reasons)
     w = models.widen if extrap else 1.0
     T = temp_c + 273.15
     d = models.cal_draws[draws.cal_idx]                       # (D, 7)
@@ -87,7 +102,7 @@ def simulate_loss(t_days, efc, temp_c: float, soc_pct: float, c_rate: float, mod
     tfac = np.exp(-(p.Eb / R) * (1.0 / T - 1.0 / (p.T0_c + 273.15)))
     cyc = (np.exp(logB) * (c_rate / p.C0) ** c[:, 2] * tfac)[:, None] * n[None, :] ** c[:, 1][:, None]
     tot = np.clip(cal + cyc, 0.0, 1.0)
-    return dict(total=tot, calendar=cal, cycle=cyc, extrapolated=extrap)
+    return dict(total=tot, calendar=cal, cycle=cyc, extrapolated=extrap, extrapolation_reasons=reasons)
 
 
 def predict_retention(t_days, efc, temp_c, soc_pct, c_rate, n_draws: int = 2000, seed: int = 0,
@@ -97,4 +112,5 @@ def predict_retention(t_days, efc, temp_c, soc_pct, c_rate, n_draws: int = 2000,
     sim = simulate_loss(t_days, efc, temp_c, soc_pct, c_rate, models, draws)
     ret = 1.0 - sim["total"]
     lo, mid, hi = np.percentile(ret, list(PCT), axis=0)   # retention percentiles: p10 <= p50 <= p90
-    return dict(p10=lo, p50=mid, p90=hi, extrapolated=sim["extrapolated"], n_draws=draws.n)
+    return dict(p10=lo, p50=mid, p90=hi, extrapolated=sim["extrapolated"],
+                extrapolation_reasons=sim["extrapolation_reasons"], n_draws=draws.n)

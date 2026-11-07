@@ -9,7 +9,7 @@ description = "E-bus battery lifecycle models (course project)"
 requires-python = ">=3.12"
 dependencies = [
   "numpy", "pandas", "pyarrow", "scipy", "scikit-learn",
-  "statsmodels", "openpyxl", "requests",
+  "statsmodels", "openpyxl", "requests", "pydantic",
 ]
 
 [project.optional-dependencies]
