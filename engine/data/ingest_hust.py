@@ -27,6 +27,13 @@ def _one(path: str):
         dd = b - a
         cell.update(dQ_var=float(np.log10(np.var(dd) + 1e-9)), dQ_min=float(np.log10(abs(dd.min()) + 1e-9)),
                     dQ_mean=float(np.mean(dd)), dQ_skew=float(pd.Series(dd).skew()))
+    # effective C-rates from cycle 50 (nominal capacity 1100 mAh): time-weighted mean current of charge / discharge steps
+    x = d["data"][50]
+    dt = x["Time (s)"].diff().fillna(0)
+    is_dis = x.Status.str.contains("discharge")
+    cur = x["Current (mA)"].abs()
+    cell["chg_c_mean"] = float((cur[~is_dis] * dt[~is_dis]).sum() / dt[~is_dis].sum() / 1100)
+    cell["dis_c_mean"] = float((cur[is_dis] * dt[is_dis]).sum() / dt[is_dis].sum() / 1100)
     cyc = pd.DataFrame(dict(cell=key, cycle=dq.index.astype(int), capacity_mah=dq.values.astype(float)))
     return cell, cyc
 

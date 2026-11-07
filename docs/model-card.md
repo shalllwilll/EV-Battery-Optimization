@@ -39,3 +39,22 @@ Acceptance threshold fixed before running: mean absolute retention error below 0
 | Leave one condition out, Naumann | mean 0.012, worst 0.041 | worst case: 60 C, 100 % SOC |
 
 Result: threshold met (0.022 and 0.034). Reading: calendar behaviour transfers between labs to about 2 to 3 points of retention, but this is a small-scale check on 2 labs of storage tests only, and long-horizon extrapolation is worse. Numbers are in `engine/artifacts/metrics.json`.
+
+## Cycle fade model (M2.3)
+
+Form: `loss = exp(logB) * (C/C0)^k * exp(-(Eb/R)(1/T - 1/T0)) * EFC^m`, fitted on the 77 HUST cells (146,122 cycle observations, one temperature, 30 C). EFC is the cycle count.
+
+| Item | Value | Status |
+|---|---|---|
+| m (fade exponent) | 1.91 | fitted, pooled over cells; fade accelerates (outside the 0.5 to 1.5 range I guessed in the playbook, which was wrong for this data) |
+| exp(logB) | 1.4e-7 per EFC^m | fitted mean of per-cell scales |
+| Between-cell spread | sigma(log B) = 0.37 | fitted; about 19 % relative spread in cycle life, matches the naive 17.7 % life error from Phase 0 |
+| k (C-rate exponent) | 0 | NOT claimed. A regression gave k = -0.96 (higher C, less fade), which is the wrong sign for physics: protocols differ in several ways at once, so C-rate is confounded. It is stored as a diagnostic only. |
+| Eb (temperature term) | 30 kJ/mol | ASSUMED mid-range value. HUST has one temperature, so no temperature effect on cycling is measured. Everything that depends on it must be labelled an assumption. |
+
+Fit quality: with each cell's own scale B_i, RMSE 0.010 in fade (shape fits well). Predicting a new cell from the pooled mean scale gives RMSE 0.047, because cells differ a lot. All cells end at about 74 % of first-cycle capacity (end of test criterion), so what differs between cells is the time to get there.
+
+Consequences for the product:
+- Charge-rate what-ifs have no data-backed cycle effect in v1 (the UI must say so). Temperature effects on cycling are assumptions.
+- Validity: 25 to 35 C, effective C-rate 1.79 to 2.82, EFC up to 2,689. Outside this the engine flags `extrapolated`.
+- Calendar and cycle loss are added (assumed; not tested because no dataset has both separated).
