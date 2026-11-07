@@ -93,3 +93,16 @@ Target was 70 to 90 %: met, but read with care. The calendar sigma is calibrated
 Extrapolation: when temperature, SOC, C-rate or cycle count leave the training range, both spreads are multiplied by 1.5. This factor is an ASSUMPTION, not measured.
 
 Not modelled: correlation between calendar and cycle uncertainty (treated as independent), batch-to-batch variation, and any bus-specific effect.
+
+## Replacement-window Monte Carlo (M3.3)
+
+For a scenario the engine simulates 2,000 draws on a monthly grid (up to 20 years), applies the assumed pack penalty (uniform, default 0 to 8 % extra loss), and records when retention first reaches the replacement threshold (default 80 %).
+
+Default 12 m scenario, 200 km/day, 1.2 kWh/km, 100 % charge cap, depot charging overnight (outputs, not validated on buses):
+
+| Zone | Replacement p10 / p50 / p90 (years) |
+|---|---|
+| hot-dry | 2.9 / 4.1 / 5.7 |
+| cool | 4.6 / 6.4 / 8.7 |
+
+**Read this before quoting any date.** The prior is probably pessimistic for buses. Reason: the only cycling data (HUST) were run at about 2 C average with 5 C charging, while a depot-charged bus works at about 0.2 C. The fitted cycle model has no C-rate effect (it could not be identified, see M2.3), so it applies the high-rate fade to a low-rate bus. The engine says so in a warning on every result, together with the list of ways inputs leave the training range (C-rate, cycle count beyond 2,689, cycling temperature below 25 C). The calendar part (about 45 to 60 % of loss at crossing) rests on storage data that do cover these temperatures. These dates will only become trustworthy when low-rate cycling data or vendor data calibrate them.

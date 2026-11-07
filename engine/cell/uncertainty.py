@@ -35,6 +35,7 @@ class Draws:
     cyc_idx: np.ndarray
     z_cal: np.ndarray
     z_cyc: np.ndarray
+    u_pen: np.ndarray
 
     @property
     def n(self) -> int:
@@ -72,7 +73,7 @@ def make_draws(n: int, models: Models, seed: int = 0) -> Draws:
         raise ValueError(f"n_draws must be <= {MAX_DRAWS}")
     rng = np.random.default_rng(seed)
     return Draws(rng.integers(0, len(models.cal_draws), n), rng.integers(0, len(models.cyc_draws), n),
-                 rng.standard_normal(n), rng.standard_normal(n))
+                 rng.standard_normal(n), rng.standard_normal(n), rng.random(n))
 
 
 def simulate_loss(t_days, efc, temp_c: float, soc_pct: float, c_rate: float, models: Models, draws: Draws):
