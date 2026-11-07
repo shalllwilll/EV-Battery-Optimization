@@ -26,3 +26,16 @@ Fit quality: RMSE 0.021 in retention. Residuals reach about 0.07 (see `docs/figu
 - The 75 % SOC node rests on a single lab condition.
 
 Validity range: 0 to 85 C, 0 to 100 % SOC, storage only. Outside it the engine flags `extrapolated`. This model says nothing about cycling.
+
+### Calendar model validation (M2.2)
+
+Acceptance threshold fixed before running: mean absolute retention error below 0.05 inside the overlap of the two labs (24 to 60 C, SOC 50 or 100 %). No parameters were tuned to pass.
+
+| Test | Mean abs. error (retention) | Notes |
+|---|---|---|
+| Fit Stanford, predict Naumann | 0.022 | 6 overlapping conditions, 204 points |
+| Fit Naumann, predict Stanford | 0.034 | 6 conditions, 5,028 points; 0.021 when limited to the 885 days Naumann covers, so error grows when extrapolating in time |
+| Leave one condition out, Stanford | mean 0.026, worst 0.058 | worst case: 85 C, 50 % SOC (edge of the data) |
+| Leave one condition out, Naumann | mean 0.012, worst 0.041 | worst case: 60 C, 100 % SOC |
+
+Result: threshold met (0.022 and 0.034). Reading: calendar behaviour transfers between labs to about 2 to 3 points of retention, but this is a small-scale check on 2 labs of storage tests only, and long-horizon extrapolation is worse. Numbers are in `engine/artifacts/metrics.json`.

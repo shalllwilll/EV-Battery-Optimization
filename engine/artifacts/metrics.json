@@ -1,0 +1,41 @@
+{
+ "calendar_validation": {
+  "cross_lab": {
+   "naumann_to_stanford": {
+    "conditions": 6,
+    "mae_all": 0.03384532979091388,
+    "mae_within_train_horizon": 0.020772979370586125,
+    "n": 5028,
+    "train_horizon_days": 885.0416666666666
+   },
+   "stanford_to_naumann": {
+    "conditions": 6,
+    "mae_all": 0.02235701520437758,
+    "mae_within_train_horizon": 0.02235701520437758,
+    "n": 204,
+    "train_horizon_days": 2840.0
+   }
+  },
+  "loco_naumann": {
+   "max_mae": 0.040537960565565946,
+   "mean_mae": 0.01186864674325005,
+   "n_conditions": 17,
+   "worst": {
+    "soc_pct": 100.0,
+    "temp_c": 60.0
+   }
+  },
+  "loco_stanford": {
+   "max_mae": 0.05821348213369099,
+   "mean_mae": 0.025935757052528804,
+   "n_conditions": 8,
+   "worst": {
+    "soc_pct": 50.0,
+    "temp_c": 85.0
+   }
+  },
+  "overlap": "24.0-60.0 C, SOC (50.0, 100.0)",
+  "passes_threshold": true,
+  "threshold": 0.05
+ }
+}
