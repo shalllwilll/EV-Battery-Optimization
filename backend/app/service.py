@@ -1,0 +1,59 @@
+"""Glue between HTTP and engine: one pure function plus a small thread-safe LRU cache."""
+from __future__ import annotations
+
+import hashlib
+import threading
+from collections import OrderedDict
+
+from backend.app.schemas import PredictionResult, PredictRequest, DISCLAIMER, DriverSplit
+from engine.cell.uncertainty import Models, make_draws
+from engine.decide.cost import cost_per_km
+from engine.decide.range import monthly_range
+from engine.decide.replacement import replacement_window, simulate_scenario
+from engine.labels import L
+
+RANGE_AGES = (0.0, 3.0, 6.0)
+
+
+def run_prediction(req: PredictRequest, models: Models, model_version: str) -> PredictionResult:
+    s = req.scenario
+    draws = make_draws(req.n_draws, models, req.seed)
+    sim = simulate_scenario(s, models, draws)
+    rep = replacement_window(s, models=models, draws=draws)
+    rng = monthly_range(sim, ages_years=tuple(a for a in RANGE_AGES if a <= s.horizon_years), mode=req.range_temperature_mode)
+    cost = cost_per_km(sim, models, draws)
+    cal = float(rep.calendar_share_of_loss.value)
+    split = DriverSplit(calendar_share=L(cal, "fraction", "derived", "share of capacity loss from calendar ageing at crossing"),
+                        cycling_share=L(1.0 - cal, "fraction", "derived", "share from cycling at crossing"))
+    warnings: list[str] = []
+    for w in [DISCLAIMER, *sim.conditions.warnings, *rep.warnings, *rng.warnings, *cost.warnings]:
+        if w not in warnings:
+            warnings.append(w)
+    return PredictionResult(model_version=model_version, scenario=s, conditions=sim.conditions, replacement=rep,
+                            range=rng, cost=cost, driver_split=split, warnings=warnings)
+
+
+class LRUCache:
+    def __init__(self, size: int = 128):
+        self.size, self._d, self._lock = size, OrderedDict(), threading.Lock()
+
+    @staticmethod
+    def key(req: PredictRequest, model_version: str) -> str:
+        return hashlib.sha256((model_version + req.model_dump_json()).encode()).hexdigest()
+
+    def get(self, k):
+        with self._lock:
+            if k in self._d:
+                self._d.move_to_end(k)
+                return self._d[k]
+        return None
+
+    def put(self, k, v):
+        with self._lock:
+            self._d[k] = v
+            self._d.move_to_end(k)
+            while len(self._d) > self.size:
+                self._d.popitem(last=False)
+
+    def __len__(self):
+        return len(self._d)

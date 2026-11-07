@@ -42,7 +42,7 @@ def test_missing_price_documented_choice():
 
 def test_tornado_sorted_and_censoring_warning():
     r = cost_per_km(sim(S(battery_cost_per_kwh_inr=10000)), M, D)
-    sw = [t["swing"] for t in r.tornado]
+    sw = [t.swing.value for t in r.tornado]
     assert sw == sorted(sw, reverse=True) and len(sw) == 3
     light = cost_per_km(sim(S(battery_cost_per_kwh_inr=10000, km_per_day=15, horizon_years=3)))
     assert any("never reach" in w for w in light.warnings)

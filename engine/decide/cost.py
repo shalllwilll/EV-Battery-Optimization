@@ -10,6 +10,14 @@ from engine.decide.replacement import ScenarioSim, simulate_scenario
 from engine.labels import Labelled, L
 
 
+class TornadoBar(BaseModel):
+    input: str
+    low_case: Labelled
+    high_case: Labelled
+    swing: Labelled
+    base: Labelled
+
+
 class CostResult(BaseModel):
     cost_per_km_p10: Labelled | None
     cost_per_km_p50: Labelled | None
@@ -17,7 +25,7 @@ class CostResult(BaseModel):
     battery_cost: Labelled | None
     lifetime_km_p50: Labelled | None
     censored_fraction: Labelled | None
-    tornado: list[dict]
+    tornado: list[TornadoBar]
     warnings: list[str]
 
 
@@ -56,8 +64,9 @@ def cost_per_km(sim: ScenarioSim, models: Models | None = None, draws: Draws | N
              s.model_copy(update=dict(km_per_day=s.km_per_day * 1.2))),
         ):
             a, b = _cost_p50(lo_s, models, draws), _cost_p50(hi_s, models, draws)
-            tornado.append(dict(input=name, low_case=a, high_case=b, swing=abs(b - a), base=base))
-        tornado.sort(key=lambda t: -t["swing"])
+            m = lambda v: L(float(v), "INR/km", "derived", "cost per km p50 with this input moved by +/-20% (threshold +/-0.05)")
+            tornado.append(TornadoBar(input=name, low_case=m(a), high_case=m(b), swing=m(abs(b - a)), base=m(base)))
+        tornado.sort(key=lambda t: -t.swing.value)
     warns = ["Undiscounted: no interest, inflation or residual value. Battery price is a user assumption."]
     if cens > 0:
         warns.append(f"{cens * 100:.0f}% of draws never reach the threshold within the horizon: their life is counted only to the horizon, so cost per km is an upper bound for them.")

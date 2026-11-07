@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app import errors
+from backend.app import errors, routes, service
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
 
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.versions = artifact_versions(st.artifact_dir)     # fails fast with the missing artifact named
     app.state.models = load_models(st.artifact_dir)
     app.state.model_version = hashlib.sha256(json.dumps(app.state.versions, sort_keys=True).encode()).hexdigest()[:12]
+    app.state.cache = service.LRUCache(128)
     yield
 
 
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "mode": "prior", "model_version": request.app.state.model_version,
                 "artifacts": request.app.state.versions}
 
+    app.include_router(routes.router)
     return app
 
 
