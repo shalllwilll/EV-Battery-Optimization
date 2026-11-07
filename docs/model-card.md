@@ -58,3 +58,21 @@ Consequences for the product:
 - Charge-rate what-ifs have no data-backed cycle effect in v1 (the UI must say so). Temperature effects on cycling are assumptions.
 - Validity: 25 to 35 C, effective C-rate 1.79 to 2.82, EFC up to 2,689. Outside this the engine flags `extrapolated`.
 - Calendar and cycle loss are added (assumed; not tested because no dataset has both separated).
+
+## Early-life cycle-life predictor (M2.4)
+
+Task: predict a cell's cycle life from its first 100 cycles. Leave-one-cell-out on 77 HUST cells, target log(life). Selection rule fixed in advance: the simplest model within one bootstrap standard error of the best.
+
+| Model | Mean abs. % error | SE | Within 15 % |
+|---|---|---|---|
+| Mean only (naive) | 17.7 | 1.5 | 48 % |
+| ElasticNet, capacity features (**selected**) | 12.7 | 1.1 | 64 % |
+| ElasticNet + dQ(V), all discharge steps (Phase 0 version) | 13.6 | 1.3 | 57 % |
+| ElasticNet + dQ(V), protocol-consistent discharge_3 step | 12.7 | 1.2 | 65 % |
+| Gradient boosting, capacity features | 13.1 | 1.3 | 64 % |
+
+Improvement of the selected model over the naive one: 5.0 percentage points (bootstrap 95 % interval 2.6 to 7.8), so it is real but modest. The protocol-consistent voltage-curve features tie with the simple model, so the simpler one is kept; gradient boosting is not better.
+
+Features: capacity at cycle 1, capacity change between cycle 10 and 100, fade slope over cycles 10 to 100, minimum capacity in the first 100 cycles. Only cycles up to 100 are used (tested). Coefficients (scaled features): change 10 to 100 = -0.42, slope = +0.43, minimum capacity = +0.20, first-cycle capacity = -0.04. The first two are strongly collinear and nearly cancel, so read them as "the early fade rate matters", not as separate effects.
+
+Limits: 77 cells, one cell type and batch, own split (not comparable with published benchmarks). Refuses input with fewer than 100 cycles.

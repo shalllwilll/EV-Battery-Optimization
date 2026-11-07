@@ -47,5 +47,50 @@
   "rmse_pooled": 0.04700574865890234,
   "rmse_shape": 0.009992002368728135,
   "sigma_logB": 0.36736818083880957
+ },
+ "early_life": {
+  "candidates": [
+   {
+    "mape": 17.682,
+    "model": "mean only",
+    "n_features": 0,
+    "se": 1.541,
+    "within15": 48.052
+   },
+   {
+    "mape": 12.681,
+    "model": "ElasticNet capacity features",
+    "n_features": 4,
+    "se": 1.13,
+    "within15": 63.636
+   },
+   {
+    "mape": 13.606,
+    "model": "ElasticNet + dQ(V) all-discharge (Phase 0)",
+    "n_features": 8,
+    "se": 1.33,
+    "within15": 57.143
+   },
+   {
+    "mape": 12.711,
+    "model": "ElasticNet + dQ(V) discharge_3 step",
+    "n_features": 7,
+    "se": 1.166,
+    "within15": 64.935
+   },
+   {
+    "mape": 13.104,
+    "model": "GradientBoosting capacity features",
+    "n_features": 4,
+    "se": 1.31,
+    "within15": 63.636
+   }
+  ],
+  "improvement_ci95": [
+   2.557267167827879,
+   7.756407413053896
+  ],
+  "improvement_vs_mean_pct_points": 5.000264179286365,
+  "winner": "ElasticNet capacity features"
  }
 }

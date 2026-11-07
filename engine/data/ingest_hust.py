@@ -13,6 +13,21 @@ from engine.data.validate import validate_hust
 from engine.train.phase0_baselines import _qv
 
 
+GRID3 = np.linspace(3.05, 2.0, 50)
+
+
+def _qv_step(df: pd.DataFrame, step: str):
+    x = df[df.Status.str.endswith(step)]
+    if len(x) < 10:
+        return None
+    v = x["Voltage (V)"].values
+    q = np.abs(x["Capacity (mAh)"].values - x["Capacity (mAh)"].values[0])
+    if v.max() < GRID3[0] or v.min() > GRID3[-1]:
+        return None
+    idx = np.argsort(-v)
+    return np.interp(GRID3, v[idx][::-1], q[idx][::-1])
+
+
 def _one(path: str):
     key = os.path.basename(path)[:-4]
     d = load_one(path)[key]
@@ -27,6 +42,12 @@ def _one(path: str):
         dd = b - a
         cell.update(dQ_var=float(np.log10(np.var(dd) + 1e-9)), dQ_min=float(np.log10(abs(dd.min()) + 1e-9)),
                     dQ_mean=float(np.mean(dd)), dQ_skew=float(pd.Series(dd).skew()))
+    # discharge_3 step (common low-rate step): Q(V) difference between cycles 100 and 10, protocol-consistent window
+    q3a, q3b = _qv_step(d["data"][10], "discharge_3"), _qv_step(d["data"][100], "discharge_3")
+    if q3a is not None and q3b is not None:
+        d3 = q3b - q3a
+        cell.update(dQ3_var=float(np.log10(np.var(d3) + 1e-9)), dQ3_min=float(np.log10(abs(d3.min()) + 1e-9)),
+                    dQ3_mean=float(np.mean(d3)))
     # effective C-rates from cycle 50 (nominal capacity 1100 mAh): time-weighted mean current of charge / discharge steps
     x = d["data"][50]
     dt = x["Time (s)"].diff().fillna(0)

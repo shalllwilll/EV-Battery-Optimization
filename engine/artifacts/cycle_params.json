@@ -3007,7 +3007,7 @@
   "note": "unphysical sign (higher C-rate, less fade): confounded with protocol; not used (k=0)",
   "standard_error": 0.37218826707673053
  },
- "data_hash": "24ae5c985d40ec69488c827e31dcf601c3a53d137843b94c0bec51607eaac739",
+ "data_hash": "421c7fe0b6cf1b29f8229199ed9eee6a1f81beac5b4c37dafc73e85a6c4b2f68",
  "model": "loss = exp(logB) * (C/C0)^k * exp(-(Eb/R)(1/T-1/T0)) * EFC^m",
  "n_boot": 500,
  "n_cells": 77,
