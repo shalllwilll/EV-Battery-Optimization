@@ -54,12 +54,12 @@ def simulate_scenario(s: Scenario, models: Models | None = None, draws: Draws | 
     months = np.arange(0, s.horizon_years * 12 + 1, dtype=float)
     t_days = months * DAYS_PER_MONTH
     efc = c.efc_per_day.value * s.operating_days_per_year * t_days / 365.25
-    sim = simulate_loss(t_days, efc, c.effective_temp_c.value, c.mean_soc_pct.value, c.c_rate_eff.value, models, draws)
+    sim = simulate_loss(t_days, efc, c.effective_temp_c.value, c.calendar_equivalent_soc_pct.value, c.c_rate_eff.value, models, draws)
     pen = s.pack_penalty_min + (s.pack_penalty_max - s.pack_penalty_min) * draws.u_pen
     loss = np.clip(sim["total"] * (1.0 + pen)[:, None], 0.0, 1.0)
     ret = 1.0 - loss
     cross = first_crossing(ret, months, s.threshold)
-    reasons = extrapolation_reasons(float(efc.max()), c.effective_temp_c.value, c.mean_soc_pct.value, c.c_rate_eff.value, models)
+    reasons = extrapolation_reasons(float(efc.max()), c.effective_temp_c.value, c.calendar_equivalent_soc_pct.value, c.c_rate_eff.value, models)
     return ScenarioSim(s, c, months, ret, sim["calendar"], sim["cycle"], pen, cross, sim["extrapolated"], reasons)
 
 

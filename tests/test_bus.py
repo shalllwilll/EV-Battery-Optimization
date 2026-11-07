@@ -57,7 +57,7 @@ def test_late_charge_warns():
 def test_every_number_labelled():
     c = translate(Scenario.from_preset("9m"))
     nums = list(walk_numbers(c))
-    assert len(nums) == 12 and all(isinstance(n, Labelled) and n.validated_on_buses is False for n in nums)
+    assert len(nums) == 13 and all(isinstance(n, Labelled) and n.validated_on_buses is False for n in nums)
     assert {n.evidence_level for n in nums} <= {"derived", "assumption"}
     assert all(n.evidence_level != "lab" for n in nums)   # nothing about a bus can be "lab"
 
@@ -83,3 +83,11 @@ def test_bus_c_rate_flagged_as_extrapolation():
     c = translate(s)
     r = extrapolation_reasons(c.efc_per_year.value * 10, c.effective_temp_c.value, c.mean_soc_pct.value, c.c_rate_eff.value, load_models())
     assert any("C-rate" in x for x in r)
+
+
+def test_equivalent_soc_keeps_high_soc_stress():
+    full = translate(Scenario.from_preset("12m", soc_max_pct=100))
+    capped = translate(Scenario.from_preset("12m", soc_max_pct=90))
+    assert full.calendar_equivalent_soc_pct.value > capped.calendar_equivalent_soc_pct.value
+    # a 100 % top-up with long idle must look more stressful than its mean SOC (about 73 %)
+    assert full.calendar_equivalent_soc_pct.value > full.mean_soc_pct.value
