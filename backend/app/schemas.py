@@ -20,6 +20,7 @@ MAX_DRAWS = 5000
 
 class PredictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")
     scenario: Scenario
     n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS, description="Monte Carlo draws; fixed seed makes results repeatable")
     seed: int = Field(default=0, ge=0, le=2**31 - 1)
@@ -46,6 +47,7 @@ class PredictionResult(BaseModel):
 
 class CompareRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")
     scenarios: list[Scenario] = Field(min_length=2, max_length=4, description="first scenario is the base; the rest are variants")
     n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS)
     seed: int = Field(default=0, ge=0, le=2**31 - 1)

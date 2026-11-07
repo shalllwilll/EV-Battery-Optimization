@@ -10,7 +10,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app import errors, reference, routes, service
+from backend.app import errors, routes, service
+from backend.app.limits import BodyLimitMiddleware
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
 
@@ -34,10 +35,6 @@ async def lifespan(app: FastAPI):
     app.state.models = load_models(st.artifact_dir)
     app.state.model_version = hashlib.sha256(json.dumps(app.state.versions, sort_keys=True).encode()).hexdigest()[:12]
     app.state.cache = service.LRUCache(128)
-    app.state.presets = [{**p, "fields": {k: {kk: (vv.model_dump() if vv is not None else None) for kk, vv in f.items()}
-                                           for k, f in p["fields"].items()}} for p in reference.presets()]
-    app.state.zones = reference.zones()
-    app.state.evidence = reference.evidence(st.artifact_dir, app.state.versions, app.state.model_version, app.state.models)
     yield
 
 
@@ -46,29 +43,10 @@ def create_app() -> FastAPI:
     app = FastAPI(title="E-bus battery lifecycle tool", version="0.1.0", lifespan=lifespan,
                   description="Prior mode only: models trained on public lab data, scenario inputs are assumptions, "
                               "nothing is validated on buses.")
+    # CORS is added after the body limit so it is outermost: 413 responses still carry CORS headers.
+    app.add_middleware(BodyLimitMiddleware, max_bytes=st.max_body_bytes)
     app.add_middleware(CORSMiddleware, allow_origins=st.allowed_origins, allow_methods=["GET", "POST", "OPTIONS"],
-                       allow_headers=["Content-Type"])
-
-    @app.middleware("http")
-    async def limit_body(request: Request, call_next):
-        cl = request.headers.get("content-length")
-        if cl is not None and cl.isdigit() and int(cl) > st.max_body_bytes:
-            return JSONResponse(status_code=413, content={"error": {"code": "payload_too_large",
-                                "message": f"Body larger than {st.max_body_bytes} bytes", "fields": []}})
-        if request.method in ("POST", "PUT", "PATCH") and cl is None:
-            total, chunks = 0, []
-            async for chunk in request.stream():
-                total += len(chunk)
-                if total > st.max_body_bytes:
-                    return JSONResponse(status_code=413, content={"error": {"code": "payload_too_large",
-                                        "message": "Body too large", "fields": []}})
-                chunks.append(chunk)
-            body = b"".join(chunks)
-
-            async def receive():
-                return {"type": "http.request", "body": body, "more_body": False}
-            request = Request(request.scope, receive)
-        return await call_next(request)
+                       allow_headers=["Content-Type"], expose_headers=["X-Cache"])
 
     errors.install(app)
 

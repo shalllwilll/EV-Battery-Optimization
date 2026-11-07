@@ -52,6 +52,11 @@ def presets() -> list[dict]:
     return out
 
 
+def presets_json() -> list[dict]:
+    return [{**p, "fields": {k: {kk: (vv.model_dump() if vv is not None else None) for kk, vv in f.items()}
+                             for k, f in p["fields"].items()}} for p in presets()]
+
+
 def zones() -> dict:
     z = _load(ZONES_PATH)
     prov = _load(f"{PROV_DIR}/weather.json")

@@ -93,6 +93,19 @@
   "improvement_vs_mean_pct_points": 5.000264179286365,
   "winner": "ElasticNet capacity features"
  },
+ "evbattery_capacity": {
+  "caveat": "Error against the dataset's own derived capacity label, not against measured ground truth.",
+  "chemistry": "not LFP (cell voltage reaches 4.29 V); method demonstration only",
+  "mileage_only": {
+   "mape": 2.5045450134441696,
+   "within5": 88.96833333333333
+  },
+  "snippet_features": {
+   "mape": 2.297281587306671,
+   "within5": 90.41833333333334
+  },
+  "split": "5-fold, vehicles never shared between train and test"
+ },
  "uncertainty": {
   "calendar": {
    "coverage_condition_mean": 0.731285885999351,

@@ -15,7 +15,18 @@ def _body(code: str, message: str, fields: list[dict] | None = None) -> dict:
     return {"error": {"code": code, "message": message, "fields": fields or []}}
 
 
+class ApiError(Exception):
+    """Client error with a message we wrote ourselves (safe to show)."""
+
+    def __init__(self, status: int, code: str, message: str):
+        self.status, self.code, self.message = status, code, message
+
+
 def install(app: FastAPI) -> None:
+    @app.exception_handler(ApiError)
+    async def _api(_: Request, exc: ApiError):
+        return JSONResponse(status_code=exc.status, content=_body(exc.code, exc.message))
+
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):
         fields = [{"field": ".".join(str(p) for p in e["loc"] if p != "body"), "message": e["msg"]} for e in exc.errors()]
@@ -24,11 +35,6 @@ def install(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def _http(_: Request, exc: HTTPException):
         return JSONResponse(status_code=exc.status_code, content=_body("http_error", str(exc.detail)))
-
-    @app.exception_handler(ValueError)
-    async def _value(_: Request, exc: ValueError):
-        # engine-level validation (for example unsupported what-if) is a client error, message is ours
-        return JSONResponse(status_code=422, content=_body("invalid_input", str(exc)))
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception):

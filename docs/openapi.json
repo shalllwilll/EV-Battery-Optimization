@@ -72,6 +72,12 @@
       "CompareRequest": {
         "additionalProperties": false,
         "properties": {
+          "mode": {
+            "default": "prior",
+            "description": "Only 'prior' exists in v1; anything else gets a 400",
+            "title": "Mode",
+            "type": "string"
+          },
           "n_draws": {
             "default": 2000,
             "maximum": 5000.0,
@@ -370,6 +376,12 @@
       "PredictRequest": {
         "additionalProperties": false,
         "properties": {
+          "mode": {
+            "default": "prior",
+            "description": "Only 'prior' exists in v1; anything else gets a 400",
+            "title": "Mode",
+            "type": "string"
+          },
           "n_draws": {
             "default": 2000,
             "description": "Monte Carlo draws; fixed seed makes results repeatable",

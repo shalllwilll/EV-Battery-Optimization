@@ -75,6 +75,25 @@ def test_cache_hit_returns_identical_body(client):
     assert r3.headers["x-cache"] == "MISS"
 
 
+def test_extrapolation_is_warned(client):
+    j = client.post("/api/v1/predict", json=body(zone="hot_dry", heat_rise_c=20)).json()
+    assert j["replacement"]["extrapolated"] is True and j["replacement"]["extrapolation_reasons"]
+    assert any("outside the range of the training data" in w for w in j["warnings"])
+
+
+def test_cached_call_is_faster(client):
+    b = body(n_draws=5000, seed=21)
+    t = time.time(); client.post("/api/v1/predict", json=b); cold = time.time() - t
+    t = time.time(); r = client.post("/api/v1/predict", json=b); warm = time.time() - t
+    assert r.headers["x-cache"] == "HIT" and warm < cold
+
+
+def test_unsupported_mode_is_400(client):
+    r = client.post("/api/v1/predict", json={**BODY, "mode": "calibrated"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "unsupported_mode"
+    assert "Calibrated" in r.json()["error"]["message"]
+
+
 def test_lru_evicts_oldest():
     c = service.LRUCache(2)
     c.put("a", 1); c.put("b", 2); c.get("a"); c.put("c", 3)
@@ -87,6 +106,7 @@ def test_lru_evicts_oldest():
     ({"zone": "mars"}, "scenario.zone"),
     ({"soc_min_pct": 55, "soc_max_pct": 60}, "scenario"),
     ({"n_draws": 5001}, "n_draws"),
+    ({"n_draws": 10**7}, "n_draws"),
     ({"n_draws": 10}, "n_draws"),
 ])
 def test_invalid_inputs_give_field_level_422(client, over, field):
@@ -142,13 +162,32 @@ def test_concurrent_requests_consistent():
                 results.append((seed, c.post("/api/v1/predict", json=body(seed=seed % 3)).json()["replacement"]["months_p50"]))
             except Exception as e:      # pragma: no cover
                 errs.append(e)
-        ts = [threading.Thread(target=go, args=(i,)) for i in range(12)]
+        ts = [threading.Thread(target=go, args=(i,)) for i in range(20)]
         [t.start() for t in ts]; [t.join() for t in ts]
-    assert not errs and len(results) == 12
+    assert not errs and len(results) == 20
     by = {}
     for seed, v in results:
         by.setdefault(seed % 3, []).append(v)
     assert all(all(x == vs[0] for x in vs) for vs in by.values())
+
+
+def test_value_error_inside_engine_is_500_not_422(monkeypatch):
+    def boom(*a, **k):
+        raise ValueError("internal x")
+    monkeypatch.setattr(service, "run_prediction", boom)
+    with TestClient(create_app(), raise_server_exceptions=False) as c:
+        r = c.post("/api/v1/predict", json=BODY)
+    assert r.status_code == 500 and "internal x" not in r.text
+
+
+def test_engine_failure_is_logged_server_side(monkeypatch, caplog):
+    def boom(*a, **k):
+        raise RuntimeError("secret path /Users/x/model.bin")
+    monkeypatch.setattr(service, "run_prediction", boom)
+    with caplog.at_level("ERROR", logger="ev.api"):
+        with TestClient(create_app(), raise_server_exceptions=False) as c:
+            c.post("/api/v1/predict", json=BODY)
+    assert any("unhandled error" in r.message for r in caplog.records)
 
 
 def test_engine_failure_is_500_without_leak(monkeypatch):

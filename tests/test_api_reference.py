@@ -112,6 +112,33 @@ def test_evidence_comes_from_files(client):
     assert client.get("/api/v1/health").json()["artifacts"] == j["artifacts"]
 
 
+def test_evidence_contains_headline_numbers_from_metrics(client):
+    m = client.get("/api/v1/evidence").json()["metrics"]
+    el = {c["model"]: c["mape"] for c in m["early_life"]["candidates"]}
+    assert el["ElasticNet capacity features"] == pytest.approx(12.7, abs=0.05)          # HUST early-life error
+    assert m["evbattery_capacity"]["snippet_features"]["mape"] == pytest.approx(2.29, abs=0.02)
+    assert m["evbattery_capacity"]["mileage_only"]["mape"] > m["evbattery_capacity"]["snippet_features"]["mape"]
+    assert "not LFP" in m["evbattery_capacity"]["chemistry"]
+
+
+def test_evidence_reflects_changed_metrics_file(tmp_path, monkeypatch):
+    import shutil
+    shutil.copytree("engine/artifacts", tmp_path / "art")
+    monkeypatch.setenv("EV_ARTIFACT_DIR", str(tmp_path / "art"))
+    with TestClient(create_app()) as c:
+        before = c.get("/api/v1/evidence").json()["metrics"]
+        mp = tmp_path / "art" / "metrics.json"
+        data = json.load(open(mp)); data["early_life"]["improvement_vs_mean_pct_points"] = 99.0
+        json.dump(data, open(mp, "w"))
+        after = c.get("/api/v1/evidence").json()["metrics"]
+    assert before != after and after["early_life"]["improvement_vs_mean_pct_points"] == 99.0
+
+
+def test_compare_unsupported_mode_is_400(client):
+    r = client.post("/api/v1/compare", json={"scenarios": [SC, SC], "mode": "calibrated"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "unsupported_mode"
+
+
 # ---- contract
 def test_openapi_file_is_current_and_complete():
     spec = create_app().openapi()
