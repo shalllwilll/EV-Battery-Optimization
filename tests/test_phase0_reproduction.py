@@ -30,7 +30,7 @@ def test_naumann_calendar():
 
 
 def test_evbattery_capacity_baseline():
-    _need("phase0/evb_cap.parquet")
+    _need("engine/data/processed/evb_segments.parquet")
     from engine.train.phase0_baselines import evb_capacity_baseline
     r = evb_capacity_baseline()
     assert 2.1 <= r["segment feats"]["mape"] <= 2.45

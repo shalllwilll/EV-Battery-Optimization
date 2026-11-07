@@ -49,6 +49,15 @@ def main() -> None:
                sha256=sha256("data/naumann_lfp_calendar/DischargeCapacity.xlsx"),
                conditions=int(cal[cal.source == "naumann"].cell.nunique()),
                limitations="Sony/Murata LFP/graphite cells, 29 months, one series per storage condition as published (cell count per series not verified)")
+    if os.path.exists("data/evbattery/ex1"):
+        from engine.data.ingest_evbattery import build_evbattery
+        evb = build_evbattery()
+        evb.to_parquet(f"{PROCESSED}/evb_segments.parquet")
+        write_prov("evbattery", source_url="https://figshare.com/articles/dataset/23301881", licence="CC BY 4.0",
+                   file="data/evbattery/battery_dataset1.tar.gz", sha256=sha256("data/evbattery/battery_dataset1.tar.gz"),
+                   snippets=len(evb), vehicles=int(evb.vehicle.nunique()),
+                   chemistry="NMC-like, NOT LFP (cell voltage up to 4.29 V); undisclosed by authors",
+                   limitations="values perturbed by authors; capacity labels derived, not measured; 1270 s snippets")
     print("built", len(cells), "hust cells,", len(cycles), "cycles,", len(cal), "calendar rows")
 
 

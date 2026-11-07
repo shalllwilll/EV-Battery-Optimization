@@ -96,14 +96,16 @@ def naumann_retention(xlsx: str = "data/naumann_lfp_calendar/DischargeCapacity.x
     return pd.DataFrame(rows, columns=["condition", "retention_pct", "days"])
 
 
-def evb_capacity_baseline(cap_parquet: str = "phase0/evb_cap.parquet", seed: int = 0) -> dict[str, dict[str, float]]:
+def evb_capacity_baseline(table: str = "engine/data/processed/evb_segments.parquet", seed: int = 0,
+                          n_sample: int = 60000) -> dict[str, dict[str, float]]:
     """Vehicle-grouped CV capacity error on per-snippet features (see docs/phase0-report.md 3.2)."""
-    d = pd.read_parquet(cap_parquet)
+    d = pd.read_parquet(table)
+    d = d[(d.capacity > 0) & (d.dsoc >= 5)].sample(n_sample, random_state=seed)
     d = d[np.isfinite(d.ah) & (d.dsoc > 0)].copy()
     d["implied"] = d.ah / (d.dsoc / 100)
-    d["grp"] = d.ds.astype(str) + "_" + d.car.astype(str)
+    d = d.rename(columns={"capacity": "cap"})
     feats = ["mileage", "dsoc", "soc0", "vmean", "v0", "v1", "imean", "dvm", "dvx", "tmean", "tspan", "ah", "implied"]
-    y, g = d.cap.values, d.grp.values
+    y, g = d.cap.values, d.vehicle.values
     out = {}
     for name, fs in [("mileage only", ["mileage"]), ("segment feats", feats)]:
         p = np.zeros(len(d))

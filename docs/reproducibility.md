@@ -15,6 +15,6 @@ Phase 0 numbers asserted by `tests/test_phase0_reproduction.py` (own splits, not
 | Naumann 25 C / 100 % SOC retention after 885 days | 88.9 to 89.1 % |
 | EVBattery vehicle-grouped capacity error, segment features | 2.1 to 2.45 % (reported 2.29 %) |
 
-The EVBattery test reads `phase0/evb_cap.parquet`, a locally generated sample (`phase0/evb_full.py`, `phase0/evb_cap.py`). It is skipped if absent. Milestone 1.3 replaces it with a proper ingest.
+The EVBattery test reads `engine/data/processed/evb_segments.parquet`, built by `scripts/build_data.sh`. It is skipped if absent.
 
 Dataset files are untrusted pickles: they are only read through `engine/data/safe_unpickle.py`, which blocks every class outside an exact numpy/pandas allow-list.
