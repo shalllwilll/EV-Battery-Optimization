@@ -4,12 +4,12 @@ import { useYear } from '../../state/YearContext'
 import { atYear } from '../../lib/format'
 import { band, Grid, path, Tip, X, XAxis, Y, yearAt, G, type Box } from './geometry'
 
-export type HealthProps = { p10: number[]; p50: number[]; p90: number[]; thresholdPct: number; medianYear: number | null; xMax: number; showBand?: boolean; showThreshold?: boolean; label?: string }
+export type HealthProps = { p10: number[]; p50: number[]; p90: number[]; thresholdPct: number; medianYear: number | null; xMax: number; showBand?: boolean; showThreshold?: boolean; label?: string; other?: number[]; otherLabel?: string }
 const H = { w: 700, h: 300 }
 const LO = 30, HI = 100
 
-export function HealthChart({ p10, p50, p90, thresholdPct, medianYear, xMax, showBand = true, showThreshold = true, label }: HealthProps) {
-  const [a10, a50, a90] = useTween([p10, p50, p90])
+export function HealthChart({ p10, p50, p90, thresholdPct, medianYear, xMax, showBand = true, showThreshold = true, label, other, otherLabel = 'Bus B' }: HealthProps) {
+  const [a10, a50, a90, ao] = useTween([p10, p50, p90, other ?? p50])
   const { year, setYear, hover, setHover } = useYear()
   const id = useId().replace(/:/g, '')
   const b: Box = { ...H, xMax }
@@ -30,10 +30,14 @@ export function HealthChart({ p10, p50, p90, thresholdPct, medianYear, xMax, sho
         <path d={path(b, a10, LO, HI)} fill="none" stroke="#FACC15" strokeOpacity=".6" strokeDasharray="3 4" />
       </>}
       <path d={path(b, a50, LO, HI)} fill="none" stroke="#FACC15" strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,.5))' }} />
+      {other && <>
+        <path d={path(b, ao, LO, HI)} fill="none" stroke="#fff" strokeWidth="2.4" strokeDasharray="7 5" strokeLinecap="round" />
+        <text x={X(b, Math.min(xMax, ao.length / 12 - 1 / 12)) - 6} y={Y(b, Math.max(ao[Math.min(ao.length - 1, Math.round(xMax * 12))], LO), LO, HI) - 10} textAnchor="end" style={{ fill: '#fff', fontWeight: 700 }}>{otherLabel}</text>
+      </>}
       {medianYear != null && medianYear <= xMax && <><line x1={X(b, medianYear)} x2={X(b, medianYear)} y1={G.T} y2={H.h - G.B} stroke="#fff" strokeOpacity=".3" strokeDasharray="2 4" /><text x={X(b, medianYear) + 6} y={G.T + 12} style={{ fill: '#fff' }}>median {medianYear.toFixed(1)} y</text></>}
       <line x1={X(b, yr)} x2={X(b, yr)} y1={G.T} y2={H.h - G.B} stroke="rgba(255,255,255,.55)" />
       <circle cx={X(b, yr)} cy={Y(b, Math.max(v, LO), LO, HI)} r="6" fill="#FACC15" stroke="#09090B" strokeWidth="2.5" />
-      {hover != null && <Tip b={b} x={X(b, yr)} y={Y(b, Math.max(v, LO), LO, HI)} lines={[[`Year ${yr.toFixed(1)}`], [`median ${v.toFixed(0)}%`, '#FACC15'], [`likely ${Math.max(atYear(a10, yr), 0).toFixed(0)} to ${atYear(a90, yr).toFixed(0)}%`, '#B4B4BC']]} />}
+      {hover != null && <Tip b={b} x={X(b, yr)} y={Y(b, Math.max(v, LO), LO, HI)} lines={[[`Year ${yr.toFixed(1)}`], [`median ${v.toFixed(0)}%`, '#FACC15'], ...(other ? [[`${otherLabel} ${atYear(ao, yr).toFixed(0)}%`, '#fff'] as [string, string]] : []), [`likely ${Math.max(atYear(a10, yr), 0).toFixed(0)} to ${atYear(a90, yr).toFixed(0)}%`, '#B4B4BC']]} />}
     </svg>
   )
 }

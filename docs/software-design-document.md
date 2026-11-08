@@ -118,4 +118,4 @@ Predict latency under 2 s locally (Monte Carlo vectorised, N=2000); deterministi
 M1 data + weather ingest + provenance; M2 calendar model + cross-lab validation; M3 cycle model + early-life predictor + conformal bands; M4 bus translation + Monte Carlo decisions; M5 API + tests; M6 frontend core (scenario, curve, replacement); M7 3D bus, range, cost, what-if compare; M8 Evidence/Method + calibration notebook; M9 polish, docs, model card, optional Docker deployment.
 
 ## 13. Open items
-Choice of Recharts vs visx (decide at M6); source for temperature effect on range (search at M4; fall back to assumption); optional hosting target.
+Chart library: decided at M6, custom SVG (see `docs/phase-checkpoints.md`); source for temperature effect on range (search at M4; fall back to assumption); optional hosting target.
