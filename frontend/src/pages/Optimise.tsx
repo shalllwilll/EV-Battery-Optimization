@@ -1,14 +1,17 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
+import { lazy, useCallback, useMemo, useState } from 'react'
 import type { PresetResult } from '../api/types'
 import { useCompare, usePredict, useRecommend } from '../api/hooks'
-import { Async, Skeleton } from '../components/Async'
+import { ErrorState, Skeleton } from '../components/Async'
 import { BusBControls } from '../components/BusBControls'
 import { EvidenceBadge } from '../components/EvidenceBadge'
 import { HealthChart } from '../components/charts/HealthChart'
 import { WithTable } from '../components/DataTable'
+import { BusLetter, IconDetails, IconGoals, IconView } from '../components/Icons'
+import { Dock, DockButton, Drawer, DOCK_PX, Immersive, StatStrip, WIDE_QUERY, useWide, type Stat } from '../components/Overlay'
 import { PresetCards } from '../components/PresetCards'
+import { ScenarioPanel } from '../components/ScenarioPanel'
+import { StatusBar } from '../components/StatusBar'
 import { YearScrubber } from '../components/YearScrubber'
-import { Page } from '../components/Workspace'
 import { applyOverrides, diffLevers, hasChanges, lifeChange, newWarnings, sameLevers, signed, stageFor, type LeverKey, type Overrides } from '../lib/busB'
 import { atYear, fmt, inr, num } from '../lib/format'
 import { curves, repYears, xMaxFor } from '../lib/results'
@@ -16,29 +19,31 @@ import { validateScenario } from '../lib/scenario'
 import { useScenario } from '../state/ScenarioContext'
 import { useYear } from '../state/YearContext'
 import type { BusSpec } from '../three/BusStage'
+import { Legend } from '../three/Legend'
+import { PackInspector } from '../three/PackInspector'
+import { ViewPanel } from '../three/ViewPanel'
 import { useViewState } from '../three/viewState'
 
 const BusViewer = lazy(() => import('../three/BusViewer').then((m) => ({ default: m.BusViewer })))
 const Z = 3.1
-
-function Delta({ label, a, b, delta, sub, good }: { label: string; a: string; b: string; delta: string; sub: string; good: 'up' | 'down' | 'none' }) {
-  return (
-    <div className="kcard"><small>{label}</small>
-      <div className="kv">{b}</div>
-      <div className={`ks dl ${good}`}>{delta}</div>
-      <div className="ks">Bus A: {a}. {sub}</div>
-    </div>
-  )
-}
+type Panel = 'a' | 'b' | 'goals' | 'details' | 'view' | null
+const WIDTH: Record<Exclude<Panel, null>, number> = { a: 340, b: 340, goals: 440, details: 460, view: 300 }
+const tone = (x: number, eps: number): 'up' | 'down' | 'none' => (x > eps ? 'up' : x < -eps ? 'down' : 'none')
 
 export default function Optimise() {
-  const { scenario, valid } = useScenario()
+  const { scenario, valid, errors } = useScenario()
   const { year } = useYear()
+  const wide = useWide()
   const [over, setOver] = useState<Overrides>({})
   const [confirm, setConfirm] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [view, api] = useViewState('cmp')
-  const viewerRef = useRef<HTMLDivElement>(null)
+  // On a wide screen the Bus B sliders start open beside the scene; on a phone the scene starts clear.
+  const [panel, setPanel] = useState<Panel>(() => (typeof matchMedia === 'function' && matchMedia(WIDE_QUERY).matches ? 'b' : null))
+  const [routeOpen, setRouteOpen] = useState(false)
+  const shown: Panel = valid ? panel : 'a'
+  const toggle = (p: Exclude<Panel, null>) => setPanel((cur) => (cur === p ? null : p))
+  const close = useCallback(() => setPanel(null), [])
 
   // Bus B = Bus A plus the levers that really differ
   const eff = useMemo(() => diffLevers(scenario, applyOverrides(scenario, over)), [scenario, over])
@@ -53,7 +58,7 @@ export default function Optimise() {
   const rec = useRecommend(valid ? scenario : null)
 
   const setLever = useCallback((k: LeverKey, v: number) => setOver((o) => ({ ...o, [k]: v })), [])
-  const reset = useCallback(() => setOver({}), [])
+  const reset = useCallback(() => { setOver({}); setPickedId(null) }, [])
   // the goal the user chose stays highlighted for as long as Bus B still matches it (several goals can give identical advice)
   const appliedId = useMemo(() => {
     const p = rec.data?.presets.find((x) => x.id === pickedId)
@@ -62,8 +67,7 @@ export default function Optimise() {
   const pick = useCallback((p: PresetResult) => {
     setPickedId(p.id)
     setOver(diffLevers(scenario, stageFor(p, confirm).scenario))
-    const reduced = matchMedia('(prefers-reduced-motion:reduce)').matches
-    viewerRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+    setPanel(null)   // clear the way so the change on Bus B is visible straight away
   }, [scenario, confirm])
 
   // Allowing cooling and energy-use changes while a goal is on Bus B re-applies that goal with the matching stage, so Bus B never silently lags the toggle.
@@ -74,87 +78,137 @@ export default function Optimise() {
   }, [rec.data, appliedId, scenario])
 
   const lengthM = scenario.archetype === '9m' ? 9 : 12
+  const pa = valid ? predA.data : undefined
+  const f = rec.data?.feasibility
+  const goalLabel = rec.data?.presets.find((x) => x.id === appliedId)?.title ?? null
+
+  // everything derived from the model, only once Bus A has results
+  let stats: Stat[] = [], busy = false, heads: string[] = [], tight = false, tightText = ''
+  let buses: BusSpec[] = [], cA = null as ReturnType<typeof curves> | null, cB = cA, xMax = 8, y = 0, r: ReturnType<typeof repYears> = [null, null, null]
+  let hA = 0, hB = 0, d: NonNullable<typeof cmp.data>['deltas'][number] | null = null
+  const line = scenario.threshold * 100
+  if (pa) {
+    const usingB = run && !!cmp.data && !!predB.data
+    busy = run && !usingB
+    const rA = usingB ? cmp.data!.replacements[0] : pa.replacement, rB = usingB ? cmp.data!.replacements[1] : pa.replacement
+    const pb = usingB ? predB.data! : pa
+    cA = curves(rA); cB = curves(rB); xMax = xMaxFor(pa); y = Math.min(year, xMax)
+    hA = atYear(cA.p50, y); hB = atYear(cB.p50, y)
+    const mB = num(rB.months_p50)
+    d = usingB ? cmp.data!.deltas[0] : null
+    const costA = num(pa.cost.cost_per_km_p50), costB = num(pb.cost.cost_per_km_p50)
+    const rngA = (num(pa.range.new_pack_range_km) ?? 0) * scenario.threshold, rngB = (num(pb.range.new_pack_range_km) ?? 0) * scenario.threshold
+    const need = f ? (f.base_passes ? num(f.required_range_km) : num(f.base_range_at_replacement_km)) : null
+    tight = usingB && need != null && rngB < need - 0.5
+    const life = d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0) : null
+    r = repYears(rA)
+    heads = usingB ? newWarnings(pa.conditions.warnings, pb.conditions.warnings) : []
+    tightText = f?.base_passes
+      ? `When the pack is due for replacement Bus B could drive about ${fmt(rngB)} km on a charge, but your route needs ${fmt(need)} km (route plus a 20 % reserve). Raise the charge cap or shorten the route before using this setting.`
+      : `Bus A is already below the reserve on this route, so presets are held to Bus A's own range (${fmt(need)} km). Bus B drops below that, at about ${fmt(rngB)} km.`
+    buses = [{ key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z }, { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false }]
+    const dPts = hB - hA, same = 'Same as Bus A', none = 'Change Bus B to compare'
+    stats = [
+      { label: `Health, year ${y.toFixed(1)}`, value: fmt(hB, 1), unit: '%', sub: changed ? (Math.abs(dPts) < 0.05 ? same : `${signed(dPts, 1)} points`) : none, tone: changed ? tone(dPts, 0.05) : 'none' },
+      { label: 'Replace around', value: mB == null ? '–' : fmt(mB / 12, 1), unit: 'years', sub: life ? life.headline : (changed ? same : none), tone: d ? tone(num(d.months_p50) ?? 0, 0.05) : 'none' },
+      { label: 'Cost per km', value: costB == null ? '–' : inr(costB, 2), sub: costA == null || costB == null ? 'Enter a battery price' : !changed ? none : Math.abs(costB - costA) < 0.005 ? same : `${costB < costA ? '−' : '+'}₹${Math.abs(costB - costA).toFixed(2)} per km`, tone: costA != null && costB != null ? tone(costA - costB, 0.005) : 'none' },
+      { label: 'Range at replacement', value: fmt(rngB), unit: 'km', sub: !changed ? none : tight ? 'Below the reserve' : Math.abs(rngB - rngA) < 0.5 ? same : signed(rngB - rngA, 0, ' km'), tone: tight ? 'down' : tone(rngB - rngA, 0.5) },
+    ]
+  }
+  const rows = cA && cB ? [{ label: 'Bus A', p10: atYear(cA.p10, y), p50: hA, p90: atYear(cA.p90, y) }, { label: 'Bus B', p10: atYear(cB.p10, y), p50: hB, p90: atYear(cB.p90, y) }] : []
+  const inset = wide && shown ? DOCK_PX + WIDTH[shown] : 0
+
+  const stage = pa
+    ? <BusViewer buses={buses} lengthM={lengthM} linePct={line} view={view} api={api} insetLeft={inset}
+        ariaLabel={`3D comparison of two ${lengthM} metre electric buses. Bus A battery health ${fmt(hA, 0)} percent, Bus B ${fmt(hB, 0)} percent at year ${y.toFixed(1)}`} />
+    : <div className="skel full" aria-busy="true" aria-label="Loading" />
+
+  const routeSentence = f && (
+    <div className={`route${f.base_passes ? '' : ' warn'}`} role="note">
+      <p>{f.plain}</p>
+      <p className="note">{f.rule_applied}</p>
+    </div>
+  )
+
   return (
-    <Page title="Compare two buses" intro="Bus A is your bus as it runs today. Bus B is the same bus with changes you choose. Both run through the same model on the same simulated packs, so the gap you see is the effect of your changes, not noise.">
-      <Async q={predA} h={500}>{(pa) => {
-        const usingB = run && !!cmp.data && !!predB.data
-        const waiting = run && !usingB
-        const rA = usingB ? cmp.data!.replacements[0] : pa.replacement, rB = usingB ? cmp.data!.replacements[1] : pa.replacement
-        const pb = usingB ? predB.data! : pa
-        const cA = curves(rA), cB = curves(rB), xMax = xMaxFor(pa), y = Math.min(year, xMax)
-        const hA = atYear(cA.p50, y), hB = atYear(cB.p50, y), line = scenario.threshold * 100
-        const mA = num(rA.months_p50), mB = num(rB.months_p50), d = usingB ? cmp.data!.deltas[0] : null
-        const costA = num(pa.cost.cost_per_km_p50), costB = num(pb.cost.cost_per_km_p50)
-        const rngA = (num(pa.range.new_pack_range_km) ?? 0) * scenario.threshold, rngB = (num(pb.range.new_pack_range_km) ?? 0) * scenario.threshold
-        const f = rec.data?.feasibility
-        const need = f ? (f.base_passes ? num(f.required_range_km) : num(f.base_range_at_replacement_km)) : null
-        const tight = usingB && need != null && rngB < need - 0.5
-        const life = d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0) : null
-        const buses: BusSpec[] = [{ key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z }, { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false }]
-        const r = repYears(rA)
-        const heads = usingB ? newWarnings(pa.conditions.warnings, pb.conditions.warnings) : []
-        const dPts = hB - hA
-        return (
-          <div className="stack">
-            {f && (
-              <div className={`card feas${f.base_passes ? '' : ' warn'}`} role="note">
-                <div className="hd"><h3>{f.base_passes ? 'Your route check' : 'Your route is already tight on range'}</h3><EvidenceBadge level="derived" /></div>
-                <p className="plainbig">{f.plain}</p>
-                <div className="note">{f.rule_applied}</div>
-              </div>
+    <Immersive stage={stage}>
+      <div className="imm-top">
+        <div className="imm-tl">
+          <StatusBar compact>
+            {f && !f.base_passes && (
+              <span style={{ position: 'relative' }}>
+                <button className="chip w" aria-expanded={routeOpen} onClick={() => setRouteOpen((o) => !o)}><i />Route already tight on range ▾</button>
+                {routeOpen && <div className="pop" style={{ top: 'calc(100% + 8px)', left: 0, width: 340 }} role="dialog"><b style={{ fontFamily: 'var(--head)' }}>Your route is already tight on range</b><p className="note">{f.plain}</p></div>}
+              </span>
             )}
+          </StatusBar>
+          <Dock>
+            <DockButton label="Bus A" active={shown === 'a'} onClick={() => toggle('a')}><BusLetter l="A" /></DockButton>
+            <DockButton label="Bus B" active={shown === 'b'} onClick={() => toggle('b')}><BusLetter l="B" /></DockButton>
+            <DockButton label="Goals" active={shown === 'goals'} onClick={() => toggle('goals')}><IconGoals /></DockButton>
+            <DockButton label="Details" active={shown === 'details'} onClick={() => toggle('details')}><IconDetails /></DockButton>
+            <DockButton label="View" active={shown === 'view'} onClick={() => toggle('view')}><IconView /></DockButton>
+          </Dock>
+        </div>
+        <div className="imm-tr">
+          {pa && <StatStrip title="Bus B" stats={stats} busy={busy} />}
+          {heads.length > 0 && <div className="errbox" role="alert"><b>Heads-up for Bus B</b>{heads.map((h) => <p key={h}>{h}</p>)}</div>}
+          {tight && <div className="errbox" role="alert"><b>Bus B gives up too much range</b><p>{tightText}</p></div>}
+          <PackInspector selected={view.selected} rows={rows} year={y} isolate={view.isolate} onIsolate={api.toggleIsolate} onClose={() => api.select(null)} />
+        </div>
+      </div>
 
-            <div className="cmpgrid" ref={viewerRef}>
-              {rec.data
-                ? <BusBControls a={scenario} over={eff} setLever={setLever} reset={reset} presets={rec.data.presets} appliedId={appliedId} onPick={pick} includeConfirm={confirm} setIncludeConfirm={toggleConfirm} />
-                : <div className="card bctl"><h3>Bus B settings</h3>{rec.error ? <p className="note">The goal presets could not be loaded. You can still use the sliders after they load, or try again.</p> : <Skeleton h={300} />}</div>}
-              <div className="cmpmain">
-                <div className="kstrip" aria-busy={waiting} data-waiting={waiting}>
-                  <Delta label={`Health at year ${y.toFixed(1)}`} b={`${fmt(hB, 1)}%`} a={`${fmt(hA, 1)}%`} delta={changed ? `${signed(dPts, 1)} points` : 'No changes yet'} sub="Median pack." good={dPts > 0.05 ? 'up' : dPts < -0.05 ? 'down' : 'none'} />
-                  <Delta label="Replace around" b={mB == null ? 'beyond forecast' : `${fmt(mB / 12, 1)} years`} a={mA == null ? 'beyond forecast' : `${fmt(mA / 12, 1)} years`} delta={life ? life.headline : 'No changes yet'} sub={d ? `${life!.range}. Bus B lasts longer in ${fmt((num(d.prob_variant_later) ?? 0) * 100)}% of simulated packs.` : 'Move a slider or pick a goal.'} good={d ? ((num(d.months_p50) ?? 0) > 0.05 ? 'up' : (num(d.months_p50) ?? 0) < -0.05 ? 'down' : 'none') : 'none'} />
-                  <Delta label="Battery cost per km" b={inr(costB, 2)} a={inr(costA, 2)} delta={costA == null || costB == null || !changed ? (costA == null ? 'Enter a battery price' : 'No changes yet') : (Math.abs(costB - costA) < 0.005 ? 'No change' : `${costB < costA ? '−' : '+'}₹${Math.abs(costB - costA).toFixed(2)} per km`)} sub="Median." good={costA != null && costB != null ? (costB < costA - 0.005 ? 'up' : costB > costA + 0.005 ? 'down' : 'none') : 'none'} />
-                  <Delta label="Range when replaced" b={`${fmt(rngB)} km`} a={`${fmt(rngA)} km`} delta={changed ? (Math.abs(rngB - rngA) < 0.5 ? 'Same' : signed(rngB - rngA, 0, ' km')) : 'No changes yet'} sub={tight ? (f?.base_passes ? 'Below your route plus 20 % reserve.' : 'Less than Bus A has.') : 'On a full charge.'} good={tight ? 'down' : rngB > rngA + 0.5 ? 'up' : rngB < rngA - 0.5 ? 'down' : 'none'} />
-                </div>
-                {heads.length > 0 && <div className="errbox" role="alert"><b>Heads-up for Bus B</b>{heads.map((h) => <p key={h}>{h}</p>)}</div>}
-                {tight && <div className="errbox" role="alert"><b>Bus B gives up too much range</b><p>{f?.base_passes ? `When the pack is due for replacement Bus B could drive about ${fmt(rngB)} km on a charge, but your route needs ${fmt(need)} km (route plus a 20 % reserve). Raise the charge cap or shorten the route before using this setting.` : `Bus A is already below the reserve on this route, so presets are held to Bus A's own range (${fmt(need)} km). Bus B drops below that, at about ${fmt(rngB)} km.`}</p></div>}
-                <div className="card" style={{ padding: 16 }}>
-                  <Suspense fallback={<Skeleton h={520} />}>
-                    <BusViewer buses={buses} lengthM={lengthM} linePct={line} view={view} api={api} year={y} height={520} compare
-                      rows={[{ label: 'Bus A', p10: atYear(cA.p10, y), p50: hA, p90: atYear(cA.p90, y) }, { label: 'Bus B', p10: atYear(cB.p10, y), p50: hB, p90: atYear(cB.p90, y) }]}
-                      ariaLabel={`3D comparison of two ${lengthM} metre electric buses. Bus A battery health ${fmt(hA, 0)} percent, Bus B ${fmt(hB, 0)} percent at year ${y.toFixed(1)}`} />
-                  </Suspense>
-                </div>
-                <div style={{ marginTop: 16 }}><YearScrubber p10={cA.p10} p50={cA.p50} p90={cA.p90} thresholdPct={line} xMax={xMax} win={[r[0], r[2]]} /></div>
-              </div>
-            </div>
-
-            <div className="bento">
-              <div className="card c7">
-                <div className="hd"><div><h3>Health over time, Bus A and Bus B</h3><div className="sub">Yellow line and band: Bus A. White dashed line: Bus B.</div></div><EvidenceBadge level="derived" /></div>
-                <WithTable chart={<HealthChart {...cA} thresholdPct={line} medianYear={r[1]} xMax={xMax} other={changed ? cB.p50 : undefined} label="Battery health of Bus A with its likely range, and the median health of Bus B" />}
-                  head={['Year', 'Bus A median %', 'Bus B median %']}
-                  rows={Array.from({ length: Math.round(xMax) + 1 }, (_, i) => [i, fmt(cA.p50[i * 12]), fmt(cB.p50[i * 12])])} />
-              </div>
-              <div className="card c5">
-                <h3>What we did not change, and why</h3>
-                <div className="sub">Levers the search left alone</div>
-                {rec.data ? <ul className="notused">{rec.data.not_used.map((n) => <li key={n.lever}><b>{n.lever}</b><span>{n.reason}</span></li>)}</ul> : <Skeleton h={160} />}
-              </div>
-            </div>
-
-            <section aria-labelledby="pre-h">
-              <div className="sechd"><h2 id="pre-h">Suggested ways to run Bus A</h2><p>Each goal is a search over charge cap and charging start time (and, if you allow it, cooling and energy use) that keeps the route possible. They are options to test. The model cannot know whether they will be followed.</p></div>
-              <Async q={rec} h={320}>{(rr) => <>
-                <PresetCards rec={rr} includeConfirm={confirm} appliedId={appliedId} onTry={pick} />
-                <div className="card" style={{ marginTop: 16 }}>
-                  {rr.notes.map((n) => <p className="note" key={n}>{n}</p>)}
-                  {rr.warnings.map((w) => <p className="note" key={w}>{w}</p>)}
-                </div>
-              </>}</Async>
+      <Drawer open={shown === 'a'} title="Bus A · your scenario" width={WIDTH.a} onClose={close}>
+        {!valid && <p className="note" role="alert">Fix {Object.keys(errors).length} input{Object.keys(errors).length > 1 ? 's' : ''} to run the model: {Object.keys(errors).join(', ')}.</p>}
+        <ScenarioPanel drawer />
+      </Drawer>
+      <Drawer open={shown === 'b'} title="Bus B · your changes" width={WIDTH.b} onClose={close}>
+        <BusBControls a={scenario} over={eff} setLever={setLever} reset={reset} goalLabel={goalLabel} onOpenGoals={() => setPanel('goals')} />
+      </Drawer>
+      <Drawer open={shown === 'goals'} title="Pick a goal" width={WIDTH.goals} onClose={close}>
+        {routeSentence}
+        <label className="switch"><input type="checkbox" checked={confirm} onChange={(e) => toggleConfirm(e.target.checked)} /><span>Include changes that need your confirmation (cooling, energy use)</span></label>
+        {rec.data
+          ? <>
+              <PresetCards rec={rec.data} includeConfirm={confirm} appliedId={appliedId} onTry={pick} />
+              {[...rec.data.notes, ...rec.data.warnings].map((n) => <p className="note" key={n}>{n}</p>)}
+            </>
+          : rec.error ? <ErrorState error={rec.error} onRetry={() => rec.refetch()} /> : <Skeleton h={260} />}
+      </Drawer>
+      <Drawer open={shown === 'details'} title="Details" width={WIDTH.details} onClose={close}>
+        {cA && cB ? (
+          <div className="dd">
+            <section>
+              <h3>Health over time</h3>
+              <p className="sub">{d ? `Bus B lasts longer in ${fmt((num(d.prob_variant_later) ?? 0) * 100)}% of simulated packs.` : 'Change Bus B to see how it compares.'} Yellow line and band: Bus A. White dashed line: Bus B.</p>
+              <EvidenceBadge level="derived" />
+              <WithTable chart={<HealthChart {...cA} thresholdPct={line} medianYear={r[1]} xMax={xMax} other={changed ? cB.p50 : undefined} label="Battery health of Bus A with its likely range, and the median health of Bus B" />}
+                head={['Year', 'Bus A median %', 'Bus B median %']}
+                rows={Array.from({ length: Math.round(xMax) + 1 }, (_, i) => [i, fmt(cA!.p50[i * 12]), fmt(cB!.p50[i * 12])])} />
+            </section>
+            <section>
+              <h3>What we did not change, and why</h3>
+              <p className="sub">Levers the search left alone</p>
+              {rec.data ? <ul className="notused">{rec.data.not_used.map((n) => <li key={n.lever}><b>{n.lever}</b><span>{n.reason}</span></li>)}</ul> : <Skeleton h={120} />}
             </section>
           </div>
-        )
-      }}</Async>
-    </Page>
+        ) : <Skeleton h={200} />}
+      </Drawer>
+      <Drawer open={shown === 'view'} title="View" width={WIDTH.view} onClose={close}>
+        <ViewPanel view={view} api={api} compare />
+      </Drawer>
+
+      {valid && !pa && predA.error != null && <div className="imm-center"><ErrorState error={predA.error} onRetry={() => predA.refetch()} /></div>}
+
+      {pa && cA && (
+        <div className="imm-bottom">
+          {!view.selected && <p className="imm-hint">Click a battery pack for its health · drag to turn · scroll to zoom</p>}
+          <div className="imm-row">
+            <YearScrubber p10={cA.p10} p50={cA.p50} p90={cA.p90} thresholdPct={line} xMax={xMax} win={[r[0], r[2]]} />
+            <Legend linePct={line} />
+          </div>
+        </div>
+      )}
+    </Immersive>
   )
 }

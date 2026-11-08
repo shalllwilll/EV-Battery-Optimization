@@ -71,3 +71,12 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - Phone layout for the 3D view: toolbar rows scroll sideways, shorter stage, inspector as a bottom sheet, camera backs off on narrow screens, legend inside the canvas.
 - Browser surfaces themed (scrollbars, caret), balanced headings, larger touch targets on coarse pointers, and the overshooting "spring" easing replaced with exponential ease-out (design detector: clean).
 - Removed at the user's request (follow-up commit): the small section label above each page heading; the top bar already shows the current page.
+
+## Phase 6.5: Full-screen 3D pages (`cp-6.5`)
+
+- Overview and Optimise are now full-viewport 3D scenes. Everything else floats over the scene: the two honesty chips and a vertical dock of panel buttons at top left, a key-number strip at top right, the year scrubber and colour legend at the bottom.
+- Settings moved into drawers opened from the dock (Bus A, Bus B, Goals, Details, View) so the page starts uncluttered. Opening a drawer slides the 3D picture sideways so the bus stays centred in the free space; adopting a goal closes the drawer so the change on Bus B is visible at once.
+- Optimise: the route-check sentence sits in the Goals drawer (and as an orange chip when the route is already tight); the health chart and the "what we did not change" list moved into Details.
+- Phones: drawers become bottom sheets, the dock is a single row, the stat strip scrolls sideways, non-essential 3D labels are hidden.
+- Removed the old card grid, toolbar, per-page intro text and footer on these two pages. The other pages are unchanged.
+- Tests rewritten to open the drawers (84 frontend tests pass). Design detector: clean.

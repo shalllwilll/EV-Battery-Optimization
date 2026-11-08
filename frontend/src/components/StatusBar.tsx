@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useHealth } from '../api/hooks'
 import { useCurrent } from '../state/useCurrent'
 import { ZONE_LABELS } from '../lib/scenario'
 
 /** Always visible: the two honesty chips, service status, the scenario in one line, and the outside-lab-data warning when it applies. */
-export function StatusBar() {
+export function StatusBar({ compact, children }: { compact?: boolean; children?: ReactNode }) {
   const h = useHealth()
   const { scenario, q } = useCurrent()
   const [open, setOpen] = useState(false)
   const ex = q.data?.replacement.extrapolated ? q.data.replacement.extrapolation_reasons : null
   return (
-    <div className="status" aria-label="Model status">
+    <div className={`status${compact ? ' compact' : ''}`} aria-label="Model status">
       <span className="chip"><i />Prior mode · no vendor data</span>
       <span className="chip w"><i />Not yet validated on buses</span>
       {ex && <span style={{ position: 'relative' }}>
@@ -21,10 +21,11 @@ export function StatusBar() {
           <p className="note">The likely range is widened by an assumed factor. The cycling tests were fast, so a slow-charging bus is probably treated as too harsh and replacement shown too early.</p>
         </div>}
       </span>}
+      {children}
       {h.isError ? <button className="chip bad" onClick={() => h.refetch()} title="Click to retry"><i />Service unreachable · retry</button>
-        : h.data ? <span className="chip" title={`model ${h.data.model_version}`}><i />Service online</span> : <span className="chip pulse"><i />Connecting…</span>}
-      <span className="grow" />
-      <span className="sum"><b>{scenario.archetype === '12m' ? '12 m' : '9 m'}</b> · {ZONE_LABELS[scenario.zone]} · <b>{scenario.km_per_day}</b> km/day · <b>{scenario.soc_max_pct}%</b> cap</span>
+        : h.data ? (compact ? null : <span className="chip" title={`model ${h.data.model_version}`}><i />Service online</span>) : <span className="chip pulse"><i />Connecting…</span>}
+      {!compact && <span className="grow" />}
+      {!compact && <span className="sum"><b>{scenario.archetype === '12m' ? '12 m' : '9 m'}</b> · {ZONE_LABELS[scenario.zone]} · <b>{scenario.km_per_day}</b> km/day · <b>{scenario.soc_max_pct}%</b> cap</span>}
     </div>
   )
 }

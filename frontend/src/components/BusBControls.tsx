@@ -1,26 +1,26 @@
 import { useId, type CSSProperties } from 'react'
-import type { PresetResult, Scenario } from '../api/types'
+import type { Scenario } from '../api/types'
 import { hasChanges, sliderSpecs, type LeverKey, type Overrides } from '../lib/busB'
 
 type Props = {
   a: Scenario; over: Overrides
   setLever: (k: LeverKey, v: number) => void; reset: () => void
-  presets: PresetResult[]; appliedId: string | null; onPick: (p: PresetResult) => void
-  includeConfirm: boolean; setIncludeConfirm: (b: boolean) => void
+  goalLabel: string | null; onOpenGoals: () => void
 }
 
-export function BusBControls({ a, over, setLever, reset, presets, appliedId, onPick, includeConfirm, setIncludeConfirm }: Props) {
+/** Contents of the Bus B drawer: a few sliders, nothing else. Goals live in their own drawer. */
+export function BusBControls({ a, over, setLever, reset, goalLabel, onOpenGoals }: Props) {
   const uid = useId()
   const specs = sliderSpecs(a)
   return (
-    <div className="card bctl">
-      <div className="hd"><h3>Bus B settings</h3><button className="btn sm" onClick={reset} disabled={!hasChanges(over)}>Same as Bus A</button></div>
-      <div className="sub">Bus B is a copy of Bus A with only the changes you make here. Drag a slider and the model re-runs.</div>
-      <div className="strip" role="group" aria-label="Start from a goal">
-        <span>Start from a goal</span>
-        <div>{presets.map((p) => <button key={p.id} className="vbtn" aria-pressed={appliedId === p.id} onClick={() => onPick(p)} title={p.goal}>{p.title}</button>)}</div>
+    <div className="bb">
+      <div className="bb-top">
+        <p>Bus B is a copy of Bus A with only the changes you make here. Drag a slider and the model re-runs.</p>
+        <div className="row">
+          <button className="btn sm" onClick={onOpenGoals}>{goalLabel ? `Goal: ${goalLabel}` : 'Pick a goal'}</button>
+          <button className="btn sm" onClick={reset} disabled={!hasChanges(over)}>Same as Bus A</button>
+        </div>
       </div>
-      <label className="switch"><input type="checkbox" checked={includeConfirm} onChange={(e) => setIncludeConfirm(e.target.checked)} /><span>Include changes that need your confirmation (cooling, energy use)</span></label>
       {specs.map((sp) => {
         const aVal = a[sp.key] as number, val = (over[sp.key] ?? aVal) as number, changed = over[sp.key] != null
         return (

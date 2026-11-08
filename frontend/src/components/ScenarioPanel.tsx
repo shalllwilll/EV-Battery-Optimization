@@ -8,7 +8,7 @@ import { toast } from './Toast'
 import { CsvImport } from './CsvImport'
 import { useThumb } from '../lib/useThumb'
 
-export function ScenarioPanel() {
+export function ScenarioPanel({ drawer }: { drawer?: boolean }) {
   const s = useScenario()
   const zones = useZones()
   const p = usePredict(s.valid ? s.scenario : null)
@@ -24,9 +24,9 @@ export function ScenarioPanel() {
   }
   return (
     <>
-      <button className="scen-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}><span>Scenario</span><span style={{ fontSize: 13, color: 'var(--t2)', fontFamily: 'var(--body)' }}>{s.scenario.archetype} · {ZONE_LABELS[s.scenario.zone]} · {s.scenario.km_per_day} km</span></button>
-      <aside className={`scen${open ? ' open' : ''}`} aria-label="Scenario inputs">
-        <header><h2>Scenario</h2><span className="tag assumption">Bus A · assumptions</span></header>
+      {!drawer && <button className="scen-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}><span>Scenario</span><span style={{ fontSize: 13, color: 'var(--t2)', fontFamily: 'var(--body)' }}>{s.scenario.archetype} · {ZONE_LABELS[s.scenario.zone]} · {s.scenario.km_per_day} km</span></button>}
+      <aside className={`scen${open ? ' open' : ''}${drawer ? ' in-drawer' : ''}`} aria-label="Scenario inputs">
+        {!drawer && <header><h2>Scenario</h2><span className="tag assumption">Bus A · assumptions</span></header>}
         {s.notice && <div className="notice" role="status" style={{ margin: '10px 0' }}><span>{s.notice}</span><button className="btn sm" onClick={s.dismissNotice}>OK</button></div>}
         <div className="grp"><h3>Bus</h3>
           <div className="fld"><div className="l"><span id="bt">Bus type</span></div>

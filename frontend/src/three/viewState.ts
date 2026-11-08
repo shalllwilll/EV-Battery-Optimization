@@ -10,11 +10,11 @@ export const LAYER_LABELS: { key: LayerKey; label: string; hotkey: string }[] = 
   { key: 'labels', label: 'Labels', hotkey: 'L' }, { key: 'dims', label: 'Length', hotkey: 'D' }, { key: 'flow', label: 'Charging flow', hotkey: 'F' }, { key: 'scan', label: 'Scan', hotkey: 'X' },
 ]
 export const CAMS: Record<CamId, { label: string; pos: [number, number, number]; target: [number, number, number] }> = {
-  iso: { label: 'Angle', pos: [9.5, 6.2, 10.5], target: [0, 1.6, 0] },
+  iso: { label: 'Angle', pos: [12.4, 8, 13.8], target: [0, 2.1, 0] },
   side: { label: 'Side', pos: [0, 2.4, 16], target: [0, 1.8, 0] },
   top: { label: 'Top', pos: [0.01, 17, 0.01], target: [0, 0, 0] },
   pack: { label: 'Packs', pos: [5.2, 5.4, 6.4], target: [0.5, 1.8, 0] },
-  cmp: { label: 'Compare', pos: [2, 20, 16.5], target: [0, 0, 0.3] },
+  cmp: { label: 'Compare', pos: [2.5, 25, 20.6], target: [0, 0, -0.8] },
 }
 export const CAM_ORDER: CamId[] = ['iso', 'side', 'top', 'pack', 'cmp']
 

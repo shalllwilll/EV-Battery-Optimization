@@ -16,7 +16,7 @@ function Tiles({ st }: { st: Stage }) {
 
 function Card({ p, stage, dup, applied, onTry }: { p: PresetResult; stage: Stage; dup: PresetResult | null; applied: boolean; onTry: () => void }) {
   return (
-    <article className={`card pcard${applied ? ' on' : ''}${dup ? ' dup' : ''}`}>
+    <article className={`pcard${applied ? ' on' : ''}${dup ? ' dup' : ''}`}>
       <div className="hd"><div><h3>{p.title}</h3><div className="sub">{p.goal}</div></div>{applied && <span className="tag lab">Shown on Bus B</span>}</div>
       {dup ? <p className="psum">The search found the same best option as <b>{dup.title}</b>, so the advice is identical.</p> : (
         <>
@@ -42,7 +42,7 @@ function Card({ p, stage, dup, applied, onTry }: { p: PresetResult; stage: Stage
 
 export function PresetCards({ rec, includeConfirm, appliedId, onTry }: { rec: RecommendResponse; includeConfirm: boolean; appliedId: string | null; onTry: (p: PresetResult) => void }) {
   return (
-    <div className="pgrid">
+    <div className="pstack">
       {rec.presets.map((p) => <Card key={p.id} p={p} stage={stageFor(p, includeConfirm)} dup={duplicateOf(p, rec.presets, includeConfirm)} applied={appliedId === p.id} onTry={() => onTry(p)} />)}
     </div>
   )

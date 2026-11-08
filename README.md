@@ -45,7 +45,7 @@ npm run lint && npm run typecheck && npm test -- --run && npm run build
 npm run gen:api                                # regenerate API types and form limits after docs/openapi.json changes
 ```
 
-Pages: **Overview** (3D bus with battery packs coloured by projected health, year scrubber), **Health**, **Replacement**, **Range**, **Cost**, **Optimise** (two buses in 3D; Bus B is Bus A with changes you choose, plus goal presets from `/recommend`), **Evidence**.
+Pages: **Overview** (full-screen 3D bus with battery packs coloured by projected health; year scrubber; scenario and view settings open from a side dock), **Health**, **Replacement**, **Range**, **Cost**, **Optimise** (full-screen two-bus 3D; Bus B is Bus A with changes you choose, plus goal presets from `/recommend`, all in drawers), **Evidence**.
 The scenario panel on the left is shared by every page. Bus A can be typed in or imported from a CSV (`frontend/public/samples/sample-fleet-duty-ILLUSTRATIVE.csv` is a made-up example for trying the import; it is not real fleet data and is never used for training).
 Keyboard shortcuts in the 3D view: 1-5 camera, S body, C wheels, P packs, L labels, D length, E pull apart, F charging flow, X scan, I isolate, Esc clear.
 The 3D view needs WebGL; without it a plain card is shown and every number is still available in the cards and tables.
