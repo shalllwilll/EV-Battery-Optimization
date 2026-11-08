@@ -49,6 +49,26 @@ export default function Evidence() {
               <div className="row"><span>Cycling charge rate</span><b>{e.training_coverage.cycling_c_rate.map((x) => x.toFixed(1)).join(' to ')} C</b></div>
               <div className="row"><span>Cycling length</span><b>up to {e.training_coverage.cycling_efc_max.toLocaleString('en-IN')} cycles</b></div>
               <p className="note">A bus charging at about 0.2 C is far below the 1.8 to 2.8 C used in the lab, so every bus result is flagged.</p></div>
+            <div className="card c12"><h3>What vendor data would change</h3>
+              <div className="sub">A method demonstration on public field data, not a result for LFP buses. Prior mode, which you are using, needs none of this.</div>
+              {(() => {
+                const cd = m.calibration_demo, rs = cd.with_snippet_features.results, r0 = rs[0], r5 = rs.find((r) => r.n_labels === 5), top = Math.max(...rs.map((r) => Math.max(r.prior_mape, r.no_pooling_mape)))
+                return (
+                  <div className="cal">
+                    <table className="tbl">
+                      <thead><tr><th>Labelled records from the vehicle</th><th>Capacity error</th><th>Plain average</th><th>Shrunk toward prior</th></tr></thead>
+                      <tbody>{rs.map((r) => (
+                        <tr key={r.n_labels}><td>{r.n_labels === 0 ? 'None (prior only)' : r.n_labels}</td>
+                          <td><span className="bar"><i style={{ width: `${(r.partial_pooling_mape / top) * 100}%` }} /></span><b>{fmt(r.partial_pooling_mape, 2)}%</b></td>
+                          <td>{r.n_labels === 0 ? '–' : `${fmt(r.no_pooling_mape, 2)}%`}</td><td>{r.n_labels === 0 ? '–' : `${fmt(r.partial_pooling_mape, 2)}%`}</td></tr>))}
+                      </tbody>
+                    </table>
+                    {r5 && <p>With only 5 labelled records for a vehicle the model has never seen, the typical capacity error fell from {fmt(r0.prior_mape, 2)}% to {fmt(r5.partial_pooling_mape, 2)}%, and it was no worse in {fmt(r5.vehicles_not_worse_pct)}% of vehicles. Shrinking the correction toward the prior changes little on average ({fmt(r5.partial_pooling_mape, 2)}% against {fmt(r5.no_pooling_mape, 2)}%). Its job is to stop a few noisy records from over-correcting.</p>}
+                    <p className="note">{cd.with_snippet_features.vehicles_evaluated} vehicles evaluated. {cd.split}. {cd.evaluation}. {cd.caveat}</p>
+                  </div>
+                )
+              })()}
+            </div>
             <div className="card c12"><h3>Known limits</h3><div className="sub">Read before quoting any number</div>
               <div className="bento" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))' }}>{e.limitations.map((t, i) => (
                 <div key={t} className="card" style={{ background: 'var(--bg)' }}><div className="lbl">{String(i + 1).padStart(2, '0')} · {e.limitations.length === TAG.length ? TAG[i] : 'Limit'}</div><p style={{ margin: 0 }}>{t}</p></div>))}</div>

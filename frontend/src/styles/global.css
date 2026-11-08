@@ -319,3 +319,9 @@ svg.ch text{font-family:var(--body);font-size:12px;font-weight:600;fill:#B4B4BC}
   .vbtn{padding:11px 14px}.btn.sm{padding:11px 14px}.help{width:30px;height:30px}.lg button{padding:10px 13px}.links a{padding:11px 15px}
   input.rng{height:32px}input.rng::-webkit-slider-thumb{width:22px;height:22px;margin-top:-8.5px}
 }
+
+/* calibration demo table on the Evidence page */
+.cal p{margin:14px 0 0;line-height:1.6;max-width:78ch}
+.cal .tbl td,.cal .tbl th{white-space:nowrap}
+.cal .bar{display:inline-block;width:90px;height:8px;border-radius:99px;background:var(--s3);margin-right:10px;vertical-align:middle;overflow:hidden}
+.cal .bar i{display:block;height:100%;border-radius:99px;background:var(--volt)}

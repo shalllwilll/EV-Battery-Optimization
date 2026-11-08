@@ -38,6 +38,84 @@
   "passes_threshold": true,
   "threshold": 0.05
  },
+ "calibration_demo": {
+  "caveat": "NMC-like field data, capacity labels derived by the dataset authors: a method demonstration, not a result for LFP buses.",
+  "chemistry": "not LFP (cell voltage reaches 4.29 V); method demonstration only",
+  "evaluation": "100 held-out rows per vehicle; the vendor's labelled rows are drawn from the vehicle's other rows; 3 random draws",
+  "mileage_only": {
+   "results": [
+    {
+     "n_labels": 0,
+     "no_pooling_mape": 2.4886876674360665,
+     "partial_pooling_mape": 2.4886876674360665,
+     "prior_mape": 2.4886876674360665,
+     "vehicles_not_worse_pct": 100.0
+    },
+    {
+     "n_labels": 5,
+     "no_pooling_mape": 1.5792955460523905,
+     "partial_pooling_mape": 1.5679040537472595,
+     "prior_mape": 2.4886876674360665,
+     "vehicles_not_worse_pct": 80.1418439716312
+    },
+    {
+     "n_labels": 20,
+     "no_pooling_mape": 1.466287090273107,
+     "partial_pooling_mape": 1.4658239423926263,
+     "prior_mape": 2.4886876674360665,
+     "vehicles_not_worse_pct": 87.47044917257683
+    },
+    {
+     "n_labels": 100,
+     "no_pooling_mape": 1.4350720087284168,
+     "partial_pooling_mape": 1.4350316175957085,
+     "prior_mape": 2.4886876674360665,
+     "vehicles_not_worse_pct": 89.36170212765957
+    }
+   ],
+   "sigma_ah": 0.8123090900852492,
+   "tau_ah": 1.194535491974346,
+   "vehicles_evaluated": 141
+  },
+  "rows": 45357,
+  "split": "5-fold, vehicles never shared between the fleet fit and the vehicle being calibrated",
+  "vehicles": 185,
+  "with_snippet_features": {
+   "results": [
+    {
+     "n_labels": 0,
+     "no_pooling_mape": 2.188758554368977,
+     "partial_pooling_mape": 2.188758554368977,
+     "prior_mape": 2.188758554368977,
+     "vehicles_not_worse_pct": 100.0
+    },
+    {
+     "n_labels": 5,
+     "no_pooling_mape": 1.5663821917702325,
+     "partial_pooling_mape": 1.5468313206036202,
+     "prior_mape": 2.188758554368977,
+     "vehicles_not_worse_pct": 75.41371158392435
+    },
+    {
+     "n_labels": 20,
+     "no_pooling_mape": 1.4450401525845322,
+     "partial_pooling_mape": 1.4442305508292357,
+     "prior_mape": 2.188758554368977,
+     "vehicles_not_worse_pct": 84.39716312056737
+    },
+    {
+     "n_labels": 100,
+     "no_pooling_mape": 1.415058118645847,
+     "partial_pooling_mape": 1.414655215989551,
+     "prior_mape": 2.188758554368977,
+     "vehicles_not_worse_pct": 87.70685579196218
+    }
+   ],
+   "sigma_ah": 0.8027278753427343,
+   "tau_ah": 0.9524034728292239,
+   "vehicles_evaluated": 141
+  }
+ },
  "cycle_fit": {
   "k_diagnostic": -0.9619290377823505,
   "k_diagnostic_se": 0.37218826707673053,

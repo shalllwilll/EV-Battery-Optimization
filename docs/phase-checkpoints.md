@@ -61,7 +61,7 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 ### Known issues carried into the next phases
 - Visual polish is still to do (the user asked for a separate pass once the build is complete).
 - Accessibility audit, `npm audit` and packaging (Phase 8) are not done yet.
-- The calibration demo on the Evidence page is deferred (Phase 7).
+- (Done in Phase 7.2: the calibration demo is on the Evidence page.)
 - Docker is not installed on the development machine, so optional container packaging is untested.
 
 ## Phase 6.3: Visual polish pass (`cp-6.3`)
@@ -80,3 +80,12 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - Phones: drawers become bottom sheets, the dock is a single row, the stat strip scrolls sideways, non-essential 3D labels are hidden.
 - Removed the old card grid, toolbar, per-page intro text and footer on these two pages. The other pages are unchanged.
 - Tests rewritten to open the drawers (84 frontend tests pass). Design detector: clean.
+
+## Phase 7.2: Calibration method demonstration (`cp-7.2`)
+
+- New `engine/calibrate/` (`features.py`, `model.py`): `fit_prior` (gradient-boosted fleet model plus mixed-model variance components from cross-fitted residuals) and `calibrate(prior, vendor_frame)` (per-vehicle offset, shrunk toward the prior). Bad vendor files are refused with a message naming the problem; an empty or unlabelled file returns the prior unchanged with a warning.
+- `python -m engine.train.fit_calibration_demo` runs a vehicle-grouped experiment on EVBattery and stores it as `calibration_demo` in `metrics.json` (served by `/evidence`). Result: capacity error 2.19 % with no labels, 1.55 % with 5 labelled records, 1.41 % with 100; no worse for 75 % of vehicles at 5 labels. Shrinkage helps only slightly on average (1.55 % vs 1.57 %).
+- The Evidence page has a new "What vendor data would change" card driven entirely by the API, with the not-LFP, derived-label caveat beside it.
+- `docs/calibration-interface.md` documents the vendor file contract and the honest reading of the numbers.
+- Deviation: a script instead of a notebook, because Jupyter is not installed (noted in the interface doc).
+- Tests: 210 backend (9 new in `tests/test_calibrate.py`, 1 new API test), 85 frontend (1 new). Calibrated mode stays out of the app by design.

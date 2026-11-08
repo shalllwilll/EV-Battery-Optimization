@@ -21,6 +21,7 @@ export type ZoneMonth = { month: number; tmean_c: number; tmax_mean_c: number; t
 export type Zone = { id: string; label: string; elevation_m: number; lat: number; lon: number; monthly: ZoneMonth[] }
 export type ZonesResponse = { period: string; note: string; provenance: { source_url: string; licence: string; attribution: string; limitations: string; synthetic: boolean }; zones: Zone[] }
 export type Dataset = { id: string; used_for: string; chemistry?: string; licence: string; limitations: string; source_url: string; synthetic: boolean; retrieved_for_project: string }
+export type CalibrationRun = { results: { n_labels: number; prior_mape: number; no_pooling_mape: number; partial_pooling_mape: number; vehicles_not_worse_pct: number }[]; tau_ah: number; sigma_ah: number; vehicles_evaluated: number }
 export type EvidenceResponse = {
   mode: 'prior'
   validated_on_buses: false
@@ -30,6 +31,7 @@ export type EvidenceResponse = {
     calendar_validation: { cross_lab: Record<string, { conditions: number; mae_all: number; mae_within_train_horizon: number }>; overlap: string; passes_threshold: boolean; threshold: number }
     early_life: { candidates: { model: string; mape: number; within15: number }[]; improvement_vs_mean_pct_points: number; improvement_ci95: [number, number]; winner: string }
     evbattery_capacity: { mileage_only: { mape: number; within5: number }; snippet_features: { mape: number; within5: number }; chemistry: string; caveat: string; split: string }
+    calibration_demo: { with_snippet_features: CalibrationRun; mileage_only: CalibrationRun; vehicles: number; rows: number; split: string; evaluation: string; chemistry: string; caveat: string }
     uncertainty: { calendar: { coverage_point_weighted: number; coverage_condition_mean: number }; cycle: { coverage_cell_mean: number; coverage_point_weighted: number; n_cells: number } }
   }
   uncertainty: { extrapolation_widening: number; extrapolation_widening_note: string; nominal_band: string }

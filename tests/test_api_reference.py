@@ -121,6 +121,14 @@ def test_evidence_contains_headline_numbers_from_metrics(client):
     assert "not LFP" in m["evbattery_capacity"]["chemistry"]
 
 
+def test_evidence_serves_the_calibration_demo_with_its_caveat(client):
+    cd = client.get("/api/v1/evidence").json()["metrics"]["calibration_demo"]
+    r = {x["n_labels"]: x for x in cd["with_snippet_features"]["results"]}
+    assert sorted(r) == [0, 5, 20, 100]
+    assert r[5]["partial_pooling_mape"] < r[0]["prior_mape"]
+    assert "not LFP" in cd["chemistry"] and "method demonstration" in cd["caveat"]
+
+
 def test_evidence_reflects_changed_metrics_file(tmp_path, monkeypatch):
     import shutil
     shutil.copytree("engine/artifacts", tmp_path / "art")

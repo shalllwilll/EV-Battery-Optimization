@@ -10,4 +10,5 @@ $PY -m engine.train.fit_cycle >/dev/null
 $PY -m engine.train.fit_early_life >/dev/null
 $PY -m engine.train.fit_uncertainty >/dev/null
 $PY -m engine.train.fit_evb_baseline >/dev/null
+$PY -m engine.train.fit_calibration_demo >/dev/null
 echo "artifacts rebuilt"
