@@ -1,6 +1,6 @@
 # Model card (living document)
 
-Status: Phase 2 in progress. Every number here is written from script output; see `engine/artifacts/`.
+Status: v1.0.0 (Prior mode). Every number here is written from script output; see `engine/artifacts/`. The calibration method demonstration is in `docs/calibration-interface.md`.
 
 ## Calendar ageing model (M2.1)
 

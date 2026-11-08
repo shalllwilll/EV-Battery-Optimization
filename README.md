@@ -1,22 +1,60 @@
-# E-Bus Battery Lifecycle Intelligence Tool
+# Pack Horizon: E-Bus Battery Lifecycle Tool
 
-College course project (non-commercial). Forecasts battery health and replacement timing for Indian city e-bus fleets (LFP packs), designed like a B2B decision tool.
+College course project (non-commercial). Forecasts battery health and replacement timing for Indian city e-buses (12 m and 9 m, LFP packs, overnight depot charging), designed like a B2B decision tool. No client, city or operator is named.
 
-**Status:** under construction. See `docs/software-design-document.md` for the design and `docs/development-playbook.md` for the build plan.
+![Overview: a 12 m bus with battery packs coloured by projected health](docs/figures/overview.jpg)
+
+| | |
+|---|---|
+| ![Optimise: Bus A beside Bus B with changes applied](docs/figures/optimise.jpg) | ![Evidence: what vendor data would change](docs/figures/evidence-calibration.jpg) |
+
+Screenshots are from the running app (Prior mode). Every number in them is a model output labelled "not yet validated on buses".
 
 ## Honesty rules
 - Real, free public data only; no synthetic training data.
 - Works standalone ("Prior mode") from public lab data plus clearly labelled assumptions.
 - Every output is marked "not yet validated on buses".
-- Vendor data may only calibrate, never be required.
+- Vendor data may only calibrate, never be required. A working calibration method is demonstrated on public field data (Evidence page, `docs/calibration-interface.md`) but is deliberately not wired into the app.
+- BMS-reported state of health is never treated as ground truth.
 
-## Data
-Datasets are not included in this repository (size and licences). See `data/README.md` for sources and how to fetch them.
+## Quick start
+Needs Python 3.12 or newer and Node 20 or newer. The small trained model files are in the repository, so nothing has to be downloaded or trained to run the app.
+
+```bash
+git clone https://github.com/shalllwilll/EV-Battery-Optimization.git
+cd EV-Battery-Optimization
+scripts/setup_env.sh            # creates .venv and installs the Python dependencies
+scripts/run_all.sh              # builds the frontend on first run, then serves app and API on http://localhost:8000
+```
+
+Sign in with the demo account (username `demo`, password `PackHorizon-2026`). `PORT=8010 scripts/run_all.sh` changes the port, `REBUILD=1` forces a frontend rebuild. The app runs fully offline and needs no data folder.
+
+Optional: `scripts/fetch_data.sh` downloads the public datasets (see `data/README.md`, several GB) and `scripts/build_data.sh` plus `scripts/train_all.sh` rebuild every model file from them (`docs/reproducibility.md`).
+
+## Tests
+```bash
+.venv/bin/python -m pytest -q                                                  # backend and engine
+(cd frontend && npm test -- --run && npm run lint && npm run typecheck && npm run build)
+```
+Tests that need the downloaded datasets are skipped when `data/` is missing.
+
+## Limits
+Read these before quoting any number from the app. The full list is in `docs/model-card.md` and on the Evidence page.
+- **No public data comes from LFP buses.** Everything labelled "bus" is a stated assumption: duty cycle, pack heating, pack-to-pack variation (an assumed 0 to 8 % extra loss) and the effect of temperature on range.
+- **The cycling model probably over-states fade for buses.** The only cycling data (HUST, 77 cells) were run at about 2 C; a depot-charged bus works at about 0.2 C. The fitted model could not identify a charge-rate effect, so every result carries a warning.
+- **Cycle-life error is about 12.7 %** (against 17.7 % for guessing the average) on held-out cells, so the app shows ranges, never a single date. The 80 % bands contain 72.5 % of cycling measurements and 79.6 % of storage measurements; some cells and conditions are missed entirely.
+- **No public data cover cycling above 35 °C or idle time,** which matter for Indian summers. Outside the training range the bands are widened by an assumed factor of 1.5.
+- **The calibration demonstration uses NMC-like cells, not LFP,** and compares against capacity labels the dataset authors derived, not measured values.
+- **A demo, not a service.** One shared login, no database, no uptime or accuracy promise.
 
 ## Docs
-- `docs/phase0-report.md` - what the public data can and cannot support
-- `docs/software-design-document.md` - architecture and models
-- `docs/development-playbook.md` - milestone-by-milestone build and test plan
+- `docs/software-design-document.md` design and decisions (with deviations marked), `docs/model-card.md` models and their measured errors
+- `docs/phase0-report.md` what the public data can and cannot support, `docs/data-attribution.md` credits and licences
+- `docs/calibration-interface.md`, `docs/accessibility.md`, `docs/security-review.md`, `docs/performance.md`, `docs/reproducibility.md`
+- `docs/phase-checkpoints.md` and `CHANGELOG.md` what changed at each checkpoint, `docs/development-playbook.md` the build plan
+
+## Licence and authorship
+No licence has been granted: the code is visible here but all rights are reserved by the author. The datasets keep their own licences (`docs/data-attribution.md`). All commits are by the repository owner.
 
 ## Backend API (Phase 4)
 

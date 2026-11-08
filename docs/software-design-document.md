@@ -119,3 +119,17 @@ M1 data + weather ingest + provenance; M2 calendar model + cross-lab validation;
 
 ## 13. Open items
 Chart library: decided at M6, custom SVG (see `docs/phase-checkpoints.md`); source for temperature effect on range (search at M4; fall back to assumption); optional hosting target.
+
+## 14. Deviations from this design (as built, v1.0.0)
+| Design said | As built | Why |
+|---|---|---|
+| Frontend with Tailwind, Recharts or visx | Plain CSS with design tokens; charts drawn as inline SVG | Fewer dependencies, full control of accessibility and the 3D overlay look |
+| Scenario in the URL plus zustand | Scenario in React context with the archetype and climate zone in the URL; results cached by react-query | Simpler; shareable links keep the two choices that matter |
+| Pages: scenario builder, 3D bus, curve, replacement window, range, cost, what-if, Evidence and Method | Seven pages: Overview and Optimise are full-screen 3D with the scenario and settings in side drawers; no separate Method page (the Evidence page carries the method and its numbers) | User-requested redesign for a less cluttered, seamless build |
+| Optional export of results as CSV or PDF | Not built | Cut to keep scope; the tables behind each chart are on the page |
+| Light and dark themes | Dark only | One designed theme, checked for contrast |
+| Playwright end-to-end tests | axe-core scans in the unit test suite plus real-browser scans by hand (`docs/accessibility.md`) | Avoided a large browser download |
+| Calibration notebook | Script `engine/train/fit_calibration_demo.py` (Jupyter not installed) | Same experiment, results served by `/evidence` |
+| Optional hosted deployment and Docker | Not done; one-command local run instead | No hosting choice made; Docker not installed |
+| Demo had no login | One shared demo account with signed, expiring tokens | Keeps the API closed to anonymous callers for assessment |
+| Compare as a separate what-if page | Bus A against an adjustable Bus B, with goal presets from `/recommend` | Same paired-draw comparison, easier to read |

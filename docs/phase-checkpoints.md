@@ -110,3 +110,15 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - Checked by running it: health 200, `/optimise` reload 200, traversal attempts 404, security headers present, and `/predict` works with the `data/` folder moved away (the app needs only the small committed model files). The built page references no external host, so it runs offline.
 - Not done: a hosted deployment and `render.yaml` (optional in the playbook, and a hosting choice is yours); Docker is not installed. Marked "not deploying".
 - Tests: 226 backend (10 new in `tests/test_static.py`). `cp-8.3` was tagged while two older tests failed (the frontend catch-all route shadowed routes those tests add after startup); `cp-8.3.1` fixes the tests.
+
+## Phase 8.4: Documentation and release (`v1.0.0`)
+
+- README rewritten: purpose, screenshots from the running app, quick start verified from a fresh clone (setup, `run_all.sh`, sign in, `/predict` gives the same result as the development copy with the same model version), tests, limits, licence and authorship. New `CHANGELOG.md` and `docs/data-attribution.md`; SDD gets a deviations table; model card status updated.
+- Claims audit: every figure in the README limits section (12.7 % and 17.7 % cycle-life error, 72.5 % and 79.6 % band coverage, factor 1.5, 77 cells) matches `metrics.json` and the model card. No dead local links.
+- Authorship: `git log` shows one author (shalllwilll) and no co-author or generated-with lines.
+- Licence: no licence file, by the owner's choice (all rights reserved; datasets keep their own licences).
+- Not done: dead-link check of external URLs (`markdown-link-check` not run), hosted deployment, screen-reader listening tests, Lighthouse score.
+
+## Phase 8 completion
+- Milestones 8.1 to 8.4 done. Tests at release: 226 backend, 95 frontend; lint, typecheck and production build clean.
+- Known issues: ten moderate advisories in dev-only linting tools; the Stanford dataset has no declared licence (coursework use only); the cycle model probably over-states fade for slow-charging buses; two checkpoint tags (`cp-8.1`, `cp-8.3`) were cut before a failure was caught and have fixes at `cp-8.1.1` and `cp-8.3.1`.
