@@ -365,3 +365,16 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .drawer,.db,.insp,.pop,.scrollx{overscroll-behavior:contain}
 .st b,.tbl td,.tbl th,.yrl b,.tiles b,.bsh b{font-variant-numeric:tabular-nums}
 @media (max-width:1179px){.imm-bottom{bottom:calc(8px + env(safe-area-inset-bottom))}.drawer{bottom:calc(8px + env(safe-area-inset-bottom))}.insp{bottom:calc(8px + env(safe-area-inset-bottom))}}
+
+/* ------------ BLAST-Lite cross-check card (Evidence) ------------ */
+.xcheck .xverdict{margin:18px 0 20px;padding:16px 18px;border-radius:var(--r-md);background:var(--bg);border:1px solid rgba(250,204,21,.45);line-height:1.65;max-width:90ch}
+.xcheck .xverdict b{color:var(--volt)}.xcheck .xverdict em{font-style:normal;color:var(--text);font-weight:700}
+.xcheck .xpick{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.xcheck .xpick label{font-size:13px;font-weight:700;color:var(--t2)}.xcheck .xpick select.sel{width:auto;min-width:min(340px,100%)}
+.xcheck .xh{font-size:16px;font-weight:600;margin:30px 0 2px}
+.xcheck .xsplits{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:22px;margin-top:8px}
+.xcheck .xsplit .split{margin:10px 0 8px}
+.xcheck .xtbl td,.xcheck .xtbl th{white-space:nowrap}.xcheck .xtbl td:first-child{white-space:normal;min-width:200px}
+.xcheck .xlist{margin:10px 0 0;padding-left:20px;color:var(--t2);max-width:90ch}.xcheck .xlist li{margin:9px 0;line-height:1.65}.xcheck .xlist b{color:var(--text)}
+.xcheck .note code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--t2)}
+.xcheck .xtbl th:nth-child(2),.xcheck .xtbl td:nth-child(2){text-align:left;color:var(--t2)}
+.xcheck .xsplit .split{background:var(--s3);border-radius:6px;gap:0}

@@ -1,5 +1,6 @@
 import { useEvidence } from '../api/hooks'
 import { Async } from '../components/Async'
+import { CrosscheckCard } from '../components/CrosscheckCard'
 import { Page } from '../components/Workspace'
 import { fmt } from '../lib/format'
 
@@ -49,6 +50,7 @@ export default function Evidence() {
               <div className="row"><span>Cycling charge rate</span><b>{e.training_coverage.cycling_c_rate.map((x) => x.toFixed(1)).join(' to ')} C</b></div>
               <div className="row"><span>Cycling length</span><b>up to {e.training_coverage.cycling_efc_max.toLocaleString('en-IN')} cycles</b></div>
               <p className="note">A bus charging at about 0.2 C is far below the 1.8 to 2.8 C used in the lab, so every bus result is flagged.</p></div>
+            {e.crosscheck && <CrosscheckCard x={e.crosscheck} cov={e.training_coverage} />}
             <div className="card c12"><h2>What vendor data would change</h2>
               <div className="sub">A method demonstration on public field data, not a result for LFP buses. Prior mode, which you are using, needs none of this.</div>
               {(() => {

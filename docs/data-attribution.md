@@ -15,5 +15,6 @@ Required credit for the weather data: "These data were obtained from the NASA La
 Notes on use
 - The Stanford series has no declared licence. The project uses it for a non-commercial course assignment and does not republish it. Anyone reusing the project beyond that should contact the data's authors.
 - EVBattery's authors state that values were perturbed, and its capacity labels are derived rather than measured. The chemistry is undisclosed and the cell voltage reaches 4.29 V, so it is treated as NMC-like and is never used to fit the LFP models.
+- NREL BLAST-Lite (https://github.com/NREL/BLAST-Lite, version 1.1.3) is used only as an external comparison model in `scripts/crosscheck_blast.py`, run offline in a separate environment. Its code and fitted parameters are not included in this repository or the app. Its licence is listed as BSD-3-Clause on GitHub and Apache-2.0 on PyPI.
 - Per-dataset provenance (checksum, row counts, known limitations) is in `engine/data/provenance/*.json` and is served by the app's `/evidence` endpoint.
 - `frontend/public/samples/sample-fleet-duty-ILLUSTRATIVE.csv` is a made-up example for trying the CSV import. It is not real fleet data and is never used for training.

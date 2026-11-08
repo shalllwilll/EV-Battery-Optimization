@@ -106,3 +106,28 @@ Default 12 m scenario, 200 km/day, 1.2 kWh/km, 100 % charge cap, depot charging 
 | cool | 4.6 / 6.4 / 8.7 |
 
 **Read this before quoting any date.** The prior is probably pessimistic for buses. Reason: the only cycling data (HUST) were run at about 2 C average with 5 C charging, while a depot-charged bus works at about 0.2 C. The fitted cycle model has no C-rate effect (it could not be identified, see M2.3), so it applies the high-rate fade to a low-rate bus. The engine says so in a warning on every result, together with the list of ways inputs leave the training range (C-rate, cycle count beyond 2,689, cycling temperature below 25 C). The calendar part (about 45 to 60 % of loss at crossing) rests on storage data that do cover these temperatures. These dates will only become trustworthy when low-rate cycling data or vendor data calibrate them.
+
+## Cross-check against NREL BLAST-Lite (after v1.0.0)
+`scripts/crosscheck_blast.py` runs the same bus duty and climate through our cell model and through two public LFP models from NREL's BLAST-Lite 1.1.3 (`Lfp_Gr_250AhPrismatic`, and `Lfp_Gr_SonyMurata3Ah_Battery` as a second opinion). It writes `engine/artifacts/crosscheck_blast.json`, which `/evidence` serves and the Evidence page shows. It is a consistency check between lab-data models, **not** a validation on buses. BLAST-Lite is not an app dependency (it needs Python 3.9 to 3.12 and runs in a throw-away environment); its code and parameters are not shipped.
+
+**Setup.** Ten scenarios: the 12 m and 9 m presets in all four climate zones, plus the 12 m hot-dry bus with the charge cap at 80 % and with the pack 8 °C hotter. BLAST-Lite receives an hourly state-of-charge and temperature series (drain over the duty window, constant-power charge, rest full, monthly air temperature plus the heat-rise assumption, operating days only) tiled over 15 years. Ours runs with the pack penalty set to zero so it is comparable to a cell model.
+
+**Result (12 m, hot-dry).** After 10 years our cell model keeps 40 % of capacity; BLAST-Lite's 250 Ah model keeps 88 % and its 3 Ah model 82 %. Across the ten scenarios ours keeps 27 to 67 % against 79 to 90 %. Ours is the lowest in every scenario, and BLAST-Lite lies outside our 10 to 90 % band in every year checked, so our band covers parameter uncertainty only, not model-structure risk.
+
+**Where the gap comes from** (same-condition runs that bypass the bus translation):
+
+| | Ours | BLAST-Lite 250 Ah | BLAST-Lite 3 Ah |
+|---|---|---|---|
+| Storage loss after 5 years, 25 to 35 °C, 50 to 100 % SOC | 9.6 to 17.2 % | 2.7 to 7.6 % | 8.6 to 15.7 % |
+| Cycling loss after 1,000 full cycles (25 °C) | 8 to 10 % | 6 to 11 % | 4 to 5 % |
+| Cycling loss after 3,000 full cycles (25 °C) | 54 to 58 % | 14 to 27 % | 9 to 10 % |
+
+- Calendar ageing is in the same range: ours is 1.0 to 1.2× the 3 Ah model and 2 to 4× the 250 Ah model, and those two differ from each other by 2 to 3×.
+- Cycling agrees up to about 1,000 cycles and then parts: our fitted law (exponent about 1.9) bends sharply upward, BLAST-Lite's does not. A 12 m bus does about 3,500 cycles in 15 years, beyond the 2,689 covered by the HUST data, and at about 0.19 C against the 1.8 to 2.8 C of the lab cells. This is the same bias the Replacement page already warns about; the cross-check shows its size.
+- Heat sensitivity differs in size: a pack 8 °C hotter costs 13 points at 10 years in our model and 2 to 3 in BLAST-Lite. All three agree on the direction of that and of the charge-cap effect.
+
+**Reading it.** Treat the default replacement timing (about 4 years for the 12 m preset) as a likely early estimate. BLAST-Lite's own documentation calls its LFP models qualitative, fitted to low-rate data at 10 to 45 °C, and suggests pack life can be 20 to 30 % shorter than cell life, so the truth is not simply "BLAST-Lite is right". The model was **not** changed to match: reworking the cycling term (C-rate effect, behaviour beyond the data) is a separate decision.
+
+**Licence.** BLAST-Lite is listed as BSD-3-Clause on GitHub and Apache-2.0 on PyPI. It is used only as an external comparison.
+
+Reproduce: `python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite && .venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python`. `tests/test_crosscheck_blast.py` checks the duty-series builder and the stored file without needing BLAST-Lite installed.

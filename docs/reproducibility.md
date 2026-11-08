@@ -18,3 +18,11 @@ Phase 0 numbers asserted by `tests/test_phase0_reproduction.py` (own splits, not
 The EVBattery test reads `engine/data/processed/evb_segments.parquet`, built by `scripts/build_data.sh`. It is skipped if absent.
 
 Dataset files are untrusted pickles: they are only read through `engine/data/safe_unpickle.py`, which blocks every class outside an exact numpy/pandas allow-list.
+
+## BLAST-Lite cross-check (optional)
+`engine/artifacts/crosscheck_blast.json` is committed. To regenerate it, install BLAST-Lite in a separate Python 3.9 to 3.12 environment (it is not an app dependency; Python 3.13.x is excluded by its pin):
+
+```bash
+python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite
+.venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python
+```

@@ -74,9 +74,12 @@ def evidence(artifact_dir: str, versions: dict, model_version: str, models: Mode
             did = fn[:-5]
             datasets.append({"id": did, "used_for": USED_FOR.get(did, ""), **_load(f"{PROV_DIR}/{fn}")})
     c = models.cyc
+    # Optional, offline-generated comparison with NREL BLAST-Lite (scripts/crosscheck_blast.py). Not a model input, so not a versioned artifact.
+    xpath = f"{artifact_dir}/crosscheck_blast.json"
     return {"mode": "prior", "validated_on_buses": False, "model_version": model_version, "artifacts": versions,
             "datasets": datasets, "metrics": _load(f"{artifact_dir}/metrics.json"),
             "uncertainty": _load(f"{artifact_dir}/uncertainty.json"),
+            "crosscheck": _load(xpath) if os.path.exists(xpath) else None,
             "training_coverage": {"cycling_temperature_c": list(c.valid_temp_c), "cycling_c_rate": list(c.valid_c_rate),
                                   "cycling_efc_max": c.valid_efc_max},
             "limitations": LIMITATIONS}

@@ -22,6 +22,28 @@ export type Zone = { id: string; label: string; elevation_m: number; lat: number
 export type ZonesResponse = { period: string; note: string; provenance: { source_url: string; licence: string; attribution: string; limitations: string; synthetic: boolean }; zones: Zone[] }
 export type Dataset = { id: string; used_for: string; chemistry?: string; licence: string; limitations: string; source_url: string; synthetic: boolean; retrieved_for_project: string }
 export type CalibrationRun = { results: { n_labels: number; prior_mape: number; no_pooling_mape: number; partial_pooling_mape: number; vehicles_not_worse_pct: number }[]; tau_ah: number; sigma_ah: number; vehicles_evaluated: number }
+export type LossSplit = Record<'5y' | '10y', { calendar_loss: number; cycle_loss: number }>
+export type CrosscheckScenario = {
+  id: string; label: string; archetype: string; zone: string
+  efc_per_year: { ours: number; blast: number }; c_rate_eff: number
+  years: number[]
+  ours_p10: number[]; ours_p50: number[]; ours_p90: number[]; ours_cell_p50: number[]; blast: number[]; blast_alt: number[]
+  loss_split: { ours: LossSplit; blast_250ah: LossSplit; blast_sony_3ah: LossSplit }
+  years_to_80: { ours_p50: number | null; ours_cell_p50: number | null; blast: number | null; blast_alt: number | null }
+}
+export type CrosscheckCheck = {
+  kind: 'storage' | 'cycling'; label: string
+  ours: Record<string, number>; blast_250ah: Record<string, number>; blast_sony_3ah: Record<string, number>
+}
+export type Crosscheck = {
+  generated: string; what: string; threshold: number; horizon_years: number
+  blast_lite: { version: string; python: string; model: string; source_url: string; kind: string }
+  method: string[]; caveats: string[]
+  summary: { same_direction_of_levers: boolean; blast_inside_our_band_share: number; ours_is_lower_in_all_scenarios: boolean
+    levers: { id: string; label: string; ours_cell_change_pts_at_10y: number; blast_250ah_change_pts_at_10y: number; blast_sony_change_pts_at_10y: number }[] }
+  single_condition_checks: CrosscheckCheck[]
+  scenarios: CrosscheckScenario[]
+}
 export type EvidenceResponse = {
   mode: 'prior'
   validated_on_buses: false
@@ -35,6 +57,7 @@ export type EvidenceResponse = {
     uncertainty: { calendar: { coverage_point_weighted: number; coverage_condition_mean: number }; cycle: { coverage_cell_mean: number; coverage_point_weighted: number; n_cells: number } }
   }
   uncertainty: { extrapolation_widening: number; extrapolation_widening_note: string; nominal_band: string }
+  crosscheck: Crosscheck | null
   training_coverage: { cycling_temperature_c: [number, number]; cycling_c_rate: [number, number]; cycling_efc_max: number }
   limitations: string[]
 }
