@@ -12,6 +12,7 @@ from engine.decide.range import RangeResult
 from engine.decide.replacement import ReplacementResult
 from engine.labels import Labelled
 from engine.decide.compare import Delta
+from engine.decide.recommend import RecommendResult
 
 DISCLAIMER = ("Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. "
               "Nothing here has been validated on buses.")
@@ -62,3 +63,30 @@ class CompareResult(BaseModel):
     deltas: list[Delta] = Field(description="variant minus base, one per variant (months to threshold)")
     notes: list[str]
     warnings: list[str]
+
+
+class RecommendRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")
+    scenario: Scenario = Field(description="Bus A: the client's current usage")
+    reserve_fraction: float = Field(default=0.2, ge=0.0, le=0.5, description="safety reserve on the daily route, at replacement time")
+    n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS)
+    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+
+
+class RecommendResponse(RecommendResult):
+    model_version: str
+    disclaimer: str = DISCLAIMER
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int = Field(description="seconds")
+    username: str

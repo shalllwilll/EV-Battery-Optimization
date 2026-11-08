@@ -294,6 +294,50 @@
         "title": "Delta",
         "type": "object"
       },
+      "DeltaVsBase": {
+        "properties": {
+          "cost_per_km_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p10": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p50": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p90": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "prob_later": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "range_change_km": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "months_p10",
+          "months_p50",
+          "months_p90",
+          "prob_later",
+          "cost_per_km_change",
+          "range_change_km",
+          "note"
+        ],
+        "title": "DeltaVsBase",
+        "type": "object"
+      },
       "DriverSplit": {
         "properties": {
           "calendar_share": {
@@ -308,6 +352,45 @@
           "cycling_share"
         ],
         "title": "DriverSplit",
+        "type": "object"
+      },
+      "Feasibility": {
+        "properties": {
+          "base_margin": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "base_passes": {
+            "title": "Base Passes",
+            "type": "boolean"
+          },
+          "base_range_at_replacement_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "plain": {
+            "title": "Plain",
+            "type": "string"
+          },
+          "required_range_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "reserve": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "rule_applied": {
+            "title": "Rule Applied",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reserve",
+          "required_range_km",
+          "base_range_at_replacement_km",
+          "base_margin",
+          "base_passes",
+          "rule_applied",
+          "plain"
+        ],
+        "title": "Feasibility",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -371,6 +454,216 @@
           "evidence_level"
         ],
         "title": "Labelled",
+        "type": "object"
+      },
+      "LeverChange": {
+        "properties": {
+          "from_value": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lever": {
+            "title": "Lever",
+            "type": "string"
+          },
+          "needs_confirmation": {
+            "title": "Needs Confirmation",
+            "type": "boolean"
+          },
+          "to_value": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lever",
+          "label",
+          "unit",
+          "from_value",
+          "to_value",
+          "needs_confirmation",
+          "why"
+        ],
+        "title": "LeverChange",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "seconds",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "token_type": {
+            "const": "bearer",
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "username"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "Metrics": {
+        "properties": {
+          "calendar_equivalent_soc_pct": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effective_temp_c": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "idle_hours_at_full": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "range_at_replacement_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "range_margin": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "range_new_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p10": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p50": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "retention_p90": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "months_p10",
+          "months_p50",
+          "months_p90",
+          "retention_p10",
+          "retention_p50",
+          "retention_p90",
+          "cost_per_km_p50",
+          "range_new_km",
+          "range_at_replacement_km",
+          "range_margin",
+          "idle_hours_at_full",
+          "calendar_equivalent_soc_pct",
+          "effective_temp_c"
+        ],
+        "title": "Metrics",
+        "type": "object"
+      },
+      "NotUsed": {
+        "properties": {
+          "effect_months": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lever": {
+            "title": "Lever",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lever",
+          "reason"
+        ],
+        "title": "NotUsed",
         "type": "object"
       },
       "PredictRequest": {
@@ -472,6 +765,67 @@
         "title": "PredictionResult",
         "type": "object"
       },
+      "PresetResult": {
+        "properties": {
+          "charging": {
+            "$ref": "#/components/schemas/Stage"
+          },
+          "goal": {
+            "title": "Goal",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "range_budget": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "rejected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rejected",
+            "type": "array"
+          },
+          "same_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same As"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "with_confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "goal",
+          "range_budget",
+          "charging",
+          "with_confirmation",
+          "rejected"
+        ],
+        "title": "PresetResult",
+        "type": "object"
+      },
       "RangeResult": {
         "properties": {
           "ages_years": {
@@ -519,6 +873,123 @@
           "warnings"
         ],
         "title": "RangeResult",
+        "type": "object"
+      },
+      "RecommendRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "prior",
+            "description": "Only 'prior' exists in v1; anything else gets a 400",
+            "title": "Mode",
+            "type": "string"
+          },
+          "n_draws": {
+            "default": 2000,
+            "maximum": 5000.0,
+            "minimum": 200.0,
+            "title": "N Draws",
+            "type": "integer"
+          },
+          "reserve_fraction": {
+            "default": 0.2,
+            "description": "safety reserve on the daily route, at replacement time",
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Reserve Fraction",
+            "type": "number"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario",
+            "description": "Bus A: the client's current usage"
+          },
+          "seed": {
+            "default": 0,
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scenario"
+        ],
+        "title": "RecommendRequest",
+        "type": "object"
+      },
+      "RecommendResponse": {
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "disclaimer": {
+            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "feasibility": {
+            "$ref": "#/components/schemas/Feasibility"
+          },
+          "mode": {
+            "default": "prior",
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "months": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "not_used": {
+            "items": {
+              "$ref": "#/components/schemas/NotUsed"
+            },
+            "title": "Not Used",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/PresetResult"
+            },
+            "title": "Presets",
+            "type": "array"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scenario",
+          "base",
+          "feasibility",
+          "presets",
+          "not_used",
+          "months",
+          "notes",
+          "warnings",
+          "model_version"
+        ],
+        "title": "RecommendResponse",
         "type": "object"
       },
       "ReplacementResult": {
@@ -767,6 +1238,44 @@
         "title": "Scenario",
         "type": "object"
       },
+      "Stage": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/LeverChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/DeltaVsBase"
+          },
+          "feasible": {
+            "title": "Feasible",
+            "type": "boolean"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario",
+          "changes",
+          "metrics",
+          "delta",
+          "feasible",
+          "summary"
+        ],
+        "title": "Stage",
+        "type": "object"
+      },
       "TornadoBar": {
         "properties": {
           "base": {
@@ -836,6 +1345,12 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -845,6 +1360,71 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exchange the demo username and password for a bearer token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Who the current token belongs to",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/compare": {
       "post": {
         "operationId": "compare_api_v1_compare_post",
@@ -880,6 +1460,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Paired what-if comparison of 2-4 scenarios on shared random draws",
         "tags": [
           "predict"
@@ -899,6 +1484,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Datasets, measured model errors, training coverage and known limitations",
         "tags": [
           "reference"
@@ -959,6 +1549,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Forecast battery retention, replacement window, range and cost per km for one scenario",
         "tags": [
           "predict"
@@ -978,9 +1573,60 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Bus archetypes with every default's source and evidence level",
         "tags": [
           "reference"
+        ]
+      }
+    },
+    "/api/v1/recommend": {
+      "post": {
+        "operationId": "recommend_api_v1_recommend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search real usage levers for a bus and return goal-based presets with plain-language explanations",
+        "tags": [
+          "predict"
         ]
       }
     },
@@ -997,6 +1643,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Climate zones: monthly air-temperature statistics and data provenance",
         "tags": [
           "reference"

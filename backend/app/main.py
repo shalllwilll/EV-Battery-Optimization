@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app import errors, routes, service
+from backend.app import auth, errors, routes, service
 from backend.app.limits import BodyLimitMiddleware
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
@@ -46,7 +46,7 @@ def create_app() -> FastAPI:
     # CORS is added after the body limit so it is outermost: 413 responses still carry CORS headers.
     app.add_middleware(BodyLimitMiddleware, max_bytes=st.max_body_bytes)
     app.add_middleware(CORSMiddleware, allow_origins=st.allowed_origins, allow_methods=["GET", "POST", "OPTIONS"],
-                       allow_headers=["Content-Type"], expose_headers=["X-Cache"])
+                       allow_headers=["Content-Type", "Authorization"], expose_headers=["X-Cache"])
 
     errors.install(app)
 
@@ -55,6 +55,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "mode": "prior", "model_version": request.app.state.model_version,
                 "artifacts": request.app.state.versions}
 
+    app.include_router(auth.router)
     app.include_router(routes.router)
     return app
 

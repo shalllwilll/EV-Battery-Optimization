@@ -5,11 +5,12 @@ import hashlib
 import threading
 from collections import OrderedDict
 
-from backend.app.schemas import CompareRequest, CompareResult, DISCLAIMER, DriverSplit, PredictionResult, PredictRequest
+from backend.app.schemas import CompareRequest, CompareResult, DISCLAIMER, DriverSplit, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse
 from engine.cell.uncertainty import Models, make_draws
 from engine.decide.compare import compare
 from engine.decide.cost import cost_per_km
 from engine.decide.range import monthly_range
+from engine.decide.recommend import recommend
 from engine.decide.replacement import replacement_window, simulate_scenario
 from engine.labels import L
 
@@ -43,6 +44,12 @@ def run_compare(req: CompareRequest, models: Models, model_version: str) -> Comp
         warnings += [w for w in r.warnings if w not in warnings]
     return CompareResult(model_version=model_version, scenarios=req.scenarios, replacements=reps, deltas=res.deltas,
                          notes=res.notes, warnings=warnings)
+
+
+def run_recommend(req: RecommendRequest, models: Models, model_version: str) -> RecommendResponse:
+    res = recommend(req.scenario, models, n_draws=req.n_draws, seed=req.seed, reserve=req.reserve_fraction)
+    warns = [DISCLAIMER, *[w for w in res.warnings if w != DISCLAIMER]]
+    return RecommendResponse(**{**res.model_dump(), "warnings": warns}, model_version=model_version)
 
 
 class LRUCache:
