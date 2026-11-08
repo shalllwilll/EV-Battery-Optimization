@@ -27,7 +27,7 @@ scripts/setup_env.sh            # creates .venv and installs the Python dependen
 scripts/run_all.sh              # builds the frontend on first run, then serves app and API on http://localhost:8000
 ```
 
-Sign in with the demo account (username `demo`, password `PackHorizon-2026`). `PORT=8010 scripts/run_all.sh` changes the port, `REBUILD=1` forces a frontend rebuild. The app runs fully offline and needs no data folder.
+Sign in with the demo account (username `demo`, password `PackHorizon-2026`). `PORT=8010 scripts/run_all.sh` changes the port, `REBUILD=1` forces a frontend rebuild. The app runs fully offline and needs no data folder. To host it on Render, see `docs/deployment.md` (a `render.yaml` Blueprint is included).
 
 Optional: `scripts/fetch_data.sh` downloads the public datasets (see `data/README.md`, several GB) and `scripts/build_data.sh` plus `scripts/train_all.sh` rebuild every model file from them (`docs/reproducibility.md`).
 
