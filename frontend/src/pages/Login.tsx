@@ -29,7 +29,6 @@ export default function Login() {
         {err && <div className="err" role="alert" style={{ marginBottom: 12 }}>{err}</div>}
         <button className="btn primary" type="submit" disabled={busy || !u || !p}>{busy ? 'Signing in…' : 'Sign in'}</button>
         <div className="hint"><b>Demo access.</b> Username <code>demo</code> · password <code>PackHorizon-2026</code>. These are set in the server's config file.</div>
-        <div className="chips"><span className="chip"><i />Prior mode · no vendor data</span><span className="chip w"><i />Not yet validated on buses</span></div>
       </form>
     </div>
   )

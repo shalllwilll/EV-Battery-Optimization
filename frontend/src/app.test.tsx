@@ -7,11 +7,11 @@ import { DEMO, FIX, mockApi, renderApp } from './test/utils'
 afterEach(() => { vi.unstubAllGlobals(); setToken(null) })
 
 describe('sign in', () => {
-  it('sends signed-out visitors to the login page, which shows the demo hint and honesty chips', async () => {
+  it('sends signed-out visitors to the login page, which shows the demo hint', async () => {
     mockApi(); renderApp('/health', false)
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     expect(screen.getByText(/Demo access/)).toBeInTheDocument()
-    expect(screen.getByText(/Not yet validated on buses/)).toBeInTheDocument()
+    expect(screen.queryByText(/Not yet validated on buses/)).not.toBeInTheDocument()
   })
   it('signs in with the demo account and lands on the app', async () => {
     mockApi(); renderApp('/', false)
@@ -37,11 +37,12 @@ describe('sign in', () => {
 })
 
 describe('pages', () => {
-  it.each(['/health', '/replacement', '/range', '/cost', '/evidence'])('keeps both honesty chips on %s (T5.1-4)', async (path) => {
+  it.each(['/health', '/replacement', '/range', '/cost', '/evidence'])('has no status chips on %s', async (path) => {
     mockApi(); renderApp(path)
-    const bar = await screen.findByLabelText('Model status')
-    expect(within(bar).getByText(/Prior mode · no vendor data/)).toBeInTheDocument()
-    expect(within(bar).getByText(/Not yet validated on buses/)).toBeInTheDocument()
+    await screen.findByRole('navigation', { name: 'Sections' })
+    expect(screen.queryByLabelText('Model status')).not.toBeInTheDocument()
+    expect(screen.queryByText('Prior mode · no vendor data')).not.toBeInTheDocument()
+    expect(screen.queryByText('Service online')).not.toBeInTheDocument()
   })
   it('lists every section in the floating nav', async () => {
     mockApi(); renderApp('/health')
@@ -76,18 +77,27 @@ describe('pages', () => {
     const m = mockApi(); renderApp('/health')
     await screen.findByText('Health over time')
     const before = m.calls.filter((c) => c.path === '/predict').length
-    const input = screen.getByRole('textbox', { name: 'Distance per day' })
+    await userEvent.click(screen.getByRole('button', { name: /Scenario/ }))
+    const input = await screen.findByRole('textbox', { name: 'Distance per day' })
     await userEvent.clear(input); await userEvent.type(input, '-5')
     expect(await screen.findByText(/Fix 1 scenario input/)).toBeInTheDocument()
     await new Promise((r) => setTimeout(r, 600))
     expect(m.calls.filter((c) => c.path === '/predict').length).toBe(before)
   })
-  it('shows the outside-lab-data badge when the model says so (T5.3-9)', async () => {
+  it('keeps the scenario inputs hidden until asked for, and closes them with Escape', async () => {
     mockApi(); renderApp('/health')
-    await waitFor(() => expect(screen.getByRole('button', { name: /Outside lab data/ })).toBeInTheDocument())
+    const open = await screen.findByRole('button', { name: /Scenario/ })
+    expect(screen.queryByRole('textbox', { name: 'Distance per day' })).not.toBeInTheDocument()
+    expect(open).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(open)
+    expect(await screen.findByRole('textbox', { name: 'Distance per day' })).toBeInTheDocument()
+    expect(open).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Distance per day' })).not.toBeInTheDocument())
   })
   it('puts the changed scenario in the address bar so it can be shared (T5.2-4)', async () => {
     mockApi(); renderApp('/health')
+    await userEvent.click(await screen.findByRole('button', { name: /Scenario/ }))
     const input = await screen.findByRole('textbox', { name: 'Distance per day' })
     await userEvent.clear(input); await userEvent.type(input, '175')
     await waitFor(() => expect(window.location.search).toContain('km_per_day=175'))
@@ -95,7 +105,8 @@ describe('pages', () => {
   it('changing bus type refreshes bus defaults but keeps the operator choices', async () => {
     mockApi(); renderApp('/health?zone=cool')
     await screen.findByText('Health over time')
-    await userEvent.click(screen.getByRole('button', { name: '9 m' }))
+    await userEvent.click(screen.getByRole('button', { name: /Scenario/ }))
+    await userEvent.click(await screen.findByRole('button', { name: '9 m' }))
     expect(screen.getByRole('textbox', { name: 'Battery size' })).toHaveValue('250')
     expect(screen.getByLabelText('Climate zone')).toHaveValue('cool')
   })

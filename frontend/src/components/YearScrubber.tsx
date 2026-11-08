@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useYear } from '../state/YearContext'
 
-type Props = { p10: number[]; p50: number[]; p90: number[]; thresholdPct: number; xMax: number; win?: [number | null, number | null] }
+export type CompareLine = { p50: number[]; aYear: number | null; bYear: number | null }
+/** `other` is Bus B. When it is given, Bus A turns grey, Bus B is drawn in yellow, the gap between them is shaded and each bus's replacement year is marked. */
+type Props = { p10: number[]; p50: number[]; p90: number[]; thresholdPct: number; xMax: number; win?: [number | null, number | null]; other?: CompareLine }
 const W = 800, H = 50
 const reduced = () => matchMedia('(prefers-reduced-motion:reduce)').matches
 
-export function YearScrubber({ p10, p50, p90, thresholdPct, xMax, win }: Props) {
+export function YearScrubber({ p10, p50, p90, thresholdPct, xMax, win, other }: Props) {
   const { year, setYear } = useYear()
   const [playing, setPlaying] = useState(false)
   const yr = useRef(year)
@@ -21,6 +23,9 @@ export function YearScrubber({ p10, p50, p90, thresholdPct, xMax, win }: Props) 
   const n = Math.min(p50.length, Math.round(xMax * 12) + 1)
   const line = (a: number[]) => a.slice(0, n).map((e, i) => `${i ? 'L' : 'M'}${x(i / 12).toFixed(1)} ${v(e).toFixed(1)}`).join('')
   const rv = (a: number[]) => { let s = ''; for (let i = n - 1; i >= 0; i--) s += `L${x(i / 12).toFixed(1)} ${v(a[i]).toFixed(1)}`; return s }
+  const gain = other ? other.p50.slice(0, n).reduce((s, b, i) => s + (b - p50[i]), 0) : 0
+  const pct = (yr: number | null) => (yr == null || yr > xMax ? null : `${(yr / xMax) * 100}%`)
+  const top = `${(v(thresholdPct) / H) * 100}%`
   const ticks: number[] = []
   for (let t = 0; t <= xMax; t += xMax > 10 ? 3 : 2) ticks.push(t)
   return (
@@ -33,10 +38,15 @@ export function YearScrubber({ p10, p50, p90, thresholdPct, xMax, win }: Props) 
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
           {win?.[0] != null && <rect x={x(win[0])} width={Math.max(0, x(Math.min(win[1] ?? xMax, xMax)) - x(win[0]))} height={H} fill="rgba(255,255,255,.06)" />}
           <line x1="0" x2={W} y1={v(thresholdPct)} y2={v(thresholdPct)} stroke="rgba(255,255,255,.3)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-          <path d={line(p90) + rv(p10) + 'Z'} fill="rgba(250,204,21,.2)" />
-          <path d={line(p50)} fill="none" stroke="#FACC15" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+          <path d={line(p90) + rv(p10) + 'Z'} fill={other ? 'rgba(142,142,152,.16)' : 'rgba(250,204,21,.2)'} />
+          {other && <path d={line(p50) + rv(other.p50) + 'Z'} fill={gain >= 0 ? 'rgba(250,204,21,.3)' : 'rgba(248,113,113,.32)'} />}
+          <path d={line(p50)} fill="none" stroke={other ? '#A1A1AA' : '#FACC15'} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+          {other && <path d={line(other.p50)} fill="none" stroke={gain >= 0 ? '#FACC15' : '#F87171'} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
           <line x1={x(year)} x2={x(year)} y1="0" y2={H} stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         </svg>
+        {other && ([['a', other.aYear, 'A'], ['b', other.bYear, 'B']] as const).map(([k, yr, l]) => pct(yr) && (
+          <span key={k} className={`rmk ${k}`} style={{ left: pct(yr)!, top }} title={`Bus ${l} reaches the replacement line at ${yr!.toFixed(1)} years`}><i /><b>{l} {yr!.toFixed(1)} y</b></span>
+        ))}
         <input type="range" min={0} max={xMax} step={0.05} value={Math.min(year, xMax)} aria-label="Years in service" aria-valuetext={`${year.toFixed(1)} years`} onChange={(e) => { setPlaying(false); setYear(+e.target.value) }} />
       </div>
       <div className="axis" style={{ gridColumn: 2 }}>{ticks.map((t) => <span key={t}>{t === 0 ? 'New' : t}</span>)}<span>years</span></div>

@@ -3,7 +3,6 @@ import { ErrorState, Skeleton } from '../components/Async'
 import { Dock, DockButton, Drawer, DOCK_PX, Immersive, StatStrip, useWide } from '../components/Overlay'
 import { BusLetter, IconView } from '../components/Icons'
 import { ScenarioPanel } from '../components/ScenarioPanel'
-import { StatusBar } from '../components/StatusBar'
 import { YearScrubber } from '../components/YearScrubber'
 import { arr, atYear, fmt, inr, num } from '../lib/format'
 import { curves, repYears, xMaxFor } from '../lib/results'
@@ -62,7 +61,6 @@ export default function Overview() {
     <Immersive stage={stage}>
       <div className="imm-top">
         <div className="imm-tl">
-          <StatusBar compact />
           <Dock>
             <DockButton label="Bus A" active={shown === 'bus'} onClick={() => toggle('bus')}><BusLetter l="A" /></DockButton>
             <DockButton label="View" active={shown === 'view'} onClick={() => toggle('view')}><IconView /></DockButton>

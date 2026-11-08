@@ -10,12 +10,11 @@ const presets = FIX.recommend.presets as unknown as PresetResult[]
 const byId = (id: string) => presets.find((p) => p.id === id)!
 
 describe('Overview (3D)', () => {
-  it('shows the key numbers from the API and keeps both honesty chips', async () => {
+  it('shows the key numbers from the API and shows no status chips', async () => {
     mockApi(); renderApp('/')
     expect(await screen.findByText('Replace around')).toBeInTheDocument()
     expect(screen.getByText('Range on a full charge')).toBeInTheDocument()
-    const bar = screen.getByLabelText('Model status')
-    expect(within(bar).getByText(/Not yet validated on buses/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Model status')).not.toBeInTheDocument()
   })
   it('falls back to a plain card when WebGL is not available, and says the numbers are still shown', async () => {
     mockApi(); renderApp('/')
@@ -69,6 +68,20 @@ describe('Optimise (compare two buses)', () => {
     const g2 = await goals()
     const card2 = (await within(g2).findByRole('heading', { name: 'Lowest cost per km', level: 3 })).closest('article')! as HTMLElement
     expect(within(card2).getByText('Shown on Bus B', { selector: '.tag' })).toBeInTheDocument()
+  })
+  it('shows what changed on Bus B, marks both replacement years, and lets you switch the colouring', async () => {
+    mockApi(); renderApp('/optimise')
+    const g = await goals()
+    const card = (await within(g).findByRole('heading', { name: 'Lowest cost per km', level: 3 })).closest('article')!
+    await userEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Try on Bus B' }))
+    const bar = await screen.findByLabelText('What you changed on Bus B', {}, { timeout: 4000 })
+    expect(within(bar).getAllByText(/→/).length).toBeGreaterThan(0)
+    expect(await screen.findByTitle(/Bus A reaches the replacement line/)).toBeInTheDocument()
+    expect(await screen.findByTitle(/Bus B reaches the replacement line/)).toBeInTheDocument()
+    const diff = screen.getByRole('button', { name: 'Difference' }), health = screen.getByRole('button', { name: 'Health' })
+    expect(diff).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(health)
+    expect(health).toHaveAttribute('aria-pressed', 'true'); expect(diff).toHaveAttribute('aria-pressed', 'false')
   })
   it('only shows cooling and energy-use changes after the user allows them', async () => {
     mockApi(); renderApp('/optimise')

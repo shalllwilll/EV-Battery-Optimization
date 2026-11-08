@@ -32,3 +32,4 @@ build/
 phase0/*.parquet
 phase0/*.csv
 phase0/extract.*
+frontend/tsconfig.tsbuildinfo

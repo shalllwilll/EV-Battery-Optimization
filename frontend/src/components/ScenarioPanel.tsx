@@ -26,7 +26,7 @@ export function ScenarioPanel({ drawer }: { drawer?: boolean }) {
     <>
       {!drawer && <button className="scen-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}><span>Scenario</span><span style={{ fontSize: 13, color: 'var(--t2)', fontFamily: 'var(--body)' }}>{s.scenario.archetype} · {ZONE_LABELS[s.scenario.zone]} · {s.scenario.km_per_day} km</span></button>}
       <aside className={`scen${open ? ' open' : ''}${drawer ? ' in-drawer' : ''}`} aria-label="Scenario inputs">
-        {!drawer && <header><h2>Scenario</h2><span className="tag assumption">Bus A · assumptions</span></header>}
+        {!drawer && <header><h2>Scenario</h2></header>}
         {s.notice && <div className="notice" role="status" style={{ margin: '10px 0' }}><span>{s.notice}</span><button className="btn sm" onClick={s.dismissNotice}>OK</button></div>}
         <div className="grp"><h3>Bus</h3>
           <div className="fld"><div className="l"><span id="bt">Bus type</span></div>
@@ -59,5 +59,5 @@ function Field({ k, serverFields }: { k: FieldKey; serverFields: Record<string, 
   const s = useScenario()
   const meta = FIELDS.find((f) => f.key === k)!
   const v = s.scenario[k] as number | null
-  return <FieldWithBadge meta={meta} value={v} error={s.errors[k]} serverError={serverFields[k]} onChange={(x) => s.setField(k, x)} badge={k !== 'battery_cost_per_kwh_inr' && k !== 'horizon_years' ? true : k === 'battery_cost_per_kwh_inr'} />
+  return <FieldWithBadge meta={meta} value={v} error={s.errors[k]} serverError={serverFields[k]} onChange={(x) => s.setField(k, x)} />
 }

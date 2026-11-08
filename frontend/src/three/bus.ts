@@ -125,10 +125,15 @@ export function buildBus(lengthM: 12 | 9) {
 
 export const allMods = (r: BusRig) => [...r.mods.roof, ...r.mods.under, ...r.mods.rear]
 
-export function paintHealth(r: BusRig, healthPct: number, linePct = 80) {
-  const [R, G, B] = healthRGB(healthPct, linePct)
+export function paintHealth(r: BusRig, healthPct: number, linePct = 80, rgb?: [number, number, number]) {
+  const [R, G, B] = rgb ?? healthRGB(healthPct, linePct)
   const c = new THREE.Color(R / 255, G / 255, B / 255)
   allMods(r).forEach((m) => (m.material as THREE.MeshStandardMaterial).emissive.copy(c))
+}
+
+/** Move the pack glow toward a target colour. Returns nothing; call every frame. `k` is the easing for this frame (0..1). */
+export function easePaint(r: BusRig, target: THREE.Color, k: number) {
+  allMods(r).forEach((m) => (m.material as THREE.MeshStandardMaterial).emissive.lerp(target, k))
 }
 
 export function setShellOpacity(r: BusRig, o: number) {
@@ -142,7 +147,7 @@ export function updateFlow(r: BusRig, t: number) {
   r.pg.attributes.position.needsUpdate = true
 }
 
-export function updateMods(r: BusRig, o: { explode: number; selected: PackId | null; hovered: PackId | null; isolate: boolean; scanX: number | null; scanOffsetX: number }) {
+export function updateMods(r: BusRig, o: { explode: number; selected: PackId | null; hovered: PackId | null; isolate: boolean; scanX: number | null; scanOffsetX: number; pulse?: number }) {
   allMods(r).forEach((m) => {
     m.position.copy(m.userData.base).addScaledVector(m.userData.ex, o.explode)
     const id = m.userData.id as PackId, mat = m.material as THREE.MeshStandardMaterial
@@ -150,7 +155,7 @@ export function updateMods(r: BusRig, o: { explode: number; selected: PackId | n
     let b = 1.0
     if (sel) b = 1.7; else if (o.hovered === id) b = 1.4
     if (o.scanX != null) b += clamp(1 - Math.abs(m.position.x + o.scanOffsetX - o.scanX) / 1.3, 0, 1) * 1.6
-    mat.emissiveIntensity = b
+    mat.emissiveIntensity = b + (o.pulse ?? 0) * 1.4
     mat.opacity = o.isolate && o.selected && !sel ? 0.18 : 1
     ;(m.userData.edge as THREE.LineSegments).material = (m.userData.edge as THREE.LineSegments).material
     ;((m.userData.edge as THREE.LineSegments).material as THREE.LineBasicMaterial).color.setHex(sel ? 0xfacc15 : 0x52525b)

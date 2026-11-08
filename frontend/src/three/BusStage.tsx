@@ -2,10 +2,13 @@ import { Component, useEffect, useMemo, useRef, type ElementRef, type ReactNode 
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { buildBus, disposeRig, paintHealth, setShellOpacity, updateFlow, updateMods, type PackId } from './bus'
+import { buildBus, disposeRig, easePaint, paintHealth, setShellOpacity, updateFlow, updateMods, type PackId } from './bus'
+import { healthRGB } from '../lib/colors'
 import { CAMS, type ViewState } from './viewState'
 
-export type BusSpec = { key: string; label: string; healthPct: number; offsetZ: number; packLabels?: boolean }
+export type DeltaBadge = { text: string; tone: 'up' | 'down' | 'none' }
+/** `rgb` overrides the health colour (used by the difference view). `pulseKey` changing makes the packs flash once. `badges` float above the bus. */
+export type BusSpec = { key: string; label: string; healthPct: number; offsetZ: number; packLabels?: boolean; rgb?: [number, number, number]; badges?: DeltaBadge[]; pulseKey?: string }
 type Props = { buses: BusSpec[]; lengthM: 12 | 9; linePct: number; view: ViewState; insetLeft: number; hovered: PackId | null; onHover: (id: PackId | null) => void; onSelect: (id: PackId | null) => void; ariaLabel: string }
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion:reduce)').matches
@@ -15,18 +18,33 @@ function Bus({ spec, lengthM, linePct, view, hovered, onHover, onSelect }: { spe
   const rig = useMemo(() => buildBus(lengthM), [lengthM])
   const gl = useThree((s) => s.gl)
   useEffect(() => () => disposeRig(rig), [rig])
-  useEffect(() => { paintHealth(rig, spec.healthPct, linePct) }, [rig, spec.healthPct, linePct])
+  // Colour eases toward its target, and a change of pulseKey (the user moved a slider) adds one short flash, so the eye is drawn to what just changed.
+  const target = useMemo(() => new THREE.Color(), [])
+  const painted = useRef<typeof rig | null>(null)
+  const flash = useRef(0)
+  const rgb = spec.rgb ?? healthRGB(spec.healthPct, linePct)
+  useEffect(() => {
+    target.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
+    if (painted.current !== rig || reducedMotion()) { paintHealth(rig, spec.healthPct, linePct, rgb); painted.current = rig }
+  }, [rig, target, rgb[0], rgb[1], rgb[2], spec.healthPct, linePct]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lastKey = useRef(spec.pulseKey)
+  useEffect(() => {
+    if (lastKey.current !== spec.pulseKey && !reducedMotion()) flash.current = 1
+    lastKey.current = spec.pulseKey
+  }, [spec.pulseKey])
   useEffect(() => { setShellOpacity(rig, view.shell) }, [rig, view.shell])
   useEffect(() => {
     rig.shellG.visible = view.layers.shell; rig.chassisG.visible = view.layers.chassis; rig.packG.visible = view.layers.packs
     rig.dim.visible = view.layers.dims; rig.flow.visible = view.layers.flow
   }, [rig, view.layers])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, dt) => {
     const t = reducedMotion() ? 0 : clock.elapsedTime
+    easePaint(rig, target, reducedMotion() ? 1 : 1 - Math.exp(-dt * 7))
+    flash.current = Math.max(0, flash.current - dt * 1.3)
     if (view.layers.flow) updateFlow(rig, t)
     const scanX = view.layers.scan && !reducedMotion() ? -7 + ((t * 3) % 16) : null
-    updateMods(rig, { explode: view.explode, selected: view.selected, hovered, isolate: view.isolate, scanX, scanOffsetX: 0 })
+    updateMods(rig, { explode: view.explode, selected: view.selected, hovered, isolate: view.isolate, scanX, scanOffsetX: 0, pulse: flash.current * flash.current })
   })
 
   const idOf = (e: ThreeEvent<PointerEvent | MouseEvent>) => (e.object.userData.id as PackId | undefined) ?? null
@@ -41,6 +59,11 @@ function Bus({ spec, lengthM, linePct, view, hovered, onHover, onSelect }: { spe
       {view.layers.labels && (
         <>
           <Html position={[-3.6 * rig.k, 3.95, 0]} center className="lbl3d bus" zIndexRange={[5, 0]}>{spec.label} · {Math.round(spec.healthPct)}%</Html>
+          {spec.badges && spec.badges.length > 0 && (
+            <Html position={[3.4 * rig.k, 3.95, 0]} center className="lbl3d-group" zIndexRange={[6, 0]}>
+              {spec.badges.map((b) => <span key={b.text} className={`lbl3d delta ${b.tone}`}>{b.text}</span>)}
+            </Html>
+          )}
           {view.layers.packs && spec.packLabels !== false && (['roof', 'under', 'rear'] as PackId[]).map((id) => {
             const m = rig.mods[id][0]
             return <Html key={id} position={[m.userData.base.x * (id === 'roof' ? 0 : 1) + (id === 'rear' ? 0.3 : 0), m.userData.base.y + (id === 'roof' ? 0.9 : id === 'under' ? -0.55 : 1.0), id === 'under' ? 1.4 : 0]} center className={`lbl3d${view.selected === id ? ' on' : ''}`} zIndexRange={[4, 0]}>{PACK_NAMES[id]}</Html>

@@ -2,6 +2,13 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Interface redesign (after v1.0.0)
+- Removed the status chips ("Prior mode", "Not yet validated on buses", "Outside lab data", "Service online") and the "assumption" tags on scenario inputs. The not-validated statement stays in the page footer, on the Evidence page, in hover text and in every API number.
+- The scenario inputs on Health, Replacement, Range and Cost are a slide-out drawer opened from a "Scenario" button; they open by themselves when an input is invalid.
+- Larger key-number panels, set lower under the navigation bar. On Optimise, "Change Bus B to compare" appears once.
+- Optimise comparison: Health / Difference colouring (Bus A grey, Bus B red to yellow by health difference), delta badges on Bus B, a "Bus B changes" bar, a two-curve timeline with replacement markers, and a one-off pulse when a new result arrives.
+- Label colour is the brand yellow. The README screenshots show the earlier layout.
+
 ## v1.0.0
 First release. Prior mode only: models trained on public laboratory data, every output marked "not yet validated on buses". Adds the release documentation (README with screenshots, `docs/data-attribution.md`, this changelog) and the claims audit of the README against the stored metrics.
 

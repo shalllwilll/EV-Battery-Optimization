@@ -5,9 +5,9 @@ import { FIELD_BY_KEY } from '../lib/scenario'
 import { FieldWithBadge } from './FieldWithBadge'
 
 describe('FieldWithBadge', () => {
-  it('shows the assumption badge, unit and source (T5.2-5)', () => {
+  it('shows the unit and source, with no assumption badge (T5.2-5)', () => {
     render(<FieldWithBadge meta={FIELD_BY_KEY.km_per_day} value={200} onChange={() => {}} />)
-    expect(screen.getByText('assumption')).toBeInTheDocument()
+    expect(screen.queryByText('assumption')).not.toBeInTheDocument()
     expect(screen.getByText('km')).toBeInTheDocument()
     expect(screen.getByText('Bus type default')).toBeInTheDocument()
   })

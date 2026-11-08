@@ -43,7 +43,7 @@ export function Immersive({ stage, children }: { stage: ReactNode; children: Rea
   )
 }
 
-export function Drawer({ open, title, onClose, width = 340, children }: { open: boolean; title: string; onClose: () => void; width?: number; children: ReactNode }) {
+export function Drawer({ open, title, onClose, width = 340, fixed, children }: { open: boolean; title: string; onClose: () => void; width?: number; fixed?: boolean; children: ReactNode }) {
   const { mounted, shown } = useMounted(open)
   const ref = useRef<HTMLElement>(null)
   // Focus moves into the panel when it opens and returns to whatever opened it when it closes.
@@ -62,7 +62,7 @@ export function Drawer({ open, title, onClose, width = 340, children }: { open: 
   }, [open, onClose])
   if (!mounted) return null
   return (
-    <aside ref={ref} tabIndex={-1} className={`drawer${shown && open ? ' in' : ''}`} style={{ '--w': `${width}px` } as CSSProperties} aria-label={title}>
+    <aside ref={ref} tabIndex={-1} className={`drawer${fixed ? ' fixed' : ''}${shown && open ? ' in' : ''}`} style={{ '--w': `${width}px` } as CSSProperties} aria-label={title}>
       <header className="dh"><h2>{title}</h2><button className="x" onClick={onClose} aria-label={`Close ${title}`}><IconClose /></button></header>
       <div className="db">{children}</div>
     </aside>
@@ -75,10 +75,10 @@ export function DockButton({ label, active, onClick, children }: { label: string
 }
 
 export type Stat = { label: string; value: ReactNode; unit?: string; sub?: string; tone?: 'up' | 'down' | 'none' }
-export function StatStrip({ stats, busy, title }: { stats: Stat[]; busy?: boolean; title?: string }) {
+export function StatStrip({ stats, busy, title, hint }: { stats: Stat[]; busy?: boolean; title?: string; hint?: string }) {
   return (
     <div className="stats glass" role="group" aria-label="Key numbers" aria-busy={busy} data-busy={busy ? 'true' : 'false'}>
-      {title && <div className="st ttl"><span>{title}</span></div>}
+      {title && <div className="st ttl"><span>{title}</span>{hint && <small>{hint}</small>}</div>}
       {stats.map((s) => (
         <div className="st" key={s.label}>
           <small>{s.label}</small>

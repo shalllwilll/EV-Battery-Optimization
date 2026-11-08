@@ -10,6 +10,17 @@ export function healthRGB(healthPct: number, linePct = 80): RGB {
   return mix(LINE, WORN, clamp((linePct - healthPct) / 25))
 }
 export const healthCss = (h: number, line = 80) => `rgb(${healthRGB(h, line).join(',')})`
+/** Difference view: Bus B's health minus Bus A's, in percentage points. Grey is "same as A", yellow is better, red is worse.
+ *  The scale is fixed (+/- DIFF_SCALE points) so a small change looks small and a large one looks large. */
+export const DIFF_SCALE = 5
+const SAME: RGB = [142, 142, 152], BETTER: RGB = HEALTHY, WORSE: RGB = [248, 113, 113]
+export const BASELINE_RGB = SAME
+export function diffRGB(deltaPts: number, scale = DIFF_SCALE): RGB {
+  if (Math.abs(deltaPts) < 0.15) return SAME
+  const t = clamp(Math.abs(deltaPts) / scale)
+  return mix(SAME, deltaPts > 0 ? BETTER : WORSE, 0.25 + 0.75 * t)
+}
+export const diffCss = (d: number, scale = DIFF_SCALE) => `rgb(${diffRGB(d, scale).join(',')})`
 /** WCAG relative luminance, used by the tests to prove the ramp is monotone. */
 export function luminance([r, g, b]: RGB): number {
   const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }

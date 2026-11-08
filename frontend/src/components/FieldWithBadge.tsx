@@ -1,11 +1,10 @@
 import { useEffect, useId, useState } from 'react'
 import { boundsText, hhmm, type FieldMeta } from '../lib/scenario'
-import { EvidenceBadge } from './EvidenceBadge'
 
-type Props = { meta: FieldMeta; value: number | null; error?: string; serverError?: string; onChange: (v: number | null) => void; badge?: boolean }
+type Props = { meta: FieldMeta; value: number | null; error?: string; serverError?: string; onChange: (v: number | null) => void }
 
-/** One scenario input: label, plain-words help, unit, assumption badge, inline error. Keeps its own text so partial typing is allowed. */
-export function FieldWithBadge({ meta, value, error, serverError, onChange, badge = true }: Props) {
+/** One scenario input: label, plain-words help, unit, inline error. Keeps its own text so partial typing is allowed. */
+export function FieldWithBadge({ meta, value, error, serverError, onChange }: Props) {
   const id = useId()
   const scale = meta.scale ?? 1
   const show = (v: number | null) => (v == null || !Number.isFinite(v) ? '' : String(+(v * scale).toFixed(meta.decimals + 2)))
@@ -22,7 +21,6 @@ export function FieldWithBadge({ meta, value, error, serverError, onChange, badg
       <div className="l">
         <label htmlFor={id}>{meta.label}</label>
         <span className="r">
-          {badge && <EvidenceBadge level="assumption" label="assumption" />}
           <button type="button" className="help" aria-expanded={open} aria-label={`About ${meta.label}`} onClick={() => setOpen((o) => !o)}>?</button>
         </span>
       </div>

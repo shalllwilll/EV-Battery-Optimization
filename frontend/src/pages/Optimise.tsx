@@ -10,16 +10,16 @@ import { BusLetter, IconDetails, IconGoals, IconView } from '../components/Icons
 import { Dock, DockButton, Drawer, DOCK_PX, Immersive, StatStrip, WIDE_QUERY, useWide, type Stat } from '../components/Overlay'
 import { PresetCards } from '../components/PresetCards'
 import { ScenarioPanel } from '../components/ScenarioPanel'
-import { StatusBar } from '../components/StatusBar'
-import { YearScrubber } from '../components/YearScrubber'
-import { applyOverrides, diffLevers, hasChanges, lifeChange, newWarnings, sameLevers, signed, stageFor, type LeverKey, type Overrides } from '../lib/busB'
+import { YearScrubber, type CompareLine } from '../components/YearScrubber'
+import { applyOverrides, diffLevers, hasChanges, lifeChange, newWarnings, sameLevers, signed, sliderSpecs, stageFor, type LeverKey, type Overrides } from '../lib/busB'
 import { atYear, fmt, inr, num } from '../lib/format'
 import { curves, repYears, xMaxFor } from '../lib/results'
 import { validateScenario } from '../lib/scenario'
 import { useScenario } from '../state/ScenarioContext'
 import { useYear } from '../state/YearContext'
 import type { BusSpec } from '../three/BusStage'
-import { Legend } from '../three/Legend'
+import { CompareLegend, type CompareMode } from '../three/Legend'
+import { BASELINE_RGB, diffRGB } from '../lib/colors'
 import { PackInspector } from '../three/PackInspector'
 import { ViewPanel } from '../three/ViewPanel'
 import { useViewState } from '../three/viewState'
@@ -41,6 +41,7 @@ export default function Optimise() {
   // On a wide screen the Bus B sliders start open beside the scene; on a phone the scene starts clear.
   const [panel, setPanel] = useState<Panel>(() => (typeof matchMedia === 'function' && matchMedia(WIDE_QUERY).matches ? 'b' : null))
   const [routeOpen, setRouteOpen] = useState(false)
+  const [cmpMode, setCmpMode] = useState<CompareMode>('diff')
   const shown: Panel = valid ? panel : 'a'
   const toggle = (p: Exclude<Panel, null>) => setPanel((cur) => (cur === p ? null : p))
   const close = useCallback(() => setPanel(null), [])
@@ -85,6 +86,7 @@ export default function Optimise() {
   // everything derived from the model, only once Bus A has results
   let stats: Stat[] = [], busy = false, heads: string[] = [], tight = false, tightText = ''
   let buses: BusSpec[] = [], cA = null as ReturnType<typeof curves> | null, cB = cA, xMax = 8, y = 0, r: ReturnType<typeof repYears> = [null, null, null]
+  let other: CompareLine | undefined
   let hA = 0, hB = 0, d: NonNullable<typeof cmp.data>['deltas'][number] | null = null
   const line = scenario.threshold * 100
   if (pa) {
@@ -106,8 +108,19 @@ export default function Optimise() {
     tightText = f?.base_passes
       ? `When the pack is due for replacement Bus B could drive about ${fmt(rngB)} km on a charge, but your route needs ${fmt(need)} km (route plus a 20 % reserve). Raise the charge cap or shorten the route before using this setting.`
       : `Bus A is already below the reserve on this route, so presets are held to Bus A's own range (${fmt(need)} km). Bus B drops below that, at about ${fmt(rngB)} km.`
-    buses = [{ key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z }, { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false }]
-    const dPts = hB - hA, same = 'Same as Bus A', none = 'Change Bus B to compare'
+    const dPts = hB - hA, same = 'Same as Bus A', none = undefined
+    // Difference view: Bus A is the grey baseline and Bus B is coloured by how far it is from A. Until Bus B differs there is nothing to show, so health colours stay.
+    const diff = cmpMode === 'diff' && changed
+    const mDelta = d ? num(d.months_p50) ?? 0 : 0
+    const badges: BusSpec['badges'] = usingB ? [
+      ...(Math.abs(mDelta) >= 0.5 ? [{ text: Math.abs(mDelta) >= 24 ? `${signed(mDelta / 12, 1)} years` : `${signed(mDelta, Math.abs(mDelta) < 10 ? 1 : 0)} ${Math.abs(Number(mDelta.toFixed(1))) === 1 ? 'month' : 'months'}`, tone: tone(mDelta, 0.5) }] : []),
+      ...(Math.abs(dPts) >= 0.05 ? [{ text: `${signed(dPts, 1)} pts`, tone: tone(dPts, 0.05) }] : []),
+    ] : []
+    buses = [
+      { key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z, rgb: diff ? BASELINE_RGB : undefined },
+      { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false, rgb: diff ? diffRGB(dPts) : undefined, badges, pulseKey: usingB ? String(cmp.dataUpdatedAt) : 'same' },
+    ]
+    if (usingB) other = { p50: cB.p50, aYear: r[1], bYear: repYears(rB)[1] }
     stats = [
       { label: `Health, year ${y.toFixed(1)}`, value: fmt(hB, 1), unit: '%', sub: changed ? (Math.abs(dPts) < 0.05 ? same : `${signed(dPts, 1)} points`) : none, tone: changed ? tone(dPts, 0.05) : 'none' },
       { label: 'Replace around', value: mB == null ? '–' : fmt(mB / 12, 1), unit: 'years', sub: life ? life.headline : (changed ? same : none), tone: d ? tone(num(d.months_p50) ?? 0, 0.05) : 'none' },
@@ -115,6 +128,7 @@ export default function Optimise() {
       { label: 'Range at replacement', value: fmt(rngB), unit: 'km', sub: !changed ? none : tight ? 'Below the reserve' : Math.abs(rngB - rngA) < 0.5 ? same : signed(rngB - rngA, 0, ' km'), tone: tight ? 'down' : tone(rngB - rngA, 0.5) },
     ]
   }
+  const chips = changed ? sliderSpecs(scenario).filter((sp) => eff[sp.key] != null).map((sp) => `${sp.label} ${sp.fmt(scenario[sp.key] as number)} → ${sp.fmt(eff[sp.key] as number)}`) : []
   const rows = cA && cB ? [{ label: 'Bus A', p10: atYear(cA.p10, y), p50: hA, p90: atYear(cA.p90, y) }, { label: 'Bus B', p10: atYear(cB.p10, y), p50: hB, p90: atYear(cB.p90, y) }] : []
   const inset = wide && shown ? DOCK_PX + WIDTH[shown] : 0
 
@@ -134,14 +148,14 @@ export default function Optimise() {
     <Immersive stage={stage}>
       <div className="imm-top">
         <div className="imm-tl">
-          <StatusBar compact>
-            {f && !f.base_passes && (
+          {f && !f.base_passes && (
+            <div className="status compact">
               <span style={{ position: 'relative' }}>
                 <button className="chip w" aria-expanded={routeOpen} onClick={() => setRouteOpen((o) => !o)}><i />Route already tight on range ▾</button>
                 {routeOpen && <div className="pop" style={{ top: 'calc(100% + 8px)', left: 0, width: 340 }} role="dialog"><b style={{ fontFamily: 'var(--head)' }}>Your route is already tight on range</b><p className="note">{f.plain}</p></div>}
               </span>
-            )}
-          </StatusBar>
+            </div>
+          )}
           <Dock>
             <DockButton label="Bus A" active={shown === 'a'} onClick={() => toggle('a')}><BusLetter l="A" /></DockButton>
             <DockButton label="Bus B" active={shown === 'b'} onClick={() => toggle('b')}><BusLetter l="B" /></DockButton>
@@ -151,7 +165,7 @@ export default function Optimise() {
           </Dock>
         </div>
         <div className="imm-tr">
-          {pa && <StatStrip title="Bus B" stats={stats} busy={busy} />}
+          {pa && <StatStrip title="Bus B" hint={changed ? undefined : 'Change Bus B to compare'} stats={stats} busy={busy} />}
           {heads.length > 0 && <div className="errbox" role="alert"><b>Heads-up for Bus B</b>{heads.map((h) => <p key={h}>{h}</p>)}</div>}
           {tight && <div className="errbox" role="alert"><b>Bus B gives up too much range</b><p>{tightText}</p></div>}
           <PackInspector selected={view.selected} rows={rows} year={y} isolate={view.isolate} onIsolate={api.toggleIsolate} onClose={() => api.select(null)} />
@@ -202,10 +216,12 @@ export default function Optimise() {
 
       {pa && cA && (
         <div className="imm-bottom">
-          {!view.selected && <p className="imm-hint">Click a battery pack for its health · drag to turn · scroll to zoom</p>}
+          {chips.length > 0
+            ? <div className="chg-bar" aria-label="What you changed on Bus B"><span>Bus B changes</span>{chips.map((c) => <b key={c}>{c}</b>)}</div>
+            : !view.selected && <p className="imm-hint">Click a battery pack for its health · drag to turn · scroll to zoom</p>}
           <div className="imm-row">
-            <YearScrubber p10={cA.p10} p50={cA.p50} p90={cA.p90} thresholdPct={line} xMax={xMax} win={[r[0], r[2]]} />
-            <Legend linePct={line} />
+            <YearScrubber p10={cA.p10} p50={cA.p50} p90={cA.p90} thresholdPct={line} xMax={xMax} win={[r[0], r[2]]} other={other} />
+            <CompareLegend mode={cmpMode} onMode={setCmpMode} linePct={line} idle={!changed} />
           </div>
         </div>
       )}
