@@ -25,6 +25,8 @@ class Settings:
     demo_user: str = field(default_factory=lambda: os.environ.get("EV_DEMO_USER", "demo"))
     demo_password: str = field(default_factory=lambda: os.environ.get("EV_DEMO_PASSWORD", "PackHorizon-2026"))
     auth_secret: str = field(default_factory=lambda: os.environ.get("EV_AUTH_SECRET") or _PROCESS_SECRET)
+    # Built frontend served by the API itself (set by scripts/run_all.sh). Missing folder means API only.
+    static_dir: str = field(default_factory=lambda: os.environ.get("EV_STATIC_DIR", "frontend/dist"))
     token_ttl_s: int = field(default_factory=lambda: int(os.environ.get("EV_TOKEN_TTL_S", 8 * 3600)))
 
 

@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from backend.app import auth, errors, routes, service
 from backend.app.limits import BodyLimitMiddleware
 from backend.app.security import SecurityHeadersMiddleware
+from backend.app.static import mount_frontend
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
 
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(routes.router)
+    mount_frontend(app, st.static_dir)   # last: its catch-all route must not shadow the API
     return app
 
 
