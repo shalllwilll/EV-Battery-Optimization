@@ -66,6 +66,13 @@ export default function Optimise() {
     viewerRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
   }, [scenario, confirm])
 
+  // Allowing cooling and energy-use changes while a goal is on Bus B re-applies that goal with the matching stage, so Bus B never silently lags the toggle.
+  const toggleConfirm = useCallback((on: boolean) => {
+    setConfirm(on)
+    const p = rec.data?.presets.find((x) => x.id === appliedId)
+    if (p) setOver(diffLevers(scenario, stageFor(p, on).scenario))
+  }, [rec.data, appliedId, scenario])
+
   const lengthM = scenario.archetype === '9m' ? 9 : 12
   return (
     <Page kicker="Optimise" title="Compare two buses" intro="Bus A is your bus as it runs today. Bus B is the same bus with changes you choose. Both run through the same model on the same simulated packs, so the gap you see is the effect of your changes, not noise.">
@@ -99,7 +106,7 @@ export default function Optimise() {
 
             <div className="cmpgrid" ref={viewerRef}>
               {rec.data
-                ? <BusBControls a={scenario} over={eff} setLever={setLever} reset={reset} presets={rec.data.presets} appliedId={appliedId} onPick={pick} includeConfirm={confirm} setIncludeConfirm={setConfirm} />
+                ? <BusBControls a={scenario} over={eff} setLever={setLever} reset={reset} presets={rec.data.presets} appliedId={appliedId} onPick={pick} includeConfirm={confirm} setIncludeConfirm={toggleConfirm} />
                 : <div className="card bctl"><h3>Bus B settings</h3>{rec.error ? <p className="note">The goal presets could not be loaded. You can still use the sliders after they load, or try again.</p> : <Skeleton h={300} />}</div>}
               <div className="cmpmain">
                 <div className="kstrip" aria-busy={waiting} data-waiting={waiting}>

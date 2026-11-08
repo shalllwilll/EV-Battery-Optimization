@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type CSSProperties } from 'react'
 import type { PresetResult, Scenario } from '../api/types'
 import { hasChanges, sliderSpecs, type LeverKey, type Overrides } from '../lib/busB'
 
@@ -26,7 +26,7 @@ export function BusBControls({ a, over, setLever, reset, presets, appliedId, onP
         return (
           <div className={`bs${changed ? ' ch' : ''}`} key={sp.key}>
             <div className="bsh"><label htmlFor={`${uid}${sp.key}`}>{sp.label}</label><b>{sp.fmt(val)}</b></div>
-            <input id={`${uid}${sp.key}`} type="range" min={sp.min} max={sp.max} step={sp.step} value={val} aria-valuetext={sp.fmt(val)} aria-describedby={`${uid}${sp.key}d`} onChange={(e) => setLever(sp.key, +e.target.value)} />
+            <input id={`${uid}${sp.key}`} className="rng" style={{ '--p': `${((val - sp.min) / (sp.max - sp.min)) * 100}%` } as CSSProperties} type="range" min={sp.min} max={sp.max} step={sp.step} value={val} aria-valuetext={sp.fmt(val)} aria-describedby={`${uid}${sp.key}d`} onChange={(e) => setLever(sp.key, +e.target.value)} />
             <div className="bsf" id={`${uid}${sp.key}d`}><span>Bus A: {sp.fmt(aVal)}</span>{sp.confirm && <span className="tag assumption" title={sp.confirm}>needs confirmation</span>}</div>
             <div className="bsn">{sp.confirm ?? sp.help}</div>
           </div>

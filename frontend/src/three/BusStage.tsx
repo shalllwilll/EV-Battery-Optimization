@@ -40,7 +40,7 @@ function Bus({ spec, lengthM, linePct, view, hovered, onHover, onSelect }: { spe
       />
       {view.layers.labels && (
         <>
-          <Html position={[-6.2 * rig.k, 3.9, 0]} center className="lbl3d bus" zIndexRange={[5, 0]}>{spec.label} · {Math.round(spec.healthPct)}%</Html>
+          <Html position={[-3.6 * rig.k, 3.95, 0]} center className="lbl3d bus" zIndexRange={[5, 0]}>{spec.label} · {Math.round(spec.healthPct)}%</Html>
           {view.layers.packs && spec.packLabels !== false && (['roof', 'under', 'rear'] as PackId[]).map((id) => {
             const m = rig.mods[id][0]
             return <Html key={id} position={[m.userData.base.x * (id === 'roof' ? 0 : 1) + (id === 'rear' ? 0.3 : 0), m.userData.base.y + (id === 'roof' ? 0.9 : id === 'under' ? -0.55 : 1.0), id === 'under' ? 1.4 : 0]} center className={`lbl3d${view.selected === id ? ' on' : ''}`} zIndexRange={[4, 0]}>{PACK_NAMES[id]}</Html>

@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useRef, useState, type CSSProperties } from 'react'
 import BusStage, { StageBoundary, type BusSpec } from './BusStage'
 import { PackInspector, type InspectRow } from './PackInspector'
 import { ViewToolbar } from './ViewToolbar'
@@ -39,7 +39,7 @@ export function BusViewer({ buses, lengthM, linePct, view, api, rows, year, comp
   return (
     <div className="viewer">
       <ViewToolbar view={view} api={api} compare={compare} />
-      <div className="vstage" style={{ height }}>
+      <div className="vstage" style={{ '--vh': `${height}px` } as CSSProperties}>
         {ok ? (
           <StageBoundary fallback={<Fallback buses={buses} />}>
             <Suspense fallback={<div className="skel" style={{ height }} aria-busy="true" aria-label="Loading 3D view" />}>
@@ -49,7 +49,7 @@ export function BusViewer({ buses, lengthM, linePct, view, api, rows, year, comp
         ) : <Fallback buses={buses} />}
         <PackInspector selected={view.selected} rows={rows} year={year} isolate={view.isolate} onIsolate={api.toggleIsolate} onClose={() => api.select(null)} />
         <Legend linePct={linePct} />
-        <div className="vhint" aria-hidden="true">Keys: 1–5 camera · S body · P packs · E pull apart · F flow · X scan · I isolate · Esc clear</div>
+        <div className="vhint" aria-hidden="true"><b>Click a battery pack</b> for its projected health · drag to turn · scroll to zoom<br />Keys: 1–5 camera · S body · P packs · E pull apart · F flow · X scan · I isolate · Esc clear</div>
       </div>
     </div>
   )

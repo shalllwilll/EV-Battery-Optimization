@@ -65,6 +65,19 @@ describe('Optimise (compare two buses)', () => {
     expect((await screen.findAllByText('needs your confirmation')).length).toBeGreaterThan(0)
     expect(screen.getByText(byId('max_range').with_confirmation!.summary)).toBeInTheDocument()
   })
+  it('re-applies the chosen goal when cooling and energy-use changes are allowed afterwards', async () => {
+    const api = mockApi(); renderApp('/optimise')
+    const card = (await screen.findByRole('heading', { name: 'Keep full range', level: 3 })).closest('article')! as HTMLElement
+    await userEvent.click(within(card).getByRole('button', { name: 'Try on Bus B' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /Include changes that need your confirmation/ }))
+    const want = byId('max_range').with_confirmation!.scenario
+    await waitFor(() => {
+      const last = [...api.calls].reverse().find((c) => c.path === '/compare')!.body as { scenarios: { heat_rise_c: number; kwh_per_km: number }[] }
+      expect(last.scenarios[1].heat_rise_c).toBe(want.heat_rise_c)
+      expect(last.scenarios[1].kwh_per_km).toBeCloseTo(want.kwh_per_km as number, 6)
+    }, { timeout: 3000 })
+    expect(within(card).getByText('Shown on Bus B', { selector: '.tag' })).toBeInTheDocument()
+  })
   it('explains the levers that were deliberately left alone', async () => {
     mockApi(); renderApp('/optimise')
     expect(await screen.findByText('What we did not change, and why')).toBeInTheDocument()

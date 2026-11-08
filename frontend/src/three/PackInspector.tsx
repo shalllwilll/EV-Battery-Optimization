@@ -8,7 +8,7 @@ const INFO: Record<PackId, { name: string; modules: number; where: string }> = {
 }
 
 export function PackInspector({ selected, rows, year, isolate, onIsolate, onClose }: { selected: PackId | null; rows: InspectRow[]; year: number; isolate: boolean; onIsolate: () => void; onClose: () => void }) {
-  if (!selected) return <aside className="insp glass idle" aria-live="polite"><b>Click a battery pack</b><span>to see its projected health. Drag to turn the bus, scroll to zoom.</span></aside>
+  if (!selected) return <div className="sr" aria-live="polite" />
   const i = INFO[selected]
   return (
     <aside className="insp glass" aria-live="polite">

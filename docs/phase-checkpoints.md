@@ -63,3 +63,11 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - Accessibility audit, `npm audit` and packaging (Phase 8) are not done yet.
 - The calibration demo on the Evidence page is deferred (Phase 7).
 - Docker is not installed on the development machine, so optional container packaging is untested.
+
+## Phase 6.3: Visual polish pass (`cp-6.3`)
+
+- Bus B and 3D-view sliders now share the scenario panel's slider style; keyboard users can select a battery pack with buttons (3D picking was mouse-only); the idle inspector card that sat on top of the bus is replaced by a hint line.
+- Fixed: allowing cooling and energy-use changes while a goal was on Bus B left Bus B on the old settings and dropped the goal highlight. The toggle now re-applies the active goal (test added).
+- Phone layout for the 3D view: toolbar rows scroll sideways, shorter stage, inspector as a bottom sheet, camera backs off on narrow screens, legend inside the canvas.
+- Browser surfaces themed (scrollbars, caret), balanced headings, larger touch targets on coarse pointers, and the overshooting "spring" easing replaced with exponential ease-out (design detector: clean).
+- Not changed on purpose: the small section label above each page heading. The design checker recommends removing it; it was part of the approved design, so it is the user's call.
