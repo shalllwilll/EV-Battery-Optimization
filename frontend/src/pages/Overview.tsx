@@ -56,7 +56,7 @@ export default function Overview() {
   const stage = valid && p
     ? <BusViewer buses={buses} lengthM={lengthM} linePct={line} view={view} api={api} insetLeft={inset}
         ariaLabel={`3D ${lengthM} metre electric bus with battery packs coloured by projected health, ${fmt(healthNow, 0)} percent at year ${y.toFixed(1)}`} />
-    : <div className="skel full" aria-busy="true" aria-label="Loading" />
+    : <div className="skel full" aria-busy="true" aria-label="Loading…" />
 
   return (
     <Immersive stage={stage}>

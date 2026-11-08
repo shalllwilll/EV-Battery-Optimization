@@ -36,16 +36,23 @@ function useMounted(open: boolean, ms = 260) {
 /** Full-viewport page: the 3D scene fills the screen and everything else floats on top of it. */
 export function Immersive({ stage, children }: { stage: ReactNode; children: ReactNode }) {
   return (
-    <div className="imm" id="main">
+    <main className="imm" id="main">
       <div className="imm-stage">{stage}</div>
       <div className="imm-ui">{children}</div>
-    </div>
+    </main>
   )
 }
 
 export function Drawer({ open, title, onClose, width = 340, children }: { open: boolean; title: string; onClose: () => void; width?: number; children: ReactNode }) {
   const { mounted, shown } = useMounted(open)
   const ref = useRef<HTMLElement>(null)
+  // Focus moves into the panel when it opens and returns to whatever opened it when it closes.
+  const opener = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    return () => { const o = opener.current; if (o && o.isConnected) o.focus({ preventScroll: true }) }
+  }, [open])
   useEffect(() => { if (open && mounted) ref.current?.focus({ preventScroll: true }) }, [open, mounted])
   useEffect(() => {
     if (!open) return

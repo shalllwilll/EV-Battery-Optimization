@@ -20,7 +20,7 @@ export default function Range() {
     <Page title="Season, climate and range" intro="Real air temperatures for the chosen zone. The model gives one range for every month, because no public data links cold or heat to LFP bus range.">
       <div className="bento">
         <div className="card c7">
-          <div className="hd"><div><h3>Air temperature by month</h3><div className="sub">{ZONE_LABELS[scenario.zone]} · {z ? `${z.elevation_m} m · NASA POWER ${zones.data?.period.slice(0, 4)}–${zones.data?.period.slice(9, 13)}` : 'loading…'} · bar = monthly mean, line = average day and night</div></div><span className="tag lab">real weather</span></div>
+          <div className="hd"><div><h2>Air temperature by month</h2><div className="sub">{ZONE_LABELS[scenario.zone]} · {z ? `${z.elevation_m} m · NASA POWER ${zones.data?.period.slice(0, 4)}–${zones.data?.period.slice(9, 13)}` : 'loading…'} · bar = monthly mean, line = average day and night</div></div><span className="tag lab">real weather</span></div>
           {z ? <WithTable chart={<SeasonChart months={z.monthly} />} head={['Month', 'Mean °C', 'Day °C', 'Night °C']} rows={z.monthly.map((m) => [m.month, m.tmean_c.toFixed(1), m.tmax_mean_c.toFixed(1), m.tmin_mean_c.toFixed(1)])} />
             : <div className="skel" style={{ height: 260 }} />}
         </div>
@@ -28,7 +28,7 @@ export default function Range() {
           <Async q={q} h={260}>{(p) => {
             const ret = arr(p.replacement.retention_p50), now = atYear(ret, year), nw = num(p.range.new_pack_range_km) ?? 0
             return (<>
-              <div className="hd"><h3>Range on a full charge</h3><EvidenceBadge level="derived" /></div>
+              <div className="hd"><h2>Range on a full charge</h2><EvidenceBadge level="derived" /></div>
               <div className="sub">Median pack at year {year.toFixed(1)}</div>
               <div className="kpi">{fmt(nw * now)}<small>km</small></div>
               <div className="bar mt"><i style={{ width: `${now * 100}%` }} /></div>

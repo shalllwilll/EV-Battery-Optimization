@@ -10,7 +10,7 @@ export function StatusBar({ compact, children }: { compact?: boolean; children?:
   const [open, setOpen] = useState(false)
   const ex = q.data?.replacement.extrapolated ? q.data.replacement.extrapolation_reasons : null
   return (
-    <div className={`status${compact ? ' compact' : ''}`} aria-label="Model status">
+    <div className={`status${compact ? ' compact' : ''}`} role="region" aria-label="Model status">
       <span className="chip"><i />Prior mode · no vendor data</span>
       <span className="chip w"><i />Not yet validated on buses</span>
       {ex && <span style={{ position: 'relative' }}>

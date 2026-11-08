@@ -19,6 +19,7 @@ export function TopNav() {
 
   return (
     <header className="nav" role="banner">
+      <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); const m = document.getElementById('main'); m?.setAttribute('tabindex', '-1'); m?.focus() }}>Skip to content</a>
       <NavLink to={`/${search}`} className="brand" aria-label="Pack Horizon home">
         <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect x="1" y="1" width="32" height="32" rx="10" fill="#18181B" stroke="#3F3F46" /><path d="M19 6L9 19h7l-2 9 11-14h-7z" fill="#FACC15" /></svg>
         <span>Pack Horizon</span>
@@ -28,7 +29,7 @@ export function TopNav() {
         {ROUTES.map((r) => <NavLink key={r.to} to={`${r.to}${search}`} end={r.to === '/'} className={() => (loc.pathname === r.to ? 'active' : '')}>{r.label}</NavLink>)}
       </nav>
       <div className="umenu">
-        <button className="avatar" aria-label="Account menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{(user ?? '?').slice(0, 1).toUpperCase()}</button>
+        <button className="avatar" aria-label={`${(user ?? '?').slice(0, 1).toUpperCase()}, account menu`} aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{(user ?? '?').slice(0, 1).toUpperCase()}</button>
         {menu && (
           <div className="pop" role="menu">
             <b>{user}</b><small>Demo account</small>

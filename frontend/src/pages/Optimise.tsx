@@ -121,7 +121,7 @@ export default function Optimise() {
   const stage = pa
     ? <BusViewer buses={buses} lengthM={lengthM} linePct={line} view={view} api={api} insetLeft={inset}
         ariaLabel={`3D comparison of two ${lengthM} metre electric buses. Bus A battery health ${fmt(hA, 0)} percent, Bus B ${fmt(hB, 0)} percent at year ${y.toFixed(1)}`} />
-    : <div className="skel full" aria-busy="true" aria-label="Loading" />
+    : <div className="skel full" aria-busy="true" aria-label="Loading…" />
 
   const routeSentence = f && (
     <div className={`route${f.base_passes ? '' : ' warn'}`} role="note">

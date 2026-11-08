@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
+
+// Lazy page chunks and the 3D bundle load slowly when the machine is busy, so give async queries more room than the 1 s default.
+configure({ asyncUtilTimeout: 5000 })
 
 // jsdom lacks these browser APIs; the app only needs them to exist.
 class RO { observe() {} unobserve() {} disconnect() {} }

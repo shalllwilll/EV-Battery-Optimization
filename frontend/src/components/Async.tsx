@@ -15,7 +15,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 }
 
 export function Skeleton({ h = 220 }: { h?: number }) {
-  return <div className="skel" style={{ height: h }} aria-busy="true" aria-label="Loading" />
+  return <div className="skel" style={{ height: h }} aria-busy="true" aria-label="Loading…" />
 }
 
 /** Renders children once data exists. While the first load runs it shows a skeleton; a refetch keeps the old numbers on screen. */

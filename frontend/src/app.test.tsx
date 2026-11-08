@@ -30,7 +30,7 @@ describe('sign in', () => {
   })
   it('signs out from the account menu', async () => {
     mockApi(); renderApp('/')
-    await userEvent.click(await screen.findByRole('button', { name: 'Account menu' }))
+    await userEvent.click(await screen.findByRole('button', { name: /account menu/i }))
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })

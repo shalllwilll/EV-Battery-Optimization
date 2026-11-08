@@ -21,11 +21,11 @@ export default function Replacement() {
         return (
           <div className="bento">
             <div className="card c7">
-              <div className="hd"><div><h3>Chance the pack has reached the line</h3><div className="sub">Cumulative share of simulated packs · line at {Math.round(scenario.threshold * 100)}% health</div></div><EvidenceBadge level="derived" /></div>
+              <div className="hd"><div><h2>Chance the pack has reached the line</h2><div className="sub">Cumulative share of simulated packs · line at {Math.round(scenario.threshold * 100)}% health</div></div><EvidenceBadge level="derived" /></div>
               <WithTable chart={<ProbChart prob={prob} repYears={y} xMax={xMax} />} head={['Year', 'Share reached %']} rows={Array.from({ length: Math.round(xMax * 2) + 1 }, (_, i) => [i / 2, fmt(prob[i * 6])])} />
             </div>
             <div className="card c5">
-              <div className="hd"><h3>Planning dates</h3><EvidenceBadge level="derived" /></div>
+              <div className="hd"><h2>Planning dates</h2><EvidenceBadge level="derived" /></div>
               <div className="sub">Years in service until the line</div>
               <div className="mt3" style={{ marginTop: 0 }}>
                 <div><small>Early (p10)</small><b>{yrs(y[0])}</b></div>
