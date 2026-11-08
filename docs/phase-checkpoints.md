@@ -70,4 +70,4 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - Fixed: allowing cooling and energy-use changes while a goal was on Bus B left Bus B on the old settings and dropped the goal highlight. The toggle now re-applies the active goal (test added).
 - Phone layout for the 3D view: toolbar rows scroll sideways, shorter stage, inspector as a bottom sheet, camera backs off on narrow screens, legend inside the canvas.
 - Browser surfaces themed (scrollbars, caret), balanced headings, larger touch targets on coarse pointers, and the overshooting "spring" easing replaced with exponential ease-out (design detector: clean).
-- Not changed on purpose: the small section label above each page heading. The design checker recommends removing it; it was part of the approved design, so it is the user's call.
+- Removed at the user's request (follow-up commit): the small section label above each page heading; the top bar already shows the current page.

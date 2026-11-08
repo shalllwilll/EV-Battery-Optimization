@@ -56,8 +56,6 @@ a{color:inherit}
 .main{min-width:0;display:flex;flex-direction:column;gap:22px}
 .pagehead h1{font-size:clamp(30px,3.4vw,44px);font-weight:600;letter-spacing:-.035em;line-height:1.08}
 .pagehead p{margin:10px 0 0;color:var(--t2);max-width:680px;font-size:16px}
-.kick{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);margin-bottom:12px}
-.kick::before{content:"";width:9px;height:9px;border-radius:3px;background:var(--volt);box-shadow:0 0 10px var(--glow)}
 
 /* ------------ scenario panel ------------ */
 .scen{position:sticky;top:128px;max-height:calc(100vh - 146px);overflow-y:auto;padding:20px;border-radius:var(--r-lg);background:var(--s1);border:1px solid var(--line2);scrollbar-width:thin;scrollbar-color:var(--s3) transparent}

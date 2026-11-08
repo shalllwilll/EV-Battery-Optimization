@@ -14,7 +14,7 @@ export default function Replacement() {
   const { q, scenario } = useCurrent()
   const { year } = useYear()
   return (
-    <Page kicker="Replacement intelligence" title="When to plan the swap" intro="Every simulated pack crosses the replacement line at a different time. Plan around a window, never a single date.">
+    <Page title="When to plan the swap" intro="Every simulated pack crosses the replacement line at a different time. Plan around a window, never a single date.">
       <Async q={q} h={420}>{(p) => {
         const r = p.replacement, y = repYears(r), prob = probSeries(r), xMax = xMaxFor(p)
         const within = num(r.probability_within_horizon) ?? 0

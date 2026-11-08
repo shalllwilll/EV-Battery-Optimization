@@ -17,7 +17,7 @@ export default function Overview() {
   const [view, api] = useViewState('iso')
   const lengthM = scenario.archetype === '9m' ? 9 : 12
   return (
-    <Page kicker="Overview" title="Your bus, year by year" intro="Move the year to watch the battery packs change colour as the model projects their health. Yellow is healthy, orange is the replacement line, red is past it.">
+    <Page title="Your bus, year by year" intro="Move the year to watch the battery packs change colour as the model projects their health. Yellow is healthy, orange is the replacement line, red is past it.">
       <Async q={q} h={640}>{(p) => {
         const c = curves(p.replacement), xMax = xMaxFor(p), r = repYears(p.replacement), y = Math.min(year, xMax)
         const at = (a: number[]) => atYear(a, y)

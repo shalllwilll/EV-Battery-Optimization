@@ -75,7 +75,7 @@ export default function Optimise() {
 
   const lengthM = scenario.archetype === '9m' ? 9 : 12
   return (
-    <Page kicker="Optimise" title="Compare two buses" intro="Bus A is your bus as it runs today. Bus B is the same bus with changes you choose. Both run through the same model on the same simulated packs, so the gap you see is the effect of your changes, not noise.">
+    <Page title="Compare two buses" intro="Bus A is your bus as it runs today. Bus B is the same bus with changes you choose. Both run through the same model on the same simulated packs, so the gap you see is the effect of your changes, not noise.">
       <Async q={predA} h={500}>{(pa) => {
         const usingB = run && !!cmp.data && !!predB.data
         const waiting = run && !usingB

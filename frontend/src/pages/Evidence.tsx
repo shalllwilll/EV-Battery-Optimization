@@ -9,7 +9,7 @@ const TAG = ['Scope', 'Bias', 'Assumption', 'Not modelled', 'Assumption', 'Bias'
 export default function Evidence() {
   const q = useEvidence()
   return (
-    <Page wide kicker="Evidence and method" title="What this rests on" intro="Public laboratory data only. Every bus-level number is an assumption or derived from one. These figures come from the project's own validation runs.">
+    <Page wide title="What this rests on" intro="Public laboratory data only. Every bus-level number is an assumption or derived from one. These figures come from the project's own validation runs.">
       <Async q={q} h={420}>{(e) => {
         const m = e.metrics, naive = m.early_life.candidates.find((c) => c.model === 'mean only')?.mape, win = m.early_life.candidates.find((c) => c.model === m.early_life.winner)?.mape
         const cl = Object.values(m.calendar_validation.cross_lab).map((v) => v.mae_within_train_horizon * 100)

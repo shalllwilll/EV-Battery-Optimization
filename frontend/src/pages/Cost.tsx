@@ -11,7 +11,7 @@ const NAMES: Record<string, [string, string]> = {
 export default function Cost() {
   const { q, scenario } = useCurrent()
   return (
-    <Page kicker="Cost intelligence" title="Battery cost per kilometre" intro="The pack price divided by the kilometres driven until it reaches the replacement line. No interest, inflation or resale value.">
+    <Page title="Battery cost per kilometre" intro="The pack price divided by the kilometres driven until it reaches the replacement line. No interest, inflation or resale value.">
       <Async q={q} h={300}>{(p) => {
         const c = p.cost, med = num(c.cost_per_km_p50), tor = c.tornado, mx = Math.max(...tor.map((t) => num(t.swing) ?? 0), 0.0001)
         return (

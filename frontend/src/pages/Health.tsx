@@ -12,7 +12,7 @@ export default function Health() {
   const { q, scenario } = useCurrent()
   const [band, setBand] = useState(true), [thr, setThr] = useState(true)
   return (
-    <Page kicker="Battery health" title="How much capacity is left" intro="The line is the median of 2,000 simulated packs. The shaded band holds 8 in 10 of them. Hover to read a year, click to pick it.">
+    <Page title="How much capacity is left" intro="The line is the median of 2,000 simulated packs. The shaded band holds 8 in 10 of them. Hover to read a year, click to pick it.">
       <Async q={q} h={420}>{(p) => {
         const c = curves(p.replacement), xMax = xMaxFor(p), r = repYears(p.replacement)
         const cal = num(p.driver_split.calendar_share) ?? 0

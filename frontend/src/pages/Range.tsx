@@ -17,7 +17,7 @@ export default function Range() {
   const zones = useZones()
   const z = zones.data?.zones.find((x) => x.id === scenario.zone)
   return (
-    <Page kicker="Seasonal range" title="Season, climate and range" intro="Real air temperatures for the chosen zone. The model gives one range for every month, because no public data links cold or heat to LFP bus range.">
+    <Page title="Season, climate and range" intro="Real air temperatures for the chosen zone. The model gives one range for every month, because no public data links cold or heat to LFP bus range.">
       <div className="bento">
         <div className="card c7">
           <div className="hd"><div><h3>Air temperature by month</h3><div className="sub">{ZONE_LABELS[scenario.zone]} · {z ? `${z.elevation_m} m · NASA POWER ${zones.data?.period.slice(0, 4)}–${zones.data?.period.slice(9, 13)}` : 'loading…'} · bar = monthly mean, line = average day and night</div></div><span className="tag lab">real weather</span></div>
