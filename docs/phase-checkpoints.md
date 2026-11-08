@@ -109,4 +109,4 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - `backend/app/static.py`: the API serves `frontend/dist` (override with `EV_STATIC_DIR`), with single-page-app fallback, a year of caching for hashed assets, no caching for `index.html`, and path-traversal protection. Without a build folder it stays API-only.
 - Checked by running it: health 200, `/optimise` reload 200, traversal attempts 404, security headers present, and `/predict` works with the `data/` folder moved away (the app needs only the small committed model files). The built page references no external host, so it runs offline.
 - Not done: a hosted deployment and `render.yaml` (optional in the playbook, and a hosting choice is yours); Docker is not installed. Marked "not deploying".
-- Tests: 223 backend (7 new in `tests/test_static.py`).
+- Tests: 226 backend (10 new in `tests/test_static.py`). `cp-8.3` was tagged while two older tests failed (the frontend catch-all route shadowed routes those tests add after startup); `cp-8.3.1` fixes the tests.
