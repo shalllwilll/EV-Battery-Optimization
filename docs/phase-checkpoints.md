@@ -89,3 +89,16 @@ Phases 4 to 6 are recorded here so far; earlier phases are identifiable by their
 - `docs/calibration-interface.md` documents the vendor file contract and the honest reading of the numbers.
 - Deviation: a script instead of a notebook, because Jupyter is not installed (noted in the interface doc).
 - Tests: 210 backend (9 new in `tests/test_calibrate.py`, 1 new API test), 85 frontend (1 new). Calibrated mode stays out of the app by design.
+
+## Phase 8.1: Accessibility (`cp-8.1`, fix `cp-8.1.1`)
+
+- axe-core scans of every page in a real browser: 0 violations after fixes (heading order, landmarks, account-button name). The same scans run in the test suite (`a11y.test.tsx`) with keyboard checks (skip link, drawer focus in and out). Contrast ratios computed from the tokens: all at least 5.2:1.
+- Fixed: Evidence page overflow at 375 px, `transition: all`, scroll containment in panels, tabular numerals, safe-area padding, theme colour. Notes and what was not done (Playwright, screen-reader listening) in `docs/accessibility.md`.
+- `cp-8.1` shipped a stylesheet typo that broke the production build (tests do not parse CSS); `cp-8.1.1` fixes it. From here the full check list includes `npm run build`.
+- Test suite timeouts raised to 5 s because slow lazy chunks made tests flaky on a busy machine.
+
+## Phase 8.2: Performance and security (`cp-8.2`)
+
+- `/predict` p95 0.08 s over 50 calls (budget 2 s); 100 requests at 20-way parallel gave zero 5xx (`scripts/perf_check.py`, `docs/performance.md`). Lighthouse not run.
+- Security: the token key no longer has a public default (random per process unless `EV_AUTH_SECRET` is set); security headers on every response; `pip-audit` and `npm audit --omit=dev` clean; `gitleaks` over history clean. Ten moderate advisories remain in dev-only linting tools, accepted (`docs/security-review.md`).
+- Tests: 216 backend (6 new), 95 frontend.

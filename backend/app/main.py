@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from backend.app import auth, errors, routes, service
 from backend.app.limits import BodyLimitMiddleware
+from backend.app.security import SecurityHeadersMiddleware
 from backend.app.config import get_settings
 from engine.cell.uncertainty import load_models
 
@@ -47,6 +48,9 @@ def create_app() -> FastAPI:
     app.add_middleware(BodyLimitMiddleware, max_bytes=st.max_body_bytes)
     app.add_middleware(CORSMiddleware, allow_origins=st.allowed_origins, allow_methods=["GET", "POST", "OPTIONS"],
                        allow_headers=["Content-Type", "Authorization"], expose_headers=["X-Cache"])
+
+    # Outermost, so every response (including 413s and errors) carries the security headers.
+    app.add_middleware(SecurityHeadersMiddleware)
 
     errors.install(app)
 

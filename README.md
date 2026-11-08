@@ -31,7 +31,7 @@ Endpoints under `/api/v1`: `GET /health` and `POST /auth/login` (public); `GET /
 Every number in a prediction carries `{value, unit, evidence_level, validated_on_buses: false}`; responses state `mode: "prior"`.
 Settings (all optional): `EV_ALLOWED_ORIGINS`, `EV_MAX_BODY_BYTES`, `EV_ARTIFACT_DIR`, and the demo-login settings `EV_AUTH_REQUIRED`, `EV_DEMO_USER`, `EV_DEMO_PASSWORD`, `EV_AUTH_SECRET`, `EV_TOKEN_TTL_S` (see `.env.example`).
 
-**Demo login** (one account, no sign-up): username `demo`, password `PackHorizon-2026`. Change `EV_DEMO_PASSWORD` and `EV_AUTH_SECRET` before showing this to anyone outside the course.
+**Demo login** (one account, no sign-up): username `demo`, password `PackHorizon-2026`. Change `EV_DEMO_PASSWORD` before showing a hosted copy to anyone outside the course. Without `EV_AUTH_SECRET` the server signs tokens with a random per-process key, so sign-ins end when it restarts. See `docs/security-review.md`.
 
 ## Frontend (Phases 5 and 6)
 

@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import threading
 import time
 from collections import defaultdict, deque
@@ -86,8 +87,8 @@ async def login(req: LoginRequest, request: Request):
         with _lock:
             _fails[ip].append(now)
         raise ApiError(401, "invalid_credentials", "Username or password is not correct.")
-    if st.auth_secret == "dev-only-change-me":
-        log.warning("EV_AUTH_SECRET is the built-in development value; set your own for anything shared.")
+    if not os.environ.get("EV_AUTH_SECRET"):
+        log.warning("EV_AUTH_SECRET is not set: tokens use a random per-process key and end when the server restarts.")
     return LoginResponse(access_token=make_token(req.username, st.auth_secret, st.token_ttl_s), expires_in=st.token_ttl_s, username=req.username)
 
 
