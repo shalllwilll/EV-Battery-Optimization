@@ -229,6 +229,22 @@ def test_a_long_list_of_changes_does_not_leave_a_blank_page(client):
     assert 4 <= pages <= 5
 
 
+def test_report_adds_electricity_to_the_cost_figures(client):
+    from backend.app.report import build_pdf
+    import re
+    tariff = {"electricity_tariff": "msedcl_ht_ix"}
+    pa, pb, cmp = _pair(client, tariff, {**tariff, "charge_start_hour": 0.0})
+    f = facts(pa, pb, cmp, 50)
+    (ba, bb), (ea, eb), (ta, tb) = f["cost"], f["elec"], f["total"]
+    assert ta == pytest.approx(ba + ea) and tb == pytest.approx(bb + eb)
+    assert eb < ea  # starting at midnight keeps the charge out of the evening peak
+    pdf = build_pdf(pa, pb, cmp, 50)
+    assert 4 <= len(re.findall(rb"/Type\s*/Page(?![s\w])", pdf)) <= 5
+    # only one bus has a tariff: nothing is compared, the battery figures stand alone
+    pa2, pb2, cmp2 = _pair(client, {}, tariff)
+    assert facts(pa2, pb2, cmp2, 50)["total"] is None
+
+
 def test_env_file_fills_missing_settings_but_never_overrides(tmp_path, monkeypatch):
     import os
     from backend.app import config

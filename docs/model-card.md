@@ -166,3 +166,11 @@ Default 12 m scenario, 200 km/day, 1.2 kWh/km, 100 % charge cap, depot charging 
 **Licence.** BLAST-Lite is listed as BSD-3-Clause on GitHub and Apache-2.0 on PyPI. The BSD-3 text shipped in the package is kept in `engine/reference/NOTICE`.
 
 Reproduce: `python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite && .venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python`. `tests/test_crosscheck_blast.py` checks the duty-series builder and the stored file without needing BLAST-Lite installed. Afterwards run `.venv/bin/python scripts/check_reference_port.py` to refresh the port check.
+
+## Electricity cost per km (Maharashtra, Pune)
+Not an ageing model: arithmetic on a published tariff. Electricity per km = energy per km ÷ charger efficiency × price per unit, where the price is the energy charge shifted by the time-of-day rule for the hours the bus charges, plus the wheeling charge (`engine/decide/electricity.py`, rates and sources in `engine/bus/tariffs.json`). It adds to, and never changes, the battery cost per km; the total is the battery's 10th, 50th and 90th percentile plus one electricity figure, because the tariff is an assumption and has no spread of its own.
+- Assumed, no bus data: charger efficiency (92 %), unity power factor (the tariff is per kVAh and is treated as per kWh), the charging window (start time and charge length from the scenario), and a tariff held flat for the life of the bus, undiscounted.
+- Left out: electricity duty, the fuel adjustment charge, tax on sale of electricity, power-factor penalties, tariff changes after FY 2026-27 and other utilities. Only MSEDCL EV charging categories (HT IX, LT VIII) are offered, plus a flat price of the operator's own.
+- Does not change battery ageing: the charging window that sets the price is the same one that already sets time spent full.
+- Not yet validated on buses.
+

@@ -89,9 +89,15 @@ FIELDS: list[tuple[str, str, object]] = [
     ("pack_penalty_min", "Weakest-cell penalty, low", lambda v: f"{v * 100:g} %"),
     ("pack_penalty_max", "Weakest-cell penalty, high", lambda v: f"{v * 100:g} %"),
     ("battery_cost_per_kwh_inr", "Battery price", lambda v: "not set" if v is None else f"₹{v:,.0f} per kWh"),
+    ("electricity_tariff", "Electricity tariff", lambda v: TARIFF_NAMES.get(v, str(v))),
+    ("electricity_custom_inr_per_kwh", "Own electricity price", lambda v: "–" if v is None else f"₹{v:g} per kWh"),
+    ("charger_efficiency", "Charger efficiency", lambda v: f"{v * 100:g} %"),
     ("threshold", "Replace when health falls to", lambda v: f"{v * 100:g} %"),
     ("horizon_years", "Forecast length", lambda v: f"{v} years"),
 ]
+
+
+TARIFF_NAMES = {"none": "not included", "msedcl_ht_ix": "MSEDCL HT IX, Pune", "msedcl_lt_viii": "MSEDCL LT VIII, Pune", "custom": "own flat price"}
 
 
 def changes(a, b) -> list[tuple[str, str, str]]:
@@ -138,6 +144,11 @@ def facts(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fleet:
     ca, cb = _val(pa.cost.cost_per_km_p50), _val(pb.cost.cost_per_km_p50)
     f["cost"] = (ca, cb) if ca is not None and cb is not None else None
     f["cost_tone"] = _tone(cb - ca, 0.005, higher_is_better=False) if f["cost"] else "same"
+    ea = _val(pa.cost.electricity.cost_per_km) if pa.cost.electricity else None
+    eb = _val(pb.cost.electricity.cost_per_km) if pb.cost.electricity else None
+    f["elec"] = (ea, eb) if ea is not None and eb is not None else None
+    f["total"] = (ca + ea, cb + eb) if f["cost"] and f["elec"] else None
+    f["total_tone"] = _tone(f["total"][1] - f["total"][0], 0.005, higher_is_better=False) if f["total"] else "same"
     f["need"] = route_need_km(pa.scenario)
     f["new_a"], f["new_b"] = _val(pa.range.new_pack_range_km) or 0.0, _val(pb.range.new_pack_range_km) or 0.0
     f["ra"], f["rb"] = range_at_replacement(pa), range_at_replacement(pb)
@@ -177,6 +188,10 @@ def headline(pa: PredictionResult, pb: PredictionResult, d) -> list[str]:
     if ca is not None and cb is not None:
         dc = cb - ca
         out.append("Battery cost per kilometre is about the same." if abs(dc) < 0.005 else f"Battery cost per kilometre is ₹{abs(dc):.2f} {'lower' if dc < 0 else 'higher'} for Bus B (₹{cb:.2f} against ₹{ca:.2f}).")
+    ea_, eb_ = (_val(pa.cost.electricity.cost_per_km) if pa.cost.electricity else None), (_val(pb.cost.electricity.cost_per_km) if pb.cost.electricity else None)
+    if ea_ is not None and eb_ is not None:
+        de = eb_ - ea_
+        out.append("Electricity cost per kilometre is about the same." if abs(de) < 0.005 else f"Electricity cost per kilometre is ₹{abs(de):.2f} {'lower' if de < 0 else 'higher'} for Bus B (₹{eb_:.2f} against ₹{ea_:.2f}).")
     ra, rb, need = range_at_replacement(pa), range_at_replacement(pb), route_need_km(pa.scenario)
     a_ok, b_ok = ra >= need - 0.5, rb >= need - 0.5
     if a_ok and b_ok:
@@ -204,12 +219,15 @@ def insights(f: dict) -> list[dict]:
         word = "longer" if f["dm"] > 0 else "less"
         out.append({"tone": f["life_tone"], "title": f"Battery lasts {abs(f['dm']):.1f} months {word}", "text": f"Median replacement moves from {ma / 12:.1f} to {mb / 12:.1f} years.{early}"})
     if f["cost"]:
-        ca, cb = f["cost"]
-        if f["cost_tone"] == "same":
+        ca, cb = f["total"] if f["total"] else f["cost"]
+        tone = f["total_tone"] if f["total"] else f["cost_tone"]
+        what = "Battery plus electricity per kilometre" if f["total"] else "Battery cost per kilometre"
+        tail = " (published tariff, held flat)." if f["total"] else " (pack price over the kilometres driven until replacement)."
+        if tone == "same":
             out.append({"tone": "same", "title": "Cost per km is about the same", "text": f"Median ₹{ca:.2f} for Bus A and ₹{cb:.2f} for Bus B."})
         else:
             word = "cheaper" if cb < ca else "dearer"
-            out.append({"tone": f["cost_tone"], "title": f"₹{abs(cb - ca):.2f} {word} per km", "text": f"Battery cost per kilometre moves from ₹{ca:.2f} to ₹{cb:.2f} (pack price over the kilometres driven until replacement)."})
+            out.append({"tone": tone, "title": f"₹{abs(cb - ca):.2f} {word} per km", "text": f"{what} moves from ₹{ca:.2f} to ₹{cb:.2f}{tail}"})
     need, ra, rb = f["need"], f["ra"], f["rb"]
     if f["risk"]:
         out.append({"tone": "warn", "title": "Range falls below your route", "text": f"At replacement Bus B could drive about {rb:.0f} km on a charge, short of the {need:.0f} km the route needs (daily distance plus 20 %). Bus A keeps {ra:.0f} km."})
@@ -385,9 +403,10 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
     tiles = [_tile(S, "Battery life", "—" if f["dm"] is None else _signed(f["dm"], 1, " mo"),
                    f"{ma / 12:.1f} to {mb / 12:.1f} years (median)" if f["dm"] is not None else "median beyond the forecast", f["life_tone"], tw4, tag=None if f["dm"] is not None else "N/A")]
     if f["cost"]:
-        ca, cb = f["cost"]
-        cval = "₹0.00" if f["cost_tone"] == "same" else ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}"
-        tiles.append(_tile(S, "Cost per km", cval, f"₹{ca:.2f} to ₹{cb:.2f} (median)", f["cost_tone"], tw4))
+        ca, cb = f["total"] if f["total"] else f["cost"]
+        tone = f["total_tone"] if f["total"] else f["cost_tone"]
+        cval = "₹0.00" if tone == "same" else ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}"
+        tiles.append(_tile(S, "Cost per km", cval, f"₹{ca:.2f} to ₹{cb:.2f} " + ("(median, with electricity)" if f["total"] else "(median)"), tone, tw4))
     else:
         tiles.append(_tile(S, "Cost per km", "—", "set a battery price to see it", "same", tw4, tag="NOT SET"))
     rdelta = f["rb"] - f["ra"]
@@ -425,8 +444,9 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
             fr.append([P(label, S["cell"]), P(val, S["right"]), P(col(TONE[tone], delta) if delta else "", S["right"])])
         add("Replace around", _years(m("p50")), _signed(f["dm"], 1, " mo") if is_b and f["dm"] is not None and abs(f["dm"]) >= 0.5 else "", f["life_tone"])
         if f["cost"]:
-            ca, cb = f["cost"]
-            add("Cost per km", f"₹{(cb if is_b else ca):.2f}", (("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}") if is_b and f["cost_tone"] != "same" else "", f["cost_tone"])
+            ca, cb = f["total"] if f["total"] else f["cost"]
+            tone = f["total_tone"] if f["total"] else f["cost_tone"]
+            add("Cost per km", f"₹{(cb if is_b else ca):.2f}", (("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}") if is_b and tone != "same" else "", tone)
         rr = f["rb"] if is_b else f["ra"]
         add("Range at replacement", f"{rr:.0f} km", _signed(f["rb"] - f["ra"], 0, " km") if is_b and abs(f["rb"] - f["ra"]) >= 0.5 else "", f["range_tone"])
         add("Earliest tenth", _years(m("p10")))
@@ -456,14 +476,15 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
 
     # -- page 2: what matters, and when ---------------------------------------------------------------------------------------------------
     story += [PageBreak(), P("What matters most", S["h2"])]
-    for it in insights(f):
+    cards = insights(f)
+    for it in cards:
         t = Table([["", [P(it["title"], S["ttl"]), Spacer(1, 1), P(escape(it["text"]), S["small"])]]], colWidths=[4, FULL - 4])
         t.setStyle(TableStyle([("BACKGROUND", (1, 0), (1, 0), S1), ("BACKGROUND", (0, 0), (0, 0), TONE[it["tone"]]), ("LEFTPADDING", (1, 0), (1, 0), 11), ("RIGHTPADDING", (1, 0), (1, 0), 10),
                                ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (0, 0), (0, 0), 0), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
                                ("BOX", (1, 0), (1, 0), 0.5, LINE2), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
         story += [t, Spacer(1, 5)]
 
-    story += [KeepTogether([P("Battery health over time", S["h2"]), V.chart_legend(FULL), Spacer(1, 4), V.health_chart(pa, pb, FULL, 215, _val, _arr), Spacer(1, 2),
+    story += [KeepTogether([P("Battery health over time", S["h2"]), V.chart_legend(FULL), Spacer(1, 4), V.health_chart(pa, pb, FULL, 215 if len(cards) <= 4 else 170, _val, _arr), Spacer(1, 2),
                             P("Where a line meets the orange line, that pack is due for replacement. The gap between the two crossings is the difference in battery life.", S["tiny"])]),
               KeepTogether([P("When packs reach the replacement line", S["h2"]), V.timing_chart(pa, pb, FULL, _val, f["horizon"]), Spacer(1, 12),
                             P("Each bar runs from the earliest tenth to the latest tenth of the model's runs, the dot is the median.", S["tiny"])])]
@@ -501,6 +522,11 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
     if f["cost"]:
         ca, cb = f["cost"]
         rows.append(row("Battery cost per km (median)", f"₹{ca:.2f}", f"₹{cb:.2f}", ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}", f["cost_tone"]))
+        if f["elec"]:
+            xa, xb = f["elec"]
+            rows.append(row("Electricity cost per km", f"₹{xa:.2f}", f"₹{xb:.2f}", ("−" if xb < xa else "+") + f"₹{abs(xb - xa):.2f}" if abs(xb - xa) >= 0.005 else "", _tone(xb - xa, 0.005, higher_is_better=False)))
+            ta, tb = f["total"]
+            rows.append(row("Total cost per km (median)", f"₹{ta:.2f}", f"₹{tb:.2f}", ("−" if tb < ta else "+") + f"₹{abs(tb - ta):.2f}" if abs(tb - ta) >= 0.005 else "", f["total_tone"]))
     rows.append(row("Range, new pack", f"{f['new_a']:.0f} km", f"{f['new_b']:.0f} km", _signed(f["new_b"] - f["new_a"], 0, " km"), _tone(f["new_b"] - f["new_a"], 0.5)))
     rows.append(row(f"Range at replacement ({sa.threshold * 100:g} % health)", f"{f['ra']:.0f} km", f"{f['rb']:.0f} km", _signed(f["rb"] - f["ra"], 0, " km"), f["range_tone"]))
     rows.append(row("Range the route needs", f"{f['need']:.0f} km", f"{route_need_km(sb):.0f} km"))
@@ -514,7 +540,8 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
     limits = ["Nothing here has been checked against a battery pack in service. Capacity comes from published laboratory cell models; every scenario input is an assumption or your own figure.",
               "The 10th to 90th percentile spread is the difference between two published cell models plus assumptions. It is not a statistical confidence interval.",
               "Range uses usable energy times battery health divided by energy use. Air conditioning, season and temperature effects on range are not modelled.",
-              "Cost per km is the pack price divided by the kilometres driven until replacement. It ignores interest, inflation, resale value and the cost of charging.",
+              ("Battery cost per km is the pack price divided by the kilometres driven until replacement; electricity is energy per km over charger efficiency times the published Maharashtra tariff, with the time you charge shifting the energy charge. Both ignore interest, inflation and resale value; electricity also leaves out duty, the fuel adjustment charge, taxes and power-factor penalties, and holds today's tariff flat."
+               if f["elec"] else "Cost per km is the pack price divided by the kilometres driven until replacement. It ignores interest, inflation, resale value and the cost of charging."),
               "Money figures spread the pack price evenly over its median life. They are undiscounted and cover the first pack only."]
     box = Table([[P("What this report cannot tell you", S["cardh"])]] + [[P(f'<font color="{HEX(WARN)}">•</font>  ' + t, S["note"])] for t in limits], colWidths=[FULL])
     box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), blend(WARN, BG, 0.07)), ("BOX", (0, 0), (-1, -1), 0.7, blend(WARN, BG, 0.45)), ("ROUNDEDCORNERS", [10, 10, 10, 10]),
@@ -534,11 +561,14 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
             story += [P(col(VOLT, title.upper()), S["head"]), Spacer(1, 2)] + [P(f'<font color="{HEX(T3)}">•</font>  ' + escape(w), S["note"]) for w in ws] + [Spacer(1, 7)]
 
     rows = [[P("INPUT", S["head"]), P("BUS A", S["head"]), P("BUS B", S["head"])]]
+    tariffs = {sa.electricity_tariff, sb.electricity_tariff}
     for key, label, fmt in FIELDS:
+        if (key == "electricity_custom_inr_per_kwh" and "custom" not in tariffs) or (key == "charger_efficiency" and tariffs == {"none"}):
+            continue  # inputs that do nothing in this comparison stay off the page
         va, vb = getattr(sa, key), getattr(sb, key)
         fm = lambda v: "not set" if v is None else fmt(v)
         rows.append([P(label, S["cell"]), P(fm(va), S["cell"]), P(fm(vb) if va == vb else col(VOLT, f"<b>{fm(vb)}</b>"), S["cell"])])
-    story += [KeepTogether([P("Every input", S["h2"]), _grid(rows, [FULL * 0.44, FULL * 0.28, FULL * 0.28], pad=3.4), Spacer(1, 4),
+    story += [KeepTogether([P("Every input", S["h2"]), _grid(rows, [FULL * 0.44, FULL * 0.28, FULL * 0.28], pad=3.4 if tariffs == {"none"} else 2.7), Spacer(1, 4),
                             P("Highlighted in the Bus B column: it differs from Bus A.", S["tiny"])])]
 
     doc.build(story, onFirstPage=_page, onLaterPages=_page, canvasmaker=_Numbered)

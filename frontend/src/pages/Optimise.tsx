@@ -109,7 +109,8 @@ export default function Optimise() {
     hA = atYear(cA.p50, y); hB = atYear(cB.p50, y)
     const mB = num(rB.months_p50)
     d = usingB ? cmp.data!.deltas[0] : null
-    const costA = num(pa.cost.cost_per_km_p50), costB = num(pb.cost.cost_per_km_p50)
+    const hasElec = pa.cost.electricity != null, totalOf = (x: typeof pa) => num(x.cost.total_cost_per_km_p50) ?? num(x.cost.cost_per_km_p50)
+    const costA = hasElec ? totalOf(pa) : num(pa.cost.cost_per_km_p50), costB = hasElec ? totalOf(pb) : num(pb.cost.cost_per_km_p50)
     const rngA = (num(pa.range.new_pack_range_km) ?? 0) * scenario.threshold, rngB = (num(pb.range.new_pack_range_km) ?? 0) * scenario.threshold
     const need = f ? (f.base_passes ? num(f.required_range_km) : num(f.base_range_at_replacement_km)) : null
     const tight = usingB && need != null && rngB < need - 0.5
@@ -135,7 +136,7 @@ export default function Optimise() {
     stats = [
       { label: `Health, year ${y.toFixed(1)}`, value: fmt(hB, 1), unit: '%', sub: changed ? (Math.abs(dPts) < 0.05 ? same : `${signed(dPts, 1)} points`) : none, tone: changed ? tone(dPts, 0.05) : 'none' },
       { label: 'Replace around', value: mB == null ? '–' : fmt(mB / 12, 1), unit: 'years', sub: life ? life.headline : (changed ? same : none), tone: d ? tone(num(d.months_p50) ?? 0, 0.05) : 'none' },
-      { label: 'Cost per km', value: costB == null ? '–' : inr(costB, 2), sub: costA == null || costB == null ? 'Enter a battery price' : !changed ? none : Math.abs(costB - costA) < 0.005 ? same : `${costB < costA ? '−' : '+'}₹${Math.abs(costB - costA).toFixed(2)} per km`, tone: costA != null && costB != null ? tone(costA - costB, 0.005) : 'none' },
+      { label: hasElec ? 'Cost per km, with electricity' : 'Cost per km', value: costB == null ? '–' : inr(costB, 2), sub: costA == null || costB == null ? 'Enter a battery price' : !changed ? none : Math.abs(costB - costA) < 0.005 ? same : `${costB < costA ? '−' : '+'}₹${Math.abs(costB - costA).toFixed(2)} per km`, tone: costA != null && costB != null ? tone(costA - costB, 0.005) : 'none' },
       { label: 'Range at replacement', value: fmt(rngB), unit: 'km', sub: !changed ? none : tight ? 'Below the reserve' : Math.abs(rngB - rngA) < 0.5 ? same : signed(rngB - rngA, 0, ' km'), tone: tight ? 'down' : tone(rngB - rngA, 0.5) },
     ]
   }

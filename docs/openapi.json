@@ -227,6 +227,16 @@
               }
             ]
           },
+          "electricity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectricityResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lifetime_km_p50": {
             "anyOf": [
               {
@@ -243,6 +253,36 @@
             },
             "title": "Tornado",
             "type": "array"
+          },
+          "total_cost_per_km_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_cost_per_km_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "warnings": {
             "items": {
@@ -362,6 +402,53 @@
           "cycling_share"
         ],
         "title": "DriverSplit",
+        "type": "object"
+      },
+      "ElectricityResult": {
+        "properties": {
+          "charge_window": {
+            "title": "Charge Window",
+            "type": "string"
+          },
+          "cost_per_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "energy_charge_inr_per_kwh": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "grid_kwh_per_km": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "price_inr_per_kwh": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "tariff": {
+            "title": "Tariff",
+            "type": "string"
+          },
+          "tod_change_pct": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "wheeling_charge_inr_per_kwh": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "tariff",
+          "price_inr_per_kwh",
+          "energy_charge_inr_per_kwh",
+          "wheeling_charge_inr_per_kwh",
+          "tod_change_pct",
+          "cost_per_km",
+          "grid_kwh_per_km",
+          "charge_window",
+          "note"
+        ],
+        "title": "ElectricityResult",
         "type": "object"
       },
       "Feasibility": {
@@ -1235,12 +1322,46 @@
             "title": "Charge Start Hour",
             "type": "number"
           },
+          "charger_efficiency": {
+            "default": 0.92,
+            "description": "ASSUMED share of grid energy that reaches the battery (charger and cable losses)",
+            "maximum": 1.0,
+            "minimum": 0.7,
+            "title": "Charger Efficiency",
+            "type": "number"
+          },
           "departure_hour": {
             "default": 5.0,
             "exclusiveMaximum": 24.0,
             "minimum": 0.0,
             "title": "Departure Hour",
             "type": "number"
+          },
+          "electricity_custom_inr_per_kwh": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 50.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "All-in price per kWh, used only when electricity_tariff is 'custom'",
+            "title": "Electricity Custom Inr Per Kwh"
+          },
+          "electricity_tariff": {
+            "default": "none",
+            "description": "Electricity tariff the operator pays; 'none' leaves electricity out of the cost per km",
+            "enum": [
+              "none",
+              "msedcl_ht_ix",
+              "msedcl_lt_viii",
+              "custom"
+            ],
+            "title": "Electricity Tariff",
+            "type": "string"
           },
           "heat_rise_c": {
             "default": 3.0,

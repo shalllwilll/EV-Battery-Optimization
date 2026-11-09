@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setToken } from '../api/client'
-import { mockApi, renderApp } from '../test/utils'
+import { FIX, mockApi, renderApp } from '../test/utils'
 
 afterEach(() => { vi.unstubAllGlobals(); setToken(null); try { localStorage.clear() } catch { /* ignore */ } })
 
@@ -40,6 +40,32 @@ describe('analysis pages', () => {
   it('Cost: price curve hero with a keyboard-reachable price control', async () => {
     mockApi(); renderApp('/cost')
     expect(await screen.findByRole('heading', { name: 'Cost against battery price' })).toBeInTheDocument()
+  })
+})
+
+describe('electricity cost', () => {
+  const withElec = () => {
+    const c = FIX.predict.cost as Record<string, unknown>
+    const b = (c.cost_per_km_p50 as { value: number }).value, e = 14.4
+    const lab = (value: number, unit: string, evidence_level: string, note = '') => ({ value, unit, evidence_level, validated_on_buses: false, note })
+    return { ...FIX.predict, scenario: { ...FIX.predict.scenario, electricity_tariff: 'msedcl_ht_ix' }, cost: { ...c, electricity: {
+      tariff: 'Pune, MSEDCL HT IX', price_inr_per_kwh: lab(11.16, 'INR/kWh', 'assumption'), energy_charge_inr_per_kwh: lab(8.92, 'INR/kWh', 'assumption'), wheeling_charge_inr_per_kwh: lab(0.81, 'INR/kWh', 'assumption'),
+      tod_change_pct: lab(16, '%', 'derived'), cost_per_km: lab(e, 'INR/km', 'derived'), grid_kwh_per_km: lab(1.3, 'kWh/km', 'derived'), charge_window: '22:00 to 00:30', note: '' },
+      total_cost_per_km_p10: lab((c.cost_per_km_p10 as { value: number }).value + e, 'INR/km', 'derived'), total_cost_per_km_p50: lab(b + e, 'INR/km', 'derived'), total_cost_per_km_p90: lab((c.cost_per_km_p90 as { value: number }).value + e, 'INR/km', 'derived') } }
+  }
+  it('Cost: offers the Pune tariff when electricity is off, and does not touch the battery figures', async () => {
+    mockApi(); renderApp('/cost')
+    expect(await screen.findByRole('heading', { name: 'Cost to run the bus, per km' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add Pune electricity (MSEDCL HT IX)' })).toBeInTheDocument()
+  })
+  it('Cost: shows battery plus electricity, the split and what is left out when the tariff is on', async () => {
+    mockApi({ '/predict': () => ({ body: withElec() }) }); renderApp('/cost?electricity_tariff=msedcl_ht_ix')
+    const bar = await screen.findByRole('img', { name: /battery ₹.* and electricity ₹14\.40/ })
+    expect(bar).toBeInTheDocument()
+    expect(screen.getByText(/Electricity is about \d+ %/)).toBeInTheDocument()
+    expect(screen.getByText('22:00 to 00:30')).toBeInTheDocument()
+    expect(screen.getByText(/Left out: electricity duty, the fuel adjustment charge/)).toBeInTheDocument()
+    expect(screen.getByText(/The tariff is an assumption, not yet validated on buses/)).toBeInTheDocument()
   })
 })
 

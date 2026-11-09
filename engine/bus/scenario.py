@@ -27,6 +27,9 @@ class Scenario(BaseModel):
     pack_penalty_min: float = Field(ge=0, le=0.5, default=0.20, description="ASSUMED weakest-cell earlier-end-of-life fraction (NREL: pack life is 20-30 % shorter than cell life)")
     pack_penalty_max: float = Field(ge=0, le=0.5, default=0.30)
     battery_cost_per_kwh_inr: float | None = Field(default=None, gt=0)
+    charger_efficiency: float = Field(ge=0.7, le=1.0, default=0.92, description="ASSUMED share of grid energy that reaches the battery (charger and cable losses)")
+    electricity_tariff: Literal["none", "msedcl_ht_ix", "msedcl_lt_viii", "custom"] = Field(default="none", description="Electricity tariff the operator pays; 'none' leaves electricity out of the cost per km")
+    electricity_custom_inr_per_kwh: float | None = Field(default=None, gt=0, le=50, description="All-in price per kWh, used only when electricity_tariff is 'custom'")
     threshold: float = Field(gt=0.5, lt=0.95, default=0.8, description="replace when retention falls to this")
     horizon_years: int = Field(ge=1, le=20, default=15)
 

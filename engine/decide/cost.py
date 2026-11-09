@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from engine.bus.scenario import Scenario
 from engine.cell.uncertainty import Draws, Models
+from engine.decide.electricity import ElectricityResult, electricity_cost
 from engine.decide.replacement import ScenarioSim, simulate_scenario
 from engine.labels import Labelled, L
 
@@ -25,6 +26,10 @@ class CostResult(BaseModel):
     battery_cost: Labelled | None
     lifetime_km_p50: Labelled | None
     censored_fraction: Labelled | None
+    electricity: ElectricityResult | None = None
+    total_cost_per_km_p10: Labelled | None = None
+    total_cost_per_km_p50: Labelled | None = None
+    total_cost_per_km_p90: Labelled | None = None
     tornado: list[TornadoBar]
     warnings: list[str]
 
@@ -43,9 +48,10 @@ def _cost_p50(s: Scenario, models, draws) -> float:
 
 def cost_per_km(sim: ScenarioSim, models: Models | None = None, draws: Draws | None = None) -> CostResult:
     s = sim.scenario
+    elec = electricity_cost(s, float(sim.conditions.charge_hours.value))
     if s.battery_cost_per_kwh_inr is None:
         return CostResult(cost_per_km_p10=None, cost_per_km_p50=None, cost_per_km_p90=None, battery_cost=None,
-                          lifetime_km_p50=None, censored_fraction=None, tornado=[],
+                          lifetime_km_p50=None, censored_fraction=None, electricity=elec, tornado=[],
                           warnings=["Enter a battery price per kWh to get cost per km."])
     price = s.pack_kwh * s.battery_cost_per_kwh_inr
     km = lifetime_km(sim)
@@ -71,7 +77,13 @@ def cost_per_km(sim: ScenarioSim, models: Models | None = None, draws: Draws | N
     if cens > 0:
         warns.append(f"{cens * 100:.0f}% of {'runs' if sim.engine == 'reference' else 'draws'} never reach the threshold within the horizon: their life is counted only to the horizon, so cost per km is an upper bound for them.")
     mk = lambda v: L(float(v), "INR/km", "derived")
+    tot = {}
+    if elec is not None:
+        e = float(elec.cost_per_km.value)
+        tn = "battery cost per km + electricity cost per km; electricity is the same in every run (the tariff is an assumption, not a spread)"
+        tot = dict(total_cost_per_km_p10=L(float(q[0]) + e, "INR/km", "derived", tn), total_cost_per_km_p50=L(float(q[1]) + e, "INR/km", "derived", tn),
+                   total_cost_per_km_p90=L(float(q[2]) + e, "INR/km", "derived", tn))
     return CostResult(cost_per_km_p10=mk(q[0]), cost_per_km_p50=mk(q[1]), cost_per_km_p90=mk(q[2]),
                       battery_cost=L(price, "INR", "assumption", "pack kWh x price per kWh, both user inputs"),
                       lifetime_km_p50=L(float(np.percentile(km, 50)), "km", "derived"),
-                      censored_fraction=L(cens, "fraction", "derived"), tornado=tornado, warnings=warns)
+                      censored_fraction=L(cens, "fraction", "derived"), electricity=elec, tornado=tornado, warnings=warns, **tot)

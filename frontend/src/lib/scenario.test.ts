@@ -15,7 +15,7 @@ describe('bounds follow the API', () => {
     expect(Object.keys(SCENARIO_BOUNDS).sort()).toEqual(Object.keys(spec.components.schemas.Scenario.properties).sort())
   })
   it('every Scenario field appears in the form or is a dedicated control (T5.2 field coverage)', () => {
-    const shown = new Set<string>([...FIELDS.map((f) => f.key), 'archetype', 'zone'])
+    const shown = new Set<string>([...FIELDS.map((f) => f.key), 'archetype', 'zone', 'electricity_tariff'])
     expect([...shown].sort()).toEqual(Object.keys(spec.components.schemas.Scenario.properties).sort())
   })
   it('the default scenario passes validation', () => expect(validateScenario(base)).toEqual({}))
@@ -27,6 +27,10 @@ describe('validation', () => {
   it('treats an empty or NaN number as an error', () => {
     expect(validateScenario({ ...base, charge_power_kw: NaN }).charge_power_kw).toBeTruthy()
     expect(validateScenario({ ...base, km_per_day: null as unknown as number }).km_per_day).toBeTruthy()
+  })
+  it('keeps charger efficiency between 70 and 100 %, shown as percent', () => {
+    expect(validateScenario({ ...base, charger_efficiency: 0.5 }).charger_efficiency).toMatch(/at least 70/)
+    expect(validateScenario({ ...base, charger_efficiency: 1.2 }).charger_efficiency).toMatch(/at most 100/)
   })
   it('allows a missing battery price (it is optional)', () => expect(validateScenario({ ...base, battery_cost_per_kwh_inr: null })).toEqual({}))
   it('needs the charge cap at least 10 points above the minimum', () => expect(validateScenario({ ...base, soc_max_pct: 45, soc_min_pct: 40 }).soc_max_pct).toMatch(/10 points/))
@@ -49,6 +53,13 @@ describe('shareable link', () => {
     const r = fromQuery('?km_per_day=abc&soc_max_pct=500&zone=mars&archetype=15m', defaultsFor)
     expect(r.scenario).toEqual(defaultsFor('12m'))
     expect(r.ignored.sort()).toEqual(['archetype', 'km_per_day', 'soc_max_pct', 'zone'])
+  })
+  it('keeps the electricity choice and price in the link, and rejects an unknown tariff', () => {
+    const s = { ...base, electricity_tariff: 'custom' as const, electricity_custom_inr_per_kwh: 8.5, charger_efficiency: 0.88 }
+    const back = fromQuery(`?${toQuery(s, base)}`, defaultsFor)
+    expect(back.scenario).toEqual(s)
+    expect(fromQuery('?electricity_tariff=bogus', defaultsFor).ignored).toEqual(['electricity_tariff'])
+    expect(toQuery(base, base)).not.toContain('electricity')  // untouched: nothing added to the link
   })
   it('uses the 9 m defaults when the link asks for them', () => expect(fromQuery('?archetype=9m', defaultsFor).scenario!.pack_kwh).toBe(250))
 })

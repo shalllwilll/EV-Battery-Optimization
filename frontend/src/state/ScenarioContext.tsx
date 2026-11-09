@@ -11,6 +11,7 @@ type Ctx = {
   dismissNotice: () => void
   setField: (k: FieldKey, v: number | null) => void
   setZone: (z: Scenario['zone']) => void
+  setTariff: (t: Scenario['electricity_tariff']) => void
   setArchetype: (a: Scenario['archetype']) => void
   replace: (s: Scenario) => void
   reset: () => void
@@ -43,6 +44,7 @@ export function ScenarioProvider({ children, presets }: { children: ReactNode; p
 
   const setField = useCallback((k: FieldKey, v: number | null) => setScenario((s) => ({ ...s, [k]: v })), [])
   const setZone = useCallback((zone: Scenario['zone']) => setScenario((s) => ({ ...s, zone })), [])
+  const setTariff = useCallback((electricity_tariff: Scenario['electricity_tariff']) => setScenario((s) => ({ ...s, electricity_tariff })), [])
   const setArchetype = useCallback((a: Scenario['archetype']) => setScenario((s) => {
     const d = defaultsFrom(presets, a)
     // switching bus type refreshes the five bus-type defaults and keeps the operator's own choices (zone, charging, price)
@@ -50,6 +52,6 @@ export function ScenarioProvider({ children, presets }: { children: ReactNode; p
   }), [presets])
   const reset = useCallback(() => setScenario((s) => defaultsFrom(presets, s.archetype)), [presets])
 
-  const value: Ctx = { scenario, defaults, errors, valid: Object.keys(errors).length === 0, notice, dismissNotice: () => setNotice(null), setField, setZone, setArchetype, replace: setScenario, reset }
+  const value: Ctx = { scenario, defaults, errors, valid: Object.keys(errors).length === 0, notice, dismissNotice: () => setNotice(null), setField, setZone, setTariff, setArchetype, replace: setScenario, reset }
   return <C.Provider value={value}>{children}</C.Provider>
 }

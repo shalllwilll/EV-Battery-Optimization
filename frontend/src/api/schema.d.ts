@@ -293,9 +293,13 @@ export interface components {
             cost_per_km_p10: components["schemas"]["Labelled"] | null;
             cost_per_km_p50: components["schemas"]["Labelled"] | null;
             cost_per_km_p90: components["schemas"]["Labelled"] | null;
+            electricity?: components["schemas"]["ElectricityResult"] | null;
             lifetime_km_p50: components["schemas"]["Labelled"] | null;
             /** Tornado */
             tornado: components["schemas"]["TornadoBar"][];
+            total_cost_per_km_p10?: components["schemas"]["Labelled"] | null;
+            total_cost_per_km_p50?: components["schemas"]["Labelled"] | null;
+            total_cost_per_km_p90?: components["schemas"]["Labelled"] | null;
             /** Warnings */
             warnings: string[];
         };
@@ -333,6 +337,21 @@ export interface components {
         DriverSplit: {
             calendar_share: components["schemas"]["Labelled"];
             cycling_share: components["schemas"]["Labelled"];
+        };
+        /** ElectricityResult */
+        ElectricityResult: {
+            /** Charge Window */
+            charge_window: string;
+            cost_per_km: components["schemas"]["Labelled"];
+            energy_charge_inr_per_kwh: components["schemas"]["Labelled"];
+            grid_kwh_per_km: components["schemas"]["Labelled"];
+            /** Note */
+            note: string;
+            price_inr_per_kwh: components["schemas"]["Labelled"];
+            /** Tariff */
+            tariff: string;
+            tod_change_pct: components["schemas"]["Labelled"];
+            wheeling_charge_inr_per_kwh: components["schemas"]["Labelled"];
         };
         /** Feasibility */
         Feasibility: {
@@ -680,10 +699,28 @@ export interface components {
              */
             charge_start_hour: number;
             /**
+             * Charger Efficiency
+             * @description ASSUMED share of grid energy that reaches the battery (charger and cable losses)
+             * @default 0.92
+             */
+            charger_efficiency: number;
+            /**
              * Departure Hour
              * @default 5
              */
             departure_hour: number;
+            /**
+             * Electricity Custom Inr Per Kwh
+             * @description All-in price per kWh, used only when electricity_tariff is 'custom'
+             */
+            electricity_custom_inr_per_kwh?: number | null;
+            /**
+             * Electricity Tariff
+             * @description Electricity tariff the operator pays; 'none' leaves electricity out of the cost per km
+             * @default none
+             * @enum {string}
+             */
+            electricity_tariff: "none" | "msedcl_ht_ix" | "msedcl_lt_viii" | "custom";
             /**
              * Heat Rise C
              * @description ASSUMED average cell temperature above ambient

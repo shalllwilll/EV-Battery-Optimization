@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { ApiClientError } from '../api/client'
 import { usePredict, useZones } from '../api/hooks'
-import { FIELDS, GROUPS, ZONE_LABELS, ZONE_SUB, type FieldKey } from '../lib/scenario'
+import { FIELDS, GROUPS, TARIFF_OPTIONS, ZONE_LABELS, ZONE_SUB, type FieldKey } from '../lib/scenario'
 import { useScenario } from '../state/ScenarioContext'
 import { FieldWithBadge } from './FieldWithBadge'
 import { toast } from './Toast'
@@ -55,7 +55,9 @@ export function ScenarioPanel({ drawer }: { drawer?: boolean }) {
             </select></div>
           {FIELDS.filter((f) => f.group === 'Climate and heat').map((f) => <Field key={f.key} k={f.key} serverFields={serverFields} />)}
         </div>
-        {GROUPS.slice(4).map((g) => <div className="grp" key={g}><h3>{g}</h3>{FIELDS.filter((f) => f.group === g).map((f) => <Field key={f.key} k={f.key} serverFields={serverFields} />)}</div>)}
+        {GROUPS.slice(4).map((g) => g === 'Electricity'
+          ? <ElectricityGroup key={g} serverFields={serverFields} cost={p.data?.cost.electricity ?? null} />
+          : <div className="grp" key={g}><h3>{g}</h3>{FIELDS.filter((f) => f.group === g).map((f) => <Field key={f.key} k={f.key} serverFields={serverFields} />)}</div>)}
         <p className="note">Every input here is a labelled assumption about the bus. The model re-runs automatically when they are valid.</p>
       </aside>
     </>
@@ -67,4 +69,27 @@ function Field({ k, serverFields }: { k: FieldKey; serverFields: Record<string, 
   const meta = FIELDS.find((f) => f.key === k)!
   const v = s.scenario[k] as number | null
   return <FieldWithBadge meta={meta} value={v} error={s.errors[k]} serverError={serverFields[k]} onChange={(x) => s.setField(k, x)} />
+}
+
+type Elec = NonNullable<NonNullable<ReturnType<typeof usePredict>['data']>['cost']['electricity']>
+
+/** Electricity the operator pays for. Off by default; the two Pune presets use the regulator's published rates, which the server holds with their sources. */
+function ElectricityGroup({ serverFields, cost }: { serverFields: Record<string, string>; cost: Elec | null }) {
+  const s = useScenario()
+  const t = s.scenario.electricity_tariff
+  const price = cost ? cost.price_inr_per_kwh.value as number : null, tod = cost ? cost.tod_change_pct.value as number : null
+  return (
+    <div className="grp"><h3>Electricity</h3>
+      <div className="fld"><div className="l"><label htmlFor="tariff">Who you buy power from</label><span className="tag lab" title="Rates read from the regulator's published order">published rates</span></div>
+        <select id="tariff" className="sel" value={t} onChange={(e) => s.setTariff(e.target.value as typeof t)}>
+          {TARIFF_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        <div className="src">{t === 'none' ? 'Adds the cost of charging to cost per km. Maharashtra rates only for now.' : t === 'custom' ? 'Flat price all day, set below.' : 'MERC order, Case 75 of 2025 (25 March 2026), FY 2026-27. Energy plus wheeling charge; the time of day you charge shifts the energy charge.'}</div>
+        {cost && t !== 'custom' && price != null && tod != null && <div className="src" aria-live="polite">Effective price <b>₹{price.toFixed(2)} / kWh</b> for charging {cost.charge_window}{Math.abs(tod) >= 0.05 ? ` (${tod > 0 ? '+' : ''}${tod.toFixed(0)} % on the energy charge)` : ''}</div>}
+      </div>
+      {t === 'custom' && <Field k="electricity_custom_inr_per_kwh" serverFields={serverFields} />}
+      {t === 'custom' && s.scenario.electricity_custom_inr_per_kwh == null && <div className="src">Enter your price to include electricity.</div>}
+      {t !== 'none' && <Field k="charger_efficiency" serverFields={serverFields} />}
+    </div>
+  )
 }

@@ -1,8 +1,8 @@
 import { SCENARIO_BOUNDS } from '../api/bounds'
 import type { Scenario } from '../api/types'
 
-export type FieldKey = Exclude<keyof Scenario, 'archetype' | 'zone'>
-export type Group = 'Bus' | 'Duty' | 'Charging' | 'Climate and heat' | 'Battery and replacement' | 'Advanced assumptions'
+export type FieldKey = Exclude<keyof Scenario, 'archetype' | 'zone' | 'electricity_tariff'>
+export type Group = 'Bus' | 'Duty' | 'Charging' | 'Climate and heat' | 'Battery and replacement' | 'Electricity' | 'Advanced assumptions'
 
 export type FieldMeta = {
   key: FieldKey
@@ -40,11 +40,22 @@ export const FIELDS: FieldMeta[] = [
   { key: 'battery_cost_per_kwh_inr', label: 'Battery price', unit: '₹ / kWh', group: 'Battery and replacement', step: 500, decimals: 0, source: 'Your input', help: 'What you pay per kWh to replace the pack. Needed for cost per km.' },
   { key: 'threshold', label: 'Replace when health falls to', unit: '%', group: 'Battery and replacement', scale: 100, step: 1, decimals: 0, source: 'Operator choice', help: 'Battery health at which you plan to replace the pack. 80 % is the common rule.' },
   { key: 'horizon_years', label: 'Forecast length', unit: 'years', group: 'Battery and replacement', step: 1, decimals: 0, source: 'Setting', help: 'How many years ahead the model looks.' },
+  { key: 'electricity_custom_inr_per_kwh', label: 'Your price', unit: '₹ / kWh', group: 'Electricity', step: 0.25, decimals: 2, source: 'Your input', help: 'The all-in price you pay per kWh at the depot, including wheeling. It is applied flat all day, with no time-of-day change.' },
+  { key: 'charger_efficiency', label: 'Charger efficiency', unit: '%', group: 'Electricity', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public bus data', help: 'Share of the energy drawn from the grid that reaches the battery. Charger and cable losses make up the rest. 92 % is an assumption; check your charger datasheet.' },
   { key: 'pack_penalty_min', label: 'Weakest-cell effect, low', unit: '%', group: 'Advanced assumptions', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public data', help: 'Smallest share by which the weakest cell in a pack ends its life earlier than the average cell.' },
   { key: 'pack_penalty_max', label: 'Weakest-cell effect, high', unit: '%', group: 'Advanced assumptions', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public data', help: 'Largest share by which the weakest cell ends its life earlier. The runs span values from low to high.' },
 ]
 export const FIELD_BY_KEY = Object.fromEntries(FIELDS.map((f) => [f.key, f])) as Record<FieldKey, FieldMeta>
-export const GROUPS: Group[] = ['Bus', 'Duty', 'Charging', 'Climate and heat', 'Battery and replacement', 'Advanced assumptions']
+export const GROUPS: Group[] = ['Bus', 'Duty', 'Charging', 'Climate and heat', 'Battery and replacement', 'Electricity', 'Advanced assumptions']
+
+export type Tariff = Scenario['electricity_tariff']
+/** Where each electricity choice comes from. Rates live on the server (engine/bus/tariffs.json) with their sources; this is only the label. */
+export const TARIFF_OPTIONS: { id: Tariff; label: string; short: string }[] = [
+  { id: 'none', label: 'Not included', short: 'Off' },
+  { id: 'msedcl_ht_ix', label: 'Pune · MSEDCL HT IX EV charging', short: 'MSEDCL HT IX' },
+  { id: 'msedcl_lt_viii', label: 'Pune · MSEDCL LT VIII EV charging', short: 'MSEDCL LT VIII' },
+  { id: 'custom', label: 'My own price', short: 'Own price' },
+]
 export const DEFAULT_PRICE = 12000
 
 export function hhmm(h: number): string {
@@ -82,12 +93,15 @@ export function validateScenario(s: Scenario): Partial<Record<string, string>> {
 }
 
 const NUMERIC = Object.keys(SCENARIO_BOUNDS).filter((k) => SCENARIO_BOUNDS[k].kind === 'number')
+/** Choices stored as words. archetype is handled first; these ride along in the link with the same default-skipping rule. */
+const CHOICES = ['zone', 'electricity_tariff'] as const
 
 /** Only values that differ from the bus-type defaults go in the link, so shared links stay short. */
 export function toQuery(s: Scenario, defaults: Scenario): string {
   const p = new URLSearchParams()
   p.set('archetype', s.archetype)
   p.set('zone', s.zone)
+  if (s.electricity_tariff !== defaults.electricity_tariff) p.set('electricity_tariff', s.electricity_tariff)
   for (const k of NUMERIC) {
     const v = (s as Record<string, unknown>)[k], d = (defaults as Record<string, unknown>)[k]
     if (v != null && v !== d) p.set(k, String(v))
@@ -103,8 +117,10 @@ export function fromQuery(search: string, defaultsFor: (a: 'a12' | string) => Sc
   const archetype = arch && options.includes(arch) ? arch : '12m'
   if (arch && !options.includes(arch)) ignored.push('archetype')
   const s = { ...defaultsFor(archetype) } as Record<string, unknown>
-  const zone = p.get('zone')
-  if (zone) { if ((SCENARIO_BOUNDS.zone.options ?? []).includes(zone)) s.zone = zone; else ignored.push('zone') }
+  for (const k of CHOICES) {
+    const v = p.get(k)
+    if (v) { if ((SCENARIO_BOUNDS[k].options ?? []).includes(v)) s[k] = v; else ignored.push(k) }
+  }
   for (const k of NUMERIC) {
     const raw = p.get(k)
     if (raw == null) continue

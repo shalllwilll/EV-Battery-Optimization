@@ -54,6 +54,17 @@ export const SCENARIO_BOUNDS: Record<string, FieldBound> = {
     "maxExclusive": true,
     "nullable": false
   },
+  "charger_efficiency": {
+    "default": 0.92,
+    "description": "ASSUMED share of grid energy that reaches the battery (charger and cable losses)",
+    "kind": "number",
+    "integer": false,
+    "min": 0.7,
+    "minExclusive": false,
+    "max": 1,
+    "maxExclusive": false,
+    "nullable": false
+  },
   "departure_hour": {
     "default": 5,
     "description": "",
@@ -64,6 +75,28 @@ export const SCENARIO_BOUNDS: Record<string, FieldBound> = {
     "max": 24,
     "maxExclusive": true,
     "nullable": false
+  },
+  "electricity_custom_inr_per_kwh": {
+    "default": null,
+    "description": "All-in price per kWh, used only when electricity_tariff is 'custom'",
+    "kind": "number",
+    "integer": false,
+    "min": 0,
+    "minExclusive": true,
+    "max": 50,
+    "maxExclusive": false,
+    "nullable": true
+  },
+  "electricity_tariff": {
+    "default": "none",
+    "description": "Electricity tariff the operator pays; 'none' leaves electricity out of the cost per km",
+    "kind": "enum",
+    "options": [
+      "none",
+      "msedcl_ht_ix",
+      "msedcl_lt_viii",
+      "custom"
+    ]
   },
   "heat_rise_c": {
     "default": 3,

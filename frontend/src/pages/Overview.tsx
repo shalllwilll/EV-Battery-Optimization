@@ -48,14 +48,14 @@ export default function Overview() {
   if (p) {
     c = curves(p.replacement); xMax = xMaxFor(p); r = repYears(p.replacement); y = Math.min(year, xMax)
     const at = (a: number[]) => atYear(a, y)
-    const nw = num(p.range.new_pack_range_km) ?? 0, med = num(p.cost.cost_per_km_p50)
+    const nw = num(p.range.new_pack_range_km) ?? 0, med = num(p.cost.total_cost_per_km_p50) ?? num(p.cost.cost_per_km_p50), batt = num(p.cost.cost_per_km_p50), elecKm = num(p.cost.electricity?.cost_per_km)
     const scene = buildSceneParams(scenario, p, y)
     buses = [{ key: 'a', label: 'Your bus', healthPct: at(c.p50), offsetZ: 0, scene, clock: r[1] == null ? null : { years: r[1], frac: Math.min(1, r[1] / xMax) }, attention: countAttention(buildNotes({ a: p })) > 0 }]
     stats = [
       { label: `Health at year ${y.toFixed(1)}`, value: fmt(at(c.p50), 1), unit: '%', sub: `Range ${fmt(at(c.p10), 0)}% to ${fmt(at(c.p90), 0)}%` },
       { label: 'Replace around', value: r[1] == null ? '–' : fmt(r[1], 1), unit: 'years', sub: r[0] == null ? 'Beyond the forecast' : `Earliest ${fmt(r[0], 1)}, latest ${r[2] == null ? 'beyond the forecast' : fmt(r[2], 1)}` },
       { label: 'Range on a full charge', value: fmt(nw * atYear(arr(p.replacement.retention_p50), y)), unit: 'km', sub: `${fmt(nw)} km when new` },
-      { label: 'Battery cost per km', value: med == null ? '–' : inr(med), unit: med == null ? undefined : '/ km', sub: med == null ? 'Enter a battery price' : 'Median, your price input' },
+      { label: elecKm != null ? 'Cost per km' : 'Battery cost per km', value: med == null ? '–' : inr(med), unit: med == null ? undefined : '/ km', sub: med == null ? 'Enter a battery price' : elecKm != null && batt != null ? `Battery ${inr(batt)} + electricity ${inr(elecKm)}` : 'Median, your price input' },
     ]
   }
   const notes = p ? buildNotes({ a: p }) : []
