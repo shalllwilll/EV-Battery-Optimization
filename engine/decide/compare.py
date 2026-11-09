@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from engine.bus.scenario import Scenario
 from engine.cell.uncertainty import Models, load_models, make_draws
-from engine.decide.replacement import replacement_window, simulate_scenario
+from engine.decide.replacement import life_delta, p90_beyond_horizon, replacement_window, simulate_scenario
 from engine.labels import Labelled, L
 
 WHATIF_NOTES = {
@@ -24,6 +24,7 @@ class Delta(BaseModel):
     months_p50: Labelled
     months_p90: Labelled
     prob_variant_later: Labelled
+    p90_beyond_horizon: bool = False
     censored_note: str
 
 
@@ -47,12 +48,14 @@ def compare(scenarios: list[Scenario], n_draws: int = 2000, seed: int = 0, model
     for s, sim in zip(scenarios[1:], sims[1:]):
         h = min(base.months[-1], sim.months[-1])
         a, b = np.minimum(base.cross_months, h), np.minimum(sim.cross_months, h)   # censor both at the shorter horizon
-        d = b - a
-        q = np.percentile(d, [10, 50, 90])
+        d = b - a                                                                   # paired by run: used for the probability only
+        q = life_delta(base, sim)
         cens = float(np.isinf(base.cross_months).mean()), float(np.isinf(sim.cross_months).mean())
         deltas.append(Delta(months_p10=L(float(q[0]), "months", "derived"), months_p50=L(float(q[1]), "months", "derived"),
-                            months_p90=L(float(q[2]), "months", "derived"), prob_variant_later=L(float((d > 0).mean()), "probability", "derived"),
-                            censored_note=f"{'runs' if models.engine == 'reference' else 'draws'} not reaching the threshold are counted at the {h / 12:g}-year horizon (base {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)"))
+                            months_p90=L(float(q[2]), "months", "derived"), prob_variant_later=L(float((d > 0).mean()), "probability", "derived"), p90_beyond_horizon=p90_beyond_horizon(base, sim),
+                            censored_note=(f"a percentile of life beyond the {h / 12:g}-year horizon is counted at the horizon, so gains near it are understated (runs never reaching the line: base {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)"
+                                           if models.engine == "reference" else
+                                           f"draws not reaching the threshold are counted at the {h / 12:g}-year horizon (base {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)")))
         for field, note in (REFERENCE_NOTES if models.engine == "reference" else WHATIF_NOTES).items():
             if getattr(s, field) != getattr(scenarios[0], field):
                 notes.append(note)

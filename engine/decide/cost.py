@@ -69,7 +69,7 @@ def cost_per_km(sim: ScenarioSim, models: Models | None = None, draws: Draws | N
         tornado.sort(key=lambda t: -t.swing.value)
     warns = ["Undiscounted: no interest, inflation or residual value. Battery price is a user assumption."]
     if cens > 0:
-        warns.append(f"{cens * 100:.0f}% of draws never reach the threshold within the horizon: their life is counted only to the horizon, so cost per km is an upper bound for them.")
+        warns.append(f"{cens * 100:.0f}% of {'runs' if sim.engine == 'reference' else 'draws'} never reach the threshold within the horizon: their life is counted only to the horizon, so cost per km is an upper bound for them.")
     mk = lambda v: L(float(v), "INR/km", "derived")
     return CostResult(cost_per_km_p10=mk(q[0]), cost_per_km_p50=mk(q[1]), cost_per_km_p90=mk(q[2]),
                       battery_cost=L(price, "INR", "assumption", "pack kWh x price per kWh, both user inputs"),

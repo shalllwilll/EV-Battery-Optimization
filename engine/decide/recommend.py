@@ -1,7 +1,7 @@
 """Usage presets (Layer 4): search the levers the model really responds to, keep what the bus can run, explain in plain words.
 
-Nothing here is a fixed answer. For the client's own Bus A the engine tries combinations of levers with the same Monte Carlo
-model as /predict, drops any that fail the route-feasibility rule, and picks the best per goal. Results move with the inputs.
+Nothing here is a fixed answer. For the client's own Bus A the engine tries combinations of levers with the same ageing engine
+as /predict, drops any that fail the route-feasibility rule, and picks the best per goal. Results move with the inputs.
 
 Levers searched (measured with the engine, see docs/phase-checkpoints.md):
   charge cap (soc_max_pct)       real effect via calendar stress at high SOC; costs usable range
@@ -24,7 +24,7 @@ from engine.bus.scenario import Scenario
 from engine.bus.translate import translate
 from engine.cell.uncertainty import Models, make_draws
 from engine.decide.cost import lifetime_km
-from engine.decide.replacement import ScenarioSim, life_percentiles, simulate_scenario
+from engine.decide.replacement import ScenarioSim, life_delta, life_percentiles, p90_beyond_horizon, simulate_scenario
 from engine.labels import Labelled, L
 
 CAP_STEPS = (95.0, 90.0, 85.0, 80.0, 75.0, 70.0)
@@ -81,6 +81,7 @@ class DeltaVsBase(BaseModel):
     months_p50: Labelled
     months_p90: Labelled
     prob_later: Labelled
+    p90_beyond_horizon: bool = False          # months_p90 is then the horizon-capped difference, not a measured change
     cost_per_km_change: Labelled | None
     range_change_km: Labelled
     note: str
@@ -167,18 +168,22 @@ def metrics(sim: ScenarioSim) -> Metrics:
 
 def delta_vs(base: ScenarioSim, sim: ScenarioSim, bm: Metrics, m: Metrics) -> DeltaVsBase:
     h = min(base.months[-1], sim.months[-1])
-    d = np.minimum(sim.cross_months, h) - np.minimum(base.cross_months, h)
-    q = np.percentile(d, [10, 50, 90])
+    d = np.minimum(sim.cross_months, h) - np.minimum(base.cross_months, h)        # paired by run: used for the probability only
+    q = life_delta(base, sim)
     cost = None
     if bm.cost_per_km_p50 is not None and m.cost_per_km_p50 is not None:
         cost = L(m.cost_per_km_p50.value - bm.cost_per_km_p50.value, "INR/km", "derived", "negative means cheaper")
     cens = float(np.isinf(base.cross_months).mean()), float(np.isinf(sim.cross_months).mean())
     return DeltaVsBase(months_p10=L(float(q[0]), "months", "derived"), months_p50=L(float(q[1]), "months", "derived"),
                        months_p90=L(float(q[2]), "months", "derived"), prob_later=L(float((d > 0).mean()), "probability", "derived"),
-                       cost_per_km_change=cost,
+                       p90_beyond_horizon=p90_beyond_horizon(base, sim), cost_per_km_change=cost,
                        range_change_km=L(m.range_at_replacement_km.value - bm.range_at_replacement_km.value, "km", "derived"),
-                       note=f"paired on the same {'reference runs' if sim.engine == 'reference' else 'random draws'}; those that never reach the line are counted at the "
-                            f"{h / 12:g}-year horizon (Bus A {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)")
+                       note=(f"difference between the same percentiles of life shown for each bus; a percentile beyond the {h / 12:g}-year horizon is counted at the horizon, "
+                             f"so gains near it are understated (runs that never reach the line: Bus A {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%). "
+                             "The share of runs that last longer is paired run by run."
+                             if sim.engine == "reference" else
+                             f"paired on the same random draws; draws that never reach the line are counted at the {h / 12:g}-year horizon "
+                             f"(Bus A {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)"))
 
 
 def _hhmm(h: float) -> str:
@@ -211,7 +216,11 @@ def _changes(base: Scenario, s: Scenario, conf: bool) -> list[LeverChange]:
 
 
 def _describe(base: Scenario, s: Scenario, bm: Metrics, m: Metrics, d: DeltaVsBase, changes: list[LeverChange]) -> str:
+    unmeasurable = bm.months_p50 is None and m.months_p50 is None      # median pack stays above the line for the whole horizon either way
     if not changes:
+        if unmeasurable:
+            return (f"The median pack stays above the replacement line for the whole {base.horizon_years}-year horizon, so the model cannot rank changes by how much "
+                    "longer the pack lasts. No change is suggested.")
         return "No change is worth making for this goal: nothing the model can test improves on today's usage by half a month or more."
     parts = []
     for c in changes:
@@ -227,8 +236,14 @@ def _describe(base: Scenario, s: Scenario, bm: Metrics, m: Metrics, d: DeltaVsBa
     txt = ", ".join(parts[:-1]) + (" and " if len(parts) > 1 else "") + parts[-1]
     txt = txt[0].upper() + txt[1:] + ". "
     mo = d.months_p50.value
-    txt += (f"The model expects the pack to last about {abs(mo):.1f} month{'s' if abs(mo) != 1 else ''} {'longer' if mo >= 0 else 'shorter'} "
-            f"(likely between {d.months_p10.value:.1f} and {d.months_p90.value:.1f} months). ")
+    if unmeasurable:
+        txt += (f"The median pack stays above the replacement line for the whole {base.horizon_years}-year horizon either way, so the gain in battery life cannot be measured. ")
+    beyond = d.p90_beyond_horizon        # 90th percentile of life lies past the horizon, so its change is not measurable
+    span = (f"{d.months_p10.value:+.1f} months at the 10th percentile; the 90th percentile is beyond the {base.horizon_years}-year horizon"
+            if beyond else f"likely between {d.months_p10.value:.1f} and {d.months_p90.value:.1f} months")
+    if not unmeasurable:
+        txt += (f"The model expects the pack to last about {abs(mo):.1f} month{'s' if abs(mo) != 1 else ''} {'longer' if mo >= 0 else 'shorter'} "
+                f"({span}). ")
     rc = d.range_change_km.value
     txt += "Range when the pack is due for replacement stays the same. " if abs(rc) < 0.5 else \
         f"Range when the pack is due for replacement {'drops' if rc < 0 else 'rises'} by about {abs(rc):.0f} km. "

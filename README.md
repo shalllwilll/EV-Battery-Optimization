@@ -8,7 +8,7 @@ College course project (non-commercial). Forecasts battery health and replacemen
 |---|---|
 | ![Optimise: Bus A beside Bus B with changes applied](docs/figures/optimise.jpg) | ![Evidence: what vendor data would change](docs/figures/evidence-calibration.jpg) |
 
-Screenshots are from the running app (Prior mode). Every number in them is a model output labelled "not yet validated on buses".
+Screenshots are from the running app (Prior mode) and predate two changes: the interface redesign and the switch of the ageing engine to the NREL models. Their layout and their replacement and cost numbers are out of date (they show our earlier laboratory-fitted model, which gave about 4 years for the default bus; the app now gives about 12). Every number is a model output labelled "not yet validated on buses".
 
 ## Honesty rules
 - Real, free public data only; nothing synthetic. Cell ageing comes from published laboratory-fitted models (NREL BLAST-Lite), weather from NASA POWER.

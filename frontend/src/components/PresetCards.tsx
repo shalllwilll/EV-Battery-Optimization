@@ -3,7 +3,7 @@ import { duplicateOf, leverValue, lifeChange, signed, stageFor } from '../lib/bu
 import { num } from '../lib/format'
 
 function Tiles({ st }: { st: Stage }) {
-  const d = st.delta, life = lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0)
+  const d = st.delta, life = lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0, d.p90_beyond_horizon)
   const cost = num(d.cost_per_km_change), rng = num(d.range_change_km) ?? 0
   return (
     <div className="tiles">

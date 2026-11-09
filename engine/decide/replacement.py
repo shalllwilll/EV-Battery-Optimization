@@ -121,6 +121,24 @@ def life_percentiles(sim: ScenarioSim, qs=(10, 50, 90)) -> list[float]:
     return [float(v) if v <= h else float("inf") for v in np.percentile(capped, list(qs))]
 
 
+def p90_beyond_horizon(base: ScenarioSim, sim: ScenarioSim) -> bool:
+    """True when the 90th-percentile life of either scenario lies past the horizon, so the change at that percentile cannot be measured."""
+    return any(not np.isfinite(life_percentiles(x, (90,))[0]) for x in (base, sim)) if sim.engine == "reference" else False
+
+
+def life_delta(base: ScenarioSim, sim: ScenarioSim, qs=(10, 50, 90)) -> list[float]:
+    """Change in life (months) at each percentile, variant minus base, both counted at the shorter horizon when beyond it.
+
+    Reference engine: difference of the same percentile crossings that the headline months show, so a change reads the same as the two
+    lives it is the gap between. Lab engine: percentiles of the per-draw paired differences."""
+    h = float(min(base.months[-1], sim.months[-1]))
+    if sim.engine == "reference" and base.engine == "reference":
+        a, b = (np.minimum(life_percentiles(x, qs), h) for x in (base, sim))
+        return [float(v) for v in b - a]
+    d = np.minimum(sim.cross_months, h) - np.minimum(base.cross_months, h)
+    return [float(v) for v in np.percentile(d, list(qs))]
+
+
 def _pct(cross: np.ndarray, q: float, horizon: float):
     v = np.percentile(cross, q)
     return None if not np.isfinite(v) or v > horizon else float(v)

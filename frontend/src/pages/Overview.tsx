@@ -44,7 +44,7 @@ export default function Overview() {
     buses = [{ key: 'a', label: 'Your bus', healthPct: at(c.p50), offsetZ: 0 }]
     stats = [
       { label: `Health at year ${y.toFixed(1)}`, value: fmt(at(c.p50), 1), unit: '%', sub: `Range ${fmt(at(c.p10), 0)}% to ${fmt(at(c.p90), 0)}%` },
-      { label: 'Replace around', value: r[1] == null ? '–' : fmt(r[1], 1), unit: 'years', sub: r[0] == null ? 'Beyond the forecast' : `Earliest ${fmt(r[0], 1)}${r[2] == null ? '' : `, latest ${fmt(r[2], 1)}`}` },
+      { label: 'Replace around', value: r[1] == null ? '–' : fmt(r[1], 1), unit: 'years', sub: r[0] == null ? 'Beyond the forecast' : `Earliest ${fmt(r[0], 1)}, latest ${r[2] == null ? 'beyond the forecast' : fmt(r[2], 1)}` },
       { label: 'Range on a full charge', value: fmt(nw * atYear(arr(p.replacement.retention_p50), y)), unit: 'km', sub: `${fmt(nw)} km when new` },
       { label: 'Battery cost per km', value: med == null ? '–' : inr(med), unit: med == null ? undefined : '/ km', sub: med == null ? 'Enter a battery price' : 'Median, your price input' },
     ]

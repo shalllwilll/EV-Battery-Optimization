@@ -23,8 +23,8 @@ class PredictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")
     scenario: Scenario
-    n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS, description="Monte Carlo draws; fixed seed makes results repeatable")
-    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+    n_draws: int = Field(default=2000, ge=200, le=MAX_DRAWS, description="Monte Carlo draws (lab engine only; the default reference engine runs a fixed 50-run ensemble and ignores n_draws and seed)")
+    seed: int = Field(default=0, ge=0, le=2**31 - 1, description="Lab engine only; ignored by the reference engine, which has nothing random")
     range_temperature_mode: Literal["none", "datasheet_example"] = "none"
 
 

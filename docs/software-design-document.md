@@ -1,6 +1,8 @@
 # Software Design Document (SDD): E-Bus Battery Lifecycle Intelligence Tool
 Version 0.1 | 2026-11-07 | Course project (non-commercial) | Approved by user 2026-11-07
 
+> **Update (after v1.0.0): the ageing engine changed.** The app now runs a port of NREL's BLAST-Lite LFP models (`engine/reference/`, 50-run ensemble; see `docs/model-card.md`). Sections 5.2 and 5.4 below describe the project's own laboratory-fitted model and its Monte Carlo, which stay in the code behind `EV_ENGINE=lab` but are not shown in the app. Where this document says HUST-fitted cycling, bootstrap draws, N=2000 or a widened band, read it as that retained model.
+
 ## 1. Introduction
 ### 1.1 Purpose
 Specify the architecture, data, models, interfaces and UI of a decision tool that forecasts battery health and replacement timing for Indian city e-bus fleets, designed like a B2B product but built as a course project.
@@ -57,7 +59,7 @@ Inputs -> EFC/yr, mean C-rate, time-at-SOC, cell temperature (ambient monthly me
 ### 5.3 L3 Calibration (design)
 Interface `calibrate(prior, vendor_frame) -> posterior`: per-vehicle capacity from charging segments (fixed voltage window features, mileage backbone), partial pooling via mixed-effects model, shrinkage toward Prior. v1 demonstrates on EVBattery with vehicle-grouped CV in `notebooks/calibration_demo.ipynb`.
 ### 5.4 L4 Decisions
-- Replacement window: Monte Carlo (N=2000) over bootstrap draws x residual quantiles x pack penalty -> time to threshold (default 80%) -> P(replace by month), p10/p50/p90 dates.
+- Replacement window (retained lab engine; the reference engine uses a fixed 50-run ensemble of 2 models x 5 degradation scalars x 5 pack penalties): Monte Carlo (N=2000) over bootstrap draws x residual quantiles x pack penalty -> time to threshold (default 80%) -> P(replace by month), p10/p50/p90 dates.
 - Seasonal range: monthly usable range = retention x temperature factor; the factor is used only if a measured source is found, else a clearly labelled user assumption.
 - Cost per km: battery cost (user input) / lifetime km to threshold with sensitivity.
 - Charging what-ifs: charge rate, SOC cap, start time; re-run L1-L4; paired comparison on shared random draws so differences are not noise.

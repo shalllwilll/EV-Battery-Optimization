@@ -102,7 +102,7 @@ export default function Optimise() {
     const rngA = (num(pa.range.new_pack_range_km) ?? 0) * scenario.threshold, rngB = (num(pb.range.new_pack_range_km) ?? 0) * scenario.threshold
     const need = f ? (f.base_passes ? num(f.required_range_km) : num(f.base_range_at_replacement_km)) : null
     tight = usingB && need != null && rngB < need - 0.5
-    const life = d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0) : null
+    const life = d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0, d.p90_beyond_horizon) : null
     r = repYears(rA)
     heads = usingB ? newWarnings(pa.conditions.warnings, pb.conditions.warnings) : []
     tightText = f?.base_passes

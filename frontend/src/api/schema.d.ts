@@ -255,6 +255,11 @@ export interface components {
             months_p10: components["schemas"]["Labelled"];
             months_p50: components["schemas"]["Labelled"];
             months_p90: components["schemas"]["Labelled"];
+            /**
+             * P90 Beyond Horizon
+             * @default false
+             */
+            p90_beyond_horizon: boolean;
             prob_variant_later: components["schemas"]["Labelled"];
         };
         /** DeltaVsBase */
@@ -265,6 +270,11 @@ export interface components {
             months_p90: components["schemas"]["Labelled"];
             /** Note */
             note: string;
+            /**
+             * P90 Beyond Horizon
+             * @default false
+             */
+            p90_beyond_horizon: boolean;
             prob_later: components["schemas"]["Labelled"];
             range_change_km: components["schemas"]["Labelled"];
         };
@@ -395,7 +405,7 @@ export interface components {
             mode: string;
             /**
              * N Draws
-             * @description Monte Carlo draws; fixed seed makes results repeatable
+             * @description Monte Carlo draws (lab engine only; the default reference engine runs a fixed 50-run ensemble and ignores n_draws and seed)
              * @default 2000
              */
             n_draws: number;
@@ -408,6 +418,7 @@ export interface components {
             scenario: components["schemas"]["Scenario"];
             /**
              * Seed
+             * @description Lab engine only; ignored by the reference engine, which has nothing random
              * @default 0
              */
             seed: number;

@@ -66,6 +66,7 @@ describe('wording helpers', () => {
   })
   it('summarises a change in battery life with its range', () => {
     expect(lifeChange(0.87, 0.5, 1.5)).toEqual({ headline: '+0.9 months', range: 'range +0.5 to +1.5 months' })
+    expect(lifeChange(4.4, 3.4, 0, true)).toEqual({ headline: '+4.4 months', range: '10th percentile +3.4 months' })
     expect(lifeChange(0.01, -0.1, 0.1).headline).toBe('No change')
   })
   it('formats lever values in plain units', () => {

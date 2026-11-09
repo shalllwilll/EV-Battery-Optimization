@@ -121,3 +121,17 @@ def test_latency_is_interactive(client):
     t = time.time()
     client.post("/api/v1/recommend", json={"scenario": scen(km_per_day=170), "n_draws": 2000})
     assert time.time() - t < 3.0
+
+
+def test_reference_deltas_equal_the_gap_between_the_lives_shown(client):
+    """A headline change must read as the difference of the two replacement times next to it (not a differently-estimated number)."""
+    j = rec(client)
+    base = j["base"]["months_p50"]["value"]
+    for p in j["presets"]:
+        for st in (p["charging"], p["with_confirmation"]):
+            if st is None:
+                continue
+            assert st["delta"]["months_p50"]["value"] == pytest.approx(st["metrics"]["months_p50"]["value"] - base, abs=1e-6)
+    d = j["presets"][0]["charging"]["delta"]
+    assert d["p90_beyond_horizon"] is True and j["base"]["months_p90"] is None        # the default bus's 90th percentile is past 15 years
+    assert "beyond the 15-year horizon" in j["presets"][0]["charging"]["summary"] and "likely between" not in j["presets"][0]["charging"]["summary"]
