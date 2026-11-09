@@ -76,13 +76,16 @@ describe('pages', () => {
   it('stops calling the model while an input is invalid, and says which (T5.2-2)', async () => {
     const m = mockApi(); renderApp('/health')
     await screen.findByText('Health over time')
-    const before = m.calls.filter((c) => c.path === '/predict').length
+    const count = () => m.calls.filter((c) => c.path === '/predict').length
+    // the "What to do first" list asks for a few one-lever variants a moment after the page settles; wait for those, then watch for anything new
+    let before = -1
+    while (before !== count()) { before = count(); await new Promise((r) => setTimeout(r, 900)) }
     await userEvent.click(screen.getByRole('button', { name: /Scenario/ }))
     const input = await screen.findByRole('textbox', { name: 'Distance per day' })
     await userEvent.clear(input); await userEvent.type(input, '-5')
     expect(await screen.findByText(/Fix 1 scenario input/)).toBeInTheDocument()
-    await new Promise((r) => setTimeout(r, 600))
-    expect(m.calls.filter((c) => c.path === '/predict').length).toBe(before)
+    await new Promise((r) => setTimeout(r, 1000))
+    expect(count()).toBe(before)
   })
   it('keeps the scenario inputs hidden until asked for, and closes them with Escape', async () => {
     mockApi(); renderApp('/health')

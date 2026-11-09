@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Async } from '../components/Async'
 import { EvidenceBadge } from '../components/EvidenceBadge'
 import { Insight } from '../components/Insight'
+import { LeverRank } from '../components/LeverRank'
 import { NotesList } from '../components/NotesDrawer'
 import { OpenIn3D } from '../components/OpenIn3D'
 import { WhatIfBar } from '../components/WhatIfBar'
@@ -12,6 +13,8 @@ import { TempRing } from '../components/charts/TempRing'
 import { WithTable } from '../components/DataTable'
 import { Page } from '../components/Workspace'
 import { arr, atYear, fmt, num } from '../lib/format'
+import { staggerWindow } from '../lib/dayCycle'
+import { hhmm } from '../lib/scenario'
 import { healthInsight } from '../lib/insights'
 import { buildNotes } from '../lib/notes'
 import { curves, repYears, xMaxFor } from '../lib/results'
@@ -22,9 +25,9 @@ import { useWhatIf } from '../state/WhatIfContext'
 import { useYear } from '../state/YearContext'
 
 export default function Health() {
-  const { q, scenario } = useCurrent()
+  const { q, scenario, valid } = useCurrent()
   const { year } = useYear()
-  const { changed, predB } = useWhatIf()
+  const { changed, predB, set } = useWhatIf()
   const [band, setBand] = useState(true), [thr, setThr] = useState(true)
   const xMax = q.data ? xMaxFor(q.data) : 10
   const play = usePlayYear(xMax)
@@ -63,6 +66,7 @@ export default function Health() {
             </section>
             <WhatIfBar base={p} keys={['soc_max_pct', 'charge_start_hour', 'heat_rise_c']} note="The ghost line on the chart below is the same bus with your change." />
             <div className="bento">
+              <LeverRank base={p} scenario={scenario} day={scene.day} ready={valid && !q.isFetching} />
               <div className="card c8">
                 <div className="hd"><div><h2>Health over time</h2><div className="sub">Median and range · {scenario.soc_max_pct}% charge cap</div></div><EvidenceBadge level="derived" /></div>
                 <div className="lg">
@@ -89,7 +93,18 @@ export default function Health() {
               <div className="card c6">
                 <div className="hd"><div><h2>One day, hour by hour</h2><div className="sub">Resting full for {fmt(idleH, 1)} h a day</div></div><EvidenceBadge level="derived" /></div>
                 <DayStrip day={scene.day} />
-                <p className="note">Time spent full and warm is what calendar ageing charges for. A later start or a lower cap shortens it.</p>
+                {(() => {
+                  const w = staggerWindow(scene.day)
+                  return (<>
+                    <p className="tnote">
+                      {w.room >= 0.5
+                        ? `This pack rests full for ${fmt(w.idleH, 1)} h. Charging can start anywhere in the ${fmt(w.room, 1)} h from ${hhmm(w.earliest)} to ${hhmm(w.latest)} and still finish 30 minutes before departure, so a depot short of chargers can stagger its buses across that window.`
+                        : `This pack rests full for only ${fmt(w.idleH, 1)} h, so charging has no room to start later and still finish 30 minutes before departure.`}
+                      {w.room >= 0.5 && <> <button className="btn sm" onClick={() => set('charge_start_hour', w.latest)}>Try {hhmm(w.latest)} start</button></>}
+                    </p>
+                    <p className="note">Time spent full and warm is what calendar ageing charges for. A later start or a lower cap shortens it. Charger counts are not modelled.</p>
+                  </>)
+                })()}
               </div>
               <div className="card c6">
                 <div className="hd"><div><h2>Cell temperature through the year</h2><div className="sub">January at the top, clockwise · hottest month outlined</div></div><EvidenceBadge level="derived" /></div>

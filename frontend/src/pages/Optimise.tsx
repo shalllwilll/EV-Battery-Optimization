@@ -17,6 +17,8 @@ import { DayScrubber } from '../components/DayScrubber'
 import { LensSwitch } from '../components/LensSwitch'
 import { buildSceneParams } from '../lib/sceneParams'
 import { insightLine } from '../lib/insight'
+import { lifeValue, valueLine } from '../lib/money'
+import { useFleetSize } from '../lib/useFleetSize'
 import { ChangeBar } from '../components/ChangeBar'
 import { applyOverrides, diffLevers, hasChanges, lifeChange, sameLevers, signed, sliderSpecs, stageFor, type LeverKey, type Overrides } from '../lib/busB'
 import { atYear, fmt, inr, num } from '../lib/format'
@@ -59,6 +61,7 @@ export default function Optimise() {
   const bOk = valid && Object.keys(validateScenario(busB)).length === 0
   const run = changed && bOk
 
+  const [fleet] = useFleetSize()
   const predA = usePredict(valid ? scenario : null)
   const predB = usePredict(run ? busB : null)
   const cmp = useCompare(run ? scenario : null, run ? busB : null)
@@ -137,7 +140,10 @@ export default function Optimise() {
   }
   const chips = changed ? sliderSpecs(scenario).filter((sp) => eff[sp.key] != null).map((sp) => ({ key: sp.key as string, text: `${sp.label} ${sp.fmt(scenario[sp.key] as number)} → ${sp.fmt(eff[sp.key] as number)}` })) : []
   const rows = cA && cB ? [{ label: 'Bus A', p10: atYear(cA.p10, y), p50: hA, p90: atYear(cA.p90, y) }, { label: 'Bus B', p10: atYear(cB.p10, y), p50: hB, p90: atYear(cB.p90, y) }] : []
-  const insight = buses.length === 2 && buses[0].scene && buses[1].scene && changed ? insightLine({ lifeHeadline: d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0, d.p90_beyond_horizon).headline : null, a: buses[0].scene.day, b: buses[1].scene.day, unfinishedB: buses[1].scene.unfinishedCharge }) : null
+  // rupees only when both buses have a measurable median and the same battery price: first pack only, undiscounted
+  const packA = pa ? num(pa.cost.battery_cost) : null, packB = predB.data ? num(predB.data.cost.battery_cost) : null
+  const money = pa && predB.data && cmp.data && packA != null && packB != null && Math.abs(packA - packB) < 1 ? valueLine(lifeValue(packA, num(cmp.data.replacements[0].months_p50), num(cmp.data.replacements[1].months_p50)), fleet) : null
+  const insight = buses.length === 2 && buses[0].scene && buses[1].scene && changed ? insightLine({ lifeHeadline: d ? lifeChange(num(d.months_p50) ?? 0, num(d.months_p10) ?? 0, num(d.months_p90) ?? 0, d.p90_beyond_horizon).headline : null, a: buses[0].scene.day, b: buses[1].scene.day, unfinishedB: buses[1].scene.unfinishedCharge, money: money }) : null
   const inset = wide && shown ? DOCK_PX + WIDTH[shown] : 0
 
   const stage = pa

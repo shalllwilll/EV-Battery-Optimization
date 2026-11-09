@@ -24,3 +24,37 @@ export const cumulativeSpend = (bars: YearBar[], packCostInr: number) => {
   let s = 0
   return bars.map((b) => (s += b.expected * packCostInr))
 }
+
+/** Exact quantile of Binomial(n, p): the smallest k with P(X <= k) >= q. Log-space so a fleet of thousands does not overflow. */
+export function binomialQuantile(n: number, p: number, q: number): number {
+  if (p <= 0) return 0
+  if (p >= 1) return n
+  const lf = [0]
+  for (let i = 1; i <= n; i++) lf.push(lf[i - 1] + Math.log(i))
+  const lp = Math.log(p), lq = Math.log(1 - p)
+  let cdf = 0
+  for (let k = 0; k <= n; k++) {
+    cdf += Math.exp(lf[n] - lf[k] - lf[n - k] + k * lp + (n - k) * lq)
+    if (cdf >= q - 1e-12) return k
+  }
+  return n
+}
+
+/** The years in which most of the fleet reaches the line: from the first year the share reaches `lo` to the first year it reaches `hi`.
+ *  `to` is null when `hi` is not reached within the forecast. `from` is null when even `lo` is not. */
+export function bulkWindow(cdf: number[], lo = 0.1, hi = 0.9) {
+  const last = cdf.length - 1, years = Math.floor(last / 12)
+  const first = (t: number) => { for (let y = 1; y <= years; y++) if (cdf[Math.min(y * 12, last)] >= t - 1e-9) return y; return null }
+  return { from: first(lo), to: first(hi) }
+}
+
+export type YearProvision = { year: number; expected: number; low: number; high: number; share: number }
+/** Per year: expected number of buses reaching the line and the 10th to 90th percentile of that count for `fleet` independent buses. */
+export function provision(cdf: number[], fleet: number): YearProvision[] {
+  const last = cdf.length - 1, years = Math.floor(last / 12), at = (m: number) => cdf[Math.min(m, last)]
+  return Array.from({ length: years }, (_, y) => {
+    const share = Math.max(0, at((y + 1) * 12) - at(y * 12))
+    // given the buses not yet replaced, the chance of this year is share / (1 - earlier share), but the unconditional count is Binomial(n, share)
+    return { year: y + 1, expected: fleet * share, low: binomialQuantile(fleet, share, 0.1), high: binomialQuantile(fleet, share, 0.9), share }
+  })
+}

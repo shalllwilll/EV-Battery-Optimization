@@ -8,10 +8,12 @@ import { RoadMeter } from '../components/charts/RoadMeter'
 import { SeasonChart } from '../components/charts/SeasonChart'
 import { WithTable } from '../components/DataTable'
 import { Page } from '../components/Workspace'
-import { useZones } from '../api/hooks'
+import { useLeverSweep, useZones } from '../api/hooks'
 import { arr, atYear, fmt, num } from '../lib/format'
 import { rangeInsight } from '../lib/insights'
-import { coverage, rangeAt, routeNeedKm } from '../lib/routefit'
+import { coverage, rangeAt, routeNeedKm, shortfallRisk } from '../lib/routefit'
+import { routeStep } from '../lib/levers'
+import { lifeDelta } from '../lib/whatif'
 import { curves, xMaxFor } from '../lib/results'
 import { ZONE_LABELS } from '../lib/scenario'
 import { useScenario } from '../state/ScenarioContext'
@@ -22,24 +24,32 @@ import { useYear } from '../state/YearContext'
 const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length
 
 export default function Range() {
-  const { q, scenario } = useCurrent()
+  const { q, scenario, valid } = useCurrent()
   const { setField } = useScenario()
-  const { changed, predB } = useWhatIf()
+  const { changed, predB, set } = useWhatIf()
   const { year } = useYear()
   const zones = useZones()
   const z = zones.data?.zones.find((x) => x.id === scenario.zone)
+  // one extra cached /predict: the same bus on a route 20 % shorter
+  const rs = routeStep(scenario)
+  const route = useLeverSweep(rs ? [{ ...scenario, km_per_day: rs.value }] : [], valid && !!q.data && !q.isFetching)[0]?.data
   return (
     <Page title="Season, climate and range" intro="How far a full charge goes now, how that shrinks with age, and whether it still covers your route. The model gives one range for every month, because no public data links cold or heat to LFP bus range.">
       <Async q={q} h={300}>{(p) => {
         const c = curves(p.replacement), xMax = xMaxFor(p), newKm = num(p.range.new_pack_range_km) ?? 0
         const need = routeNeedKm(scenario.km_per_day)
         const m = coverage(newKm, c.p50, need), ca = coverage(newKm, c.p10, need)
+        const risk = shortfallRisk(newKm, c.p10, c.p50, c.p90, need, year)
+        const shorter = rs && route ? (() => {
+          const rc = curves(route.replacement), rn = routeNeedKm(rs.value), rk = num(route.range.new_pack_range_km) ?? newKm
+          return { km: rs.value, delta: lifeDelta(p.replacement, route.replacement), cover: coverage(rk, rc.p50, rn) }
+        })() : null
         const now = rangeAt(newKm, c.p50, year), nowC = rangeAt(newKm, c.p10, year)
         const alt = changed && predB.data ? predB.data : null
         const ghost = alt ? { newKm: num(alt.range.new_pack_range_km) ?? 0, p50: curves(alt.replacement).p50 } : null
         return (
           <>
-            <Insight insight={rangeInsight({ need, newKm, median: m, cautious: ca })} />
+            <Insight insight={rangeInsight({ need, newKm, median: m, cautious: ca, risk: risk.years })} />
             <section className="hero" aria-labelledby="rf-h">
               <div className="hh">
                 <div><h2 id="rf-h">Does it cover your route?</h2><div className="sub">Drag the flag to change the route length · year {year.toFixed(1)}</div></div>
@@ -49,10 +59,17 @@ export default function Range() {
                 <div><div className="big">{fmt(now)}<small>km</small></div><div className="sub">on a full charge at year {year.toFixed(1)} · {fmt(nowC)} km on the cautious curve</div></div>
                 <div className="verdict" data-ok={m.kind === 'beyond' || (m.kind === 'until' && (m.year ?? 0) > year)}>
                   {m.kind === 'never' ? 'Short from day one' : m.kind === 'beyond' ? 'Covers the whole forecast' : `Covers it until year ${(m.year ?? 0).toFixed(1)}`}
-                  <small>{ca.kind === 'until' ? `cautious: year ${(ca.year ?? 0).toFixed(1)}` : ca.kind === 'never' ? 'cautious: already short' : 'cautious: whole forecast'}</small>
+                  <small>At year {year.toFixed(1)}: {risk.text}</small>
                 </div>
               </div>
               <RoadMeter p50Km={now} p10Km={nowC} needKm={need} maxKm={Math.max(newKm, need) * 1.1} onNeed={(k) => setField('km_per_day', Math.max(20, Math.min(600, k)))} />
+              {shorter && (
+                <p className="tnote">
+                  {shorter.delta ? `On a route 20 % shorter (${shorter.km} km a day) the pack lasts about ${Math.abs(shorter.delta.months).toFixed(1)} months ${shorter.delta.months >= 0 ? 'longer' : 'less'} in this model` : `On a route 20 % shorter (${shorter.km} km a day) the change in life cannot be measured`}
+                  {shorter.cover.kind === 'until' ? ` and still covers it until year ${(shorter.cover.year ?? 0).toFixed(1)}.` : shorter.cover.kind === 'beyond' ? ' and covers it for the whole forecast.' : ', but a new pack is still short of it.'}
+                  {' '}<button className="btn sm" onClick={() => set('km_per_day', shorter.km)}>Try {shorter.km} km a day</button>
+                </p>
+              )}
               <ReachChart newKm={newKm} p50={c.p50} p10={c.p10} needKm={need} xMax={xMax} ghost={ghost} />
               <p className="note">Range = usable energy × health ÷ energy use, from the model's median and cautious (10th percentile) health curves. Click the chart to pick a year. Not yet validated on buses.</p>
             </section>

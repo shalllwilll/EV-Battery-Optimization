@@ -4,11 +4,15 @@ import { EvidenceBadge } from '../components/EvidenceBadge'
 import { Insight } from '../components/Insight'
 import { WhatIfBar } from '../components/WhatIfBar'
 import { PriceCurve } from '../components/charts/PriceCurve'
+import { ThresholdCurve, type LinePoint } from '../components/charts/ThresholdCurve'
+import { WithTable } from '../components/DataTable'
 import { Page } from '../components/Workspace'
 import type { Scenario } from '../api/types'
 import { fmt, inr, num } from '../lib/format'
-import { breakEvenPrice, packCostPerYear, perThousand, scaleCost } from '../lib/costcalc'
-import { costInsight } from '../lib/insights'
+import { anchorCost, breakEvenPrice, costAtThreshold, perThousand, scaleCost } from '../lib/costcalc'
+import { costInsight, thresholdInsight } from '../lib/insights'
+import { routeNeedKm } from '../lib/routefit'
+import { curves } from '../lib/results'
 import type { WKey } from '../lib/whatif'
 import { useScenario } from '../state/ScenarioContext'
 import { useCurrent } from '../state/useCurrent'
@@ -40,8 +44,20 @@ export default function Cost() {
         const now = band && basePrice != null && price != null ? scaleCost(band, price, basePrice) : null
         const be = now && price != null && target != null ? breakEvenPrice(price, now.p50, target) : null
         const top = tor[0] ? (NAMES[tor[0].input]?.[0] ?? tor[0].input).toLowerCase() : null
-        const life = num(p.replacement.months_p50)
         const pack = num(c.battery_cost), lifeKm = num(c.lifetime_km_p50)
+        const packNow = pack != null && price != null && basePrice != null && basePrice > 0 ? pack * (price / basePrice) : pack
+        // cost against the replacement line: exact from the health curves, pinned to the engine's own answer at the line in use
+        const newKm = num(p.range.new_pack_range_km), need = routeNeedKm(p.scenario.km_per_day), curPct = p.scenario.threshold * 100
+        let line: { pts: LinePoint[]; optPct: number | null; needPct: number | null } | null = null
+        if (now && packNow != null && packNow > 0 && newKm != null && newKm > 0) {
+          const cv = curves(p.replacement), days = p.scenario.operating_days_per_year, kmDay = p.scenario.km_per_day
+          const needPct = (need / newKm) * 100, optPct = needPct <= 90 ? Math.max(51, Math.ceil(needPct)) : null
+          const lo = Math.min(60, Math.floor(curPct), optPct ?? 60), hi = Math.max(90, Math.ceil(curPct))
+          const est = (pct: number) => costAtThreshold(cv, pct, packNow, kmDay, days), e0 = est(curPct)
+          line = { needPct, optPct, pts: Array.from({ length: hi - lo + 1 }, (_, i) => { const pct = lo + i, e = est(pct); return { pct, ...anchorCost({ p10: e.p10, p50: e.p50, p90: e.p90 }, e0, now) } }) }
+        }
+        const at = (pct: number) => line?.pts.find((q) => q.pct === pct) ?? null
+        const tIns = line && newKm != null ? thresholdInsight({ curPct, optPct: line.optPct, hiPct: 90, needKm: need, newKm, curCost: now!.p50, optCost: line.optPct != null ? at(line.optPct)?.p50 ?? null : null }) : null
         const mx = Math.max(...tor.flatMap((t) => [num(t.low_case) ?? 0, num(t.high_case) ?? 0]), 0.0001), mn = Math.min(...tor.flatMap((t) => [num(t.low_case) ?? mx, num(t.high_case) ?? mx]), mx)
         const pos = (v: number) => `${((v - mn) / (mx - mn || 1)) * 100}%`
         return (
@@ -79,11 +95,20 @@ export default function Cost() {
                   <div className="row mt"><span>Range</span><b>{inr(now?.p10 ?? num(c.cost_per_km_p10))} to {inr(now?.p90 ?? num(c.cost_per_km_p90))}</b></div>
                   <div className="row"><span>Pack price</span><b>₹{fmt(((price != null && basePrice != null ? (pack ?? 0) * (price / basePrice) : pack) ?? 0) / 100000, 1)} lakh</b></div>
                   <div className="row"><span>Kilometres until replacement</span><b>{fmt((lifeKm ?? 0) / 1000)} thousand</b></div>
-                  {pack != null && <div className="row"><span>Pack cost per year of life</span><b>{(() => { const y = packCostPerYear(pack, life); return y == null ? '–' : `₹${fmt(y / 100000, 1)} lakh` })()}</b></div>}
                 </>}
                 {c.warnings.map((w) => <p className="note" key={w}>{w}</p>)}
               </div>
               <div className="card c7">
+                <div className="hd"><div><h2>Cost against the replacement line</h2><div className="sub">Replace later and each pack goes further, but the range left at replacement shrinks</div></div><EvidenceBadge level="derived" /></div>
+                {!line || newKm == null ? <p className="note">Enter a battery price to see how cost changes with the replacement line.</p> : <>
+                  <WithTable chart={<ThresholdCurve pts={line.pts} curPct={Math.round(curPct)} optPct={line.optPct} needPct={line.needPct} ghostPct={changed && busB.threshold !== scenario.threshold ? busB.threshold * 100 : null} />}
+                    head={['Replace at (health %)', 'Median ₹/km', 'Low (10th pct) ₹/km', 'High (90th pct) ₹/km', 'Range left (km)', 'Covers route']}
+                    rows={line.pts.filter((q) => q.pct % 5 === 0 || Math.round(curPct) === q.pct || q.pct === line!.optPct).map((q) => [q.pct, q.p50.toFixed(2), q.p10.toFixed(2), q.p90.toFixed(2), fmt((newKm * q.pct) / 100), (newKm * q.pct) / 100 >= need ? 'yes' : 'no'])} />
+                  {tIns && <p className="tnote">{tIns.text}{tIns.action && <> <button className="btn sm" onClick={() => set(tIns.action!.key, tIns.action!.value)}>{tIns.action.label}</button></>}</p>}
+                  <p className="note">The curve comes from the model's health curves, matched to the engine's own figure at your current line. The ring is the lowest line that still leaves enough range for your route. Not yet validated on buses.</p>
+                </>}
+              </div>
+              <div className="card c12">
                 <h2>What moves it most</h2><div className="sub">Median ₹ per km when one input is moved by the amount shown. The marker is today's cost.</div>
                 {tor.length === 0 ? <p className="note">The sensitivity chart appears once a battery price is entered.</p> :
                   <div className="tor2">{tor.map((t) => {

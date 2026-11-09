@@ -31,3 +31,10 @@ export function segments(p: DayParams): Segment[] {
   const all: Segment[] = [{ phase: 'drive', from: a, to: b }, { phase: 'charge', from: b, to: c }, { phase: 'idle', from: c, to: c + idleH }]
   return all.filter((s) => s.to - s.from > 1e-9)
 }
+
+/** How far charging could start later and still finish `buffer` hours before departure: the room a depot has to stagger its buses.
+ *  Rounded down to the half hour. Charger counts are not modelled, so this says what is possible, not how many chargers are needed. */
+export function staggerWindow(p: DayParams, buffer = 0.5) {
+  const idleH = dayShape(p).idleH, room = Math.max(0, Math.floor((idleH - buffer) * 2) / 2)
+  return { idleH, room, earliest: mod24(p.chargeStart), latest: mod24(p.chargeStart + room) }
+}

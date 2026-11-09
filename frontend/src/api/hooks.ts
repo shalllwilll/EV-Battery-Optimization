@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, health } from './client'
 import type { CompareResult, EvidenceResponse, PredictionResult, PresetsResponse, RecommendResponse, Scenario, ZonesResponse } from './types'
 import { useDebounced } from '../lib/useDebounced'
@@ -38,5 +38,22 @@ export function useRecommend(scenario: Scenario | null, reserve = 0.2, delay = 5
     queryKey: ['recommend', key(s), reserve],
     queryFn: ({ signal }) => api.post<RecommendResponse>('/recommend', { scenario: s, reserve_fraction: reserve, n_draws: N_DRAWS }, signal),
     enabled: !!s, placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
+  })
+}
+
+/** Several one-lever variants of a scenario, asked one after another (the server computes a cold one in about 0.25 s and a single worker gains nothing from
+ *  parallel calls) so each row can appear as soon as it is ready. Same query keys as `usePredict`, so applying a lever later is already cached. */
+export function useLeverSweep(variants: Scenario[], enabled: boolean, delay = 600) {
+  const qc = useQueryClient()
+  const list = useDebounced(key(variants), delay)
+  const arr = (JSON.parse(list) as Scenario[]) ?? []
+  return useQueries({
+    queries: arr.map((s, i) => {
+      const prev = i === 0 ? 'success' : qc.getQueryState(['predict', key(arr[i - 1])])?.status
+      return {
+        queryKey: ['predict', key(s)], queryFn: ({ signal }: { signal: AbortSignal }) => api.post<PredictionResult>('/predict', { scenario: s, n_draws: N_DRAWS }, signal),
+        enabled: enabled && (prev === 'success' || prev === 'error'), placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
+      }
+    }),
   })
 }

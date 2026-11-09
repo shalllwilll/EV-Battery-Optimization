@@ -79,5 +79,6 @@ describe('insightLine', () => {
   })
   it('flags unfinished charging', () => {
     expect(insightLine({ lifeHeadline: null, a, b: { ...a, chargeStart: 5, chargeHours: 4 }, unfinishedB: true })).toContain('does not finish charging')
+    expect(insightLine({ lifeHeadline: '+14.0 months', a, b: { ...a, chargeStart: 1 }, unfinishedB: false, money: 'about ₹9,800 per bus per year (₹4.9 lakh a year for 50 buses)' })).toContain('battery life +14.0 months · about ₹9,800 per bus per year')
   })
 })

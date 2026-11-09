@@ -40,6 +40,6 @@ export function lifeDelta(base: ReplacementResult, alt: ReplacementResult) {
   if (a50 == null || b50 == null) return null
   const d50 = b50 - a50, d10 = a10 != null && b10 != null ? b10 - a10 : d50
   const beyond = a90 == null || b90 == null
-  return { months: d50, ...lifeChange(d50, d10, beyond ? 0 : b90 - a90, beyond) }
+  return { months: d50, low: d10, ...lifeChange(d50, d10, beyond ? 0 : b90 - a90, beyond) }
 }
 export { hhmm }

@@ -42,3 +42,37 @@ describe('analysis pages', () => {
     expect(await screen.findByRole('heading', { name: 'Cost against battery price' })).toBeInTheDocument()
   })
 })
+
+describe('decision insights', () => {
+  it('Health: ranks one-lever changes, applies one to the Try a change bar, and says how far charging can be staggered', async () => {
+    mockApi(); renderApp('/health')
+    expect(await screen.findByRole('heading', { name: 'What to do first' })).toBeInTheDocument()
+    const rows = await screen.findAllByRole('button', { name: /Apply to the Try a change bar/ })
+    expect(rows.length).toBeGreaterThan(0)
+    expect(await screen.findByText(/Charging can start anywhere in the/)).toBeInTheDocument()
+    await userEvent.click(rows[0])
+    expect(await screen.findByRole('button', { name: 'Reset' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'List as table' }))
+    expect(await screen.findByRole('columnheader', { name: 'Months gained (10th pct)' })).toBeInTheDocument()
+  }, 15000)
+
+  it('Cost: draws cost against the replacement line with the numbers in its label', async () => {
+    mockApi(); renderApp('/cost')
+    expect(await screen.findByRole('heading', { name: 'Cost against the replacement line' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /^Cost per kilometre against the replacement line/ })).toBeInTheDocument()
+    expect(screen.queryByText('Pack cost per year of life')).not.toBeInTheDocument()
+  })
+
+  it('Range: names how many buses are short, in buckets, never as an invented percentage', async () => {
+    mockApi(); renderApp('/range')
+    expect(await screen.findByText(/buses short|every run short|fewer than 1 in 10/)).toBeInTheDocument()
+    expect(screen.queryByText(/\d+ % of buses/)).not.toBeInTheDocument()
+  })
+
+  it('Replacement: puts a budget range and a bulk-order window on the fleet plan', async () => {
+    mockApi(); renderApp('/replacement')
+    expect(await screen.findByText(/^Budget about /)).toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole('button', { name: 'Show as table' })[0])
+    expect(screen.getAllByRole('columnheader', { name: '10th pct' })).toHaveLength(1)
+  }, 15000)
+})

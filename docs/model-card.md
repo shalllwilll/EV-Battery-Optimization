@@ -28,6 +28,7 @@ Only the 250 Ah model is sublinear in cycling; the 3 Ah model is not.
 - Neither model has a late-life knee; sudden capacity loss near end of life is not represented.
 - Charge power matters only through the time the pack sits full; the NREL models show almost no charge-rate effect in the tested range. Temperature effects on usable capacity, HVAC load and seasonal energy use are not modelled.
 - The 20 to 30 % pack penalty is NREL's rule of thumb, an assumption.
+- The decision panels in the app (ranked levers, fleet budget range, how many buses are short, rupees per year) are arithmetic on these outputs, not new model results. Levers are measured one at a time and do not add up. The fleet budget assumes independent buses, one replacement each and no discounting. "Buses short" is only ever one of four buckets between the 10th, 50th and 90th percentile curves. Rupees are the pack price spread straight-line over its life, first pack only.
 - At the default settings roughly 70 % of runs reach the 80 % line within 15 years; the rest are counted at the horizon in cost and in paired comparisons, and the app says so.
 
 **Result.** 12 m hot-dry default: median replacement about 12 years, 10th percentile about 8 years, 90th beyond 15 years. Our own fit gave about 4 years (see the cross-check below), which contradicts both the NREL models and published EV-battery experience.
