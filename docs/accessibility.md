@@ -37,3 +37,8 @@ Each hero picture has a text equivalent: the cell field, dot plot, road meter, r
 - **Screen-reader listening tests** (VoiceOver, NVDA) were not run. Names, roles and landmarks are checked by axe and by tests, which is not the same as hearing the page.
 - **The 3D scene itself** is a picture. It has a text description, every number in it is also in the key-number strip, the Details chart table and the pack buttons, and packs can be selected from the View panel by keyboard. Orbiting the camera with the keyboard is not supported.
 - **200 % zoom** was not tested separately. At 200 % zoom a 1500 px window behaves like a 750 px one, and the 375 px layout (the narrowest) was checked.
+
+## The PDF report
+- The comparison PDF is dark like the app. Text colours are the app's tokens, so the contrast figures above apply (smallest text, 7 pt notes, is the tertiary grey on near-black, about 5.8:1). Gains, losses and warnings are never colour alone: each tile carries a GAIN, LOSS, WATCH or SAME word and every number carries its sign.
+- It is not a tagged PDF, so a screen reader reads it in page order without structure. The same figures are in the app and in the email body as plain text.
+

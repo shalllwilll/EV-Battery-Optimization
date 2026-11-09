@@ -2,6 +2,14 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Report redesigned in the app's own look (after v1.0.0)
+- The Bus A vs Bus B PDF now looks like the app: near-black pages with the volt yellow accent, Lexend for headings and numbers, Manrope for text, the same colour meaning (volt = Bus A and better, white = Bus B, orange = the replacement line and warnings, red = worse). Four pages instead of a light-theme document.
+- **Page 1, the snapshot**: one headline ("Bus B's battery lasts 28.9 months longer"), a one-line verdict of gains, losses and watch-outs, four tiles (battery life, cost per km, range at replacement, rupees per bus per year) each tagged GAIN, LOSS, WATCH or SAME, and both buses as a cutaway with their 96 cells coloured by health at the year Bus A is due for replacement. The cells are scattered inside the model's 10th to 90th percentile range and the page says it is an illustration of the forecast, not a measurement. Below: what changed on Bus B.
+- **Page 2**: "What matters most" insight cards ranked risks first, then losses, then gains; a health chart with both crossings and the gap in months marked; and a chart of when the earliest tenth, median and latest tenth of packs reach the replacement line.
+- **Page 3**: cost per km and range bars (with the route need drawn as a line), a side-by-side table with the change in each row coloured, and what the report cannot tell you. **Page 4**: notes returned by the model and every input, with the ones that differ highlighted.
+- Everything is vector drawing, so it stays sharp and prints cleanly. Identical buses make no "lasts longer" claim; with no battery price the cost tile says "NOT SET" instead of a made-up figure.
+- Fonts: Lexend and Manrope (SIL Open Font Licence 1.1) are bundled in `backend/app/fonts/` with their licence texts, converted to static files that include the rupee sign. DejaVu is no longer used. No new dependency.
+
 ## Optimise report: PDF and email (after v1.0.0)
 - New **Report** button on the Optimise dock opens "Send report". Once Bus B differs from Bus A it can **download a PDF** of the comparison, or **email it to one address**.
 - The report: what the comparison found (battery life, how often Bus B lasts longer, cost per km, range at replacement against the route need, rupees per bus per year and for the fleet when a price is set), what was changed on Bus B, a health chart for both buses with Bus A's 10th to 90th percentile band, a side-by-side results table, the limits of the forecast and every input in an appendix. Every page carries "Not yet validated on buses".

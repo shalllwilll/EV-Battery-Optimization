@@ -1,69 +1,41 @@
-"""The Bus A vs Bus B comparison report: one PDF built from the same model results the Optimise page shows.
+"""The Bus A vs Bus B comparison report: one PDF in the app's own look, built from the same model results the Optimise page shows.
 
 The server builds the document itself from two scenarios, so the file a user downloads and the file that is emailed are the same, and nobody can use
 the mail sender to send content of their own. Every number comes from `run_prediction` / `run_compare`; nothing here is a new model result.
-Fonts: DejaVu Sans (shipped with matplotlib) because it has the rupee sign, which the standard PDF fonts do not.
+Look: Obsidian Volt (near-black pages, volt yellow accents), Lexend for headings and numbers, Manrope for text; the drawings live in report_viz.py.
+Colour means what it means in the app: volt = Bus A and "better", white = Bus B, orange = the replacement line and warnings, red = worse.
 """
 from __future__ import annotations
 
 import io
-import os
 from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 
-import matplotlib
-from reportlab.graphics.shapes import Drawing, Line, PolyLine, Polygon, Rect, String
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
+from reportlab.graphics import renderPDF
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
-from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from xml.sax.saxutils import escape
+from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from backend.app import report_viz as V
+from backend.app.report_viz import BAD, BG, INK, LINE, LINE2, S1, S2, T2, T3, TEXT, VOLT, WARN, blend
 from backend.app.schemas import CompareResult, DISCLAIMER, PredictionResult
 
 RESERVE = 0.2                       # the app's route rule: daily distance plus 20 %
-INK, MUTED, RULE, SOFT = colors.HexColor("#18181B"), colors.HexColor("#52525B"), colors.HexColor("#D4D4D8"), colors.HexColor("#F4F4F5")
-ACCENT, BUS_A, BUS_B = colors.HexColor("#B45309"), colors.HexColor("#334155"), colors.HexColor("#D97706")
-WARN_BG, WARN_LINE = colors.HexColor("#FEF3C7"), colors.HexColor("#F59E0B")
 W, H = A4
-MARGIN = 18 * mm
-
-_fonts_ready = False
-
-
-def _fonts() -> None:
-    global _fonts_ready
-    if _fonts_ready:
-        return
-    d = os.path.join(matplotlib.get_data_path(), "fonts", "ttf")
-    for name, file in (("DV", "DejaVuSans.ttf"), ("DV-B", "DejaVuSans-Bold.ttf"), ("DV-I", "DejaVuSans-Oblique.ttf"), ("DV-BI", "DejaVuSans-BoldOblique.ttf")):
-        pdfmetrics.registerFont(TTFont(name, os.path.join(d, file)))
-    pdfmetrics.registerFontFamily("DV", normal="DV", bold="DV-B", italic="DV-I", boldItalic="DV-BI")
-    _fonts_ready = True
+MARGIN = 16 * mm
+FULL = W - 2 * MARGIN
+TONE = {"gain": VOLT, "loss": BAD, "warn": WARN, "same": T3}
+TAG = {"gain": "GAIN", "loss": "LOSS", "warn": "WATCH", "same": "SAME"}
 
 
-def _styles() -> dict[str, ParagraphStyle]:
-    b = dict(fontName="DV", textColor=INK, alignment=TA_LEFT)
-    return {
-        "title": ParagraphStyle("title", fontSize=20, leading=25, fontName="DV-B", textColor=INK),
-        "kicker": ParagraphStyle("kicker", fontSize=8.5, leading=11, fontName="DV-B", textColor=ACCENT),
-        "h": ParagraphStyle("h", fontSize=12.5, leading=16, fontName="DV-B", textColor=INK, spaceBefore=14, spaceAfter=6),
-        "p": ParagraphStyle("p", fontSize=9.4, leading=13.6, **b),
-        "lead": ParagraphStyle("lead", fontSize=11, leading=16, **b),
-        "small": ParagraphStyle("small", fontSize=8, leading=11.2, fontName="DV", textColor=MUTED),
-        "cell": ParagraphStyle("cell", fontSize=8.6, leading=11.4, **b),
-        "cellb": ParagraphStyle("cellb", fontSize=8.6, leading=11.4, fontName="DV-B", textColor=INK),
-        "head": ParagraphStyle("head", fontSize=8, leading=10.5, fontName="DV-B", textColor=MUTED),
-    }
+def HEX(c) -> str:
+    return "#%02X%02X%02X" % (round(c.red * 255), round(c.green * 255), round(c.blue * 255))
 
 
-def _p(text: str, style) -> Paragraph:
-    return Paragraph(text, style)
-
+# ---- numbers -----------------------------------------------------------------------------------------------------------------------------
 
 def _val(x):
     """Plain number from a Labelled (or None)."""
@@ -100,7 +72,7 @@ def _hhmm(h: float) -> str:
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-# Scenario fields, in the order a fleet manager reads them: label, formatter.
+# Scenario fields, in the order a fleet manager reads them: key, label, formatter.
 FIELDS: list[tuple[str, str, object]] = [
     ("archetype", "Bus type", lambda v: f"{v} bus"),
     ("pack_kwh", "Pack size", lambda v: f"{v:g} kWh"),
@@ -148,36 +120,69 @@ def life_value_per_bus_year(pa: PredictionResult, pb: PredictionResult) -> float
     return ca / (ma / 12) - ca / (mb / 12)
 
 
+def _tone(delta: float, eps: float, higher_is_better: bool = True) -> str:
+    if abs(delta) < eps:
+        return "same"
+    return "gain" if (delta > 0) == higher_is_better else "loss"
+
+
+def facts(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fleet: int) -> dict:
+    """Every figure the report shows, with who gains and who loses. One place, so the pages and the email summary always agree."""
+    d = cmp.deltas[0]
+    mon = lambda p, k: _val(getattr(p.replacement, f"months_{k}"))
+    f: dict = {"fleet": fleet, "later": None if not changes(pa.scenario, pb.scenario) else _val(d.prob_variant_later)}
+    f["m"] = {k: (mon(pa, k), mon(pb, k)) for k in ("p10", "p50", "p90")}
+    ma, mb = f["m"]["p50"]
+    f["dm"] = None if ma is None or mb is None else mb - ma
+    f["life_tone"] = "same" if f["dm"] is None else _tone(f["dm"], 0.5)
+    ca, cb = _val(pa.cost.cost_per_km_p50), _val(pb.cost.cost_per_km_p50)
+    f["cost"] = (ca, cb) if ca is not None and cb is not None else None
+    f["cost_tone"] = _tone(cb - ca, 0.005, higher_is_better=False) if f["cost"] else "same"
+    f["need"] = route_need_km(pa.scenario)
+    f["new_a"], f["new_b"] = _val(pa.range.new_pack_range_km) or 0.0, _val(pb.range.new_pack_range_km) or 0.0
+    f["ra"], f["rb"] = range_at_replacement(pa), range_at_replacement(pb)
+    f["a_ok"], f["b_ok"] = f["ra"] >= f["need"] - 0.5, f["rb"] >= f["need"] - 0.5
+    f["risk"] = f["a_ok"] and not f["b_ok"]
+    if f["risk"]:
+        f["range_tone"] = "warn"
+    elif f["b_ok"] and not f["a_ok"]:
+        f["range_tone"] = "gain"
+    else:
+        f["range_tone"] = _tone(f["rb"] - f["ra"], 0.5)
+    f["money"] = life_value_per_bus_year(pa, pb)
+    f["money_tone"] = "same" if f["money"] is None or abs(f["money"]) < 1 else "gain" if f["money"] > 0 else "loss"
+    # the snapshot year: where Bus A's pack is due for replacement (the point at which the two buses differ most visibly), kept inside the forecast
+    horizon = pa.replacement.months[-1] / 12
+    f["horizon"] = horizon
+    f["year"] = min(horizon, max(1.0, round(ma / 12 * 2) / 2)) if ma is not None else min(horizon, 10.0)
+    return f
+
+
 def headline(pa: PredictionResult, pb: PredictionResult, d) -> list[str]:
-    """The few sentences that say what the comparison found. Plain statements of the numbers in the tables."""
+    """Plain-text summary lines (used by the email body)."""
     out: list[str] = []
     ma, mb = _val(pa.replacement.months_p50), _val(pb.replacement.months_p50)
     if ma is not None and mb is not None:
         dm = mb - ma
-        if abs(dm) < 0.5:
-            out.append(f"Bus B's median battery life is about the same as Bus A's: {ma / 12:.1f} years against {mb / 12:.1f} years.")
-        else:
-            out.append(f"Bus B's battery lasts about <b>{abs(dm):.1f} months {'longer' if dm > 0 else 'less'}</b> than Bus A's at the median "
-                       f"({ma / 12:.1f} years for Bus A, {mb / 12:.1f} years for Bus B).")
+        out.append(f"Bus B's median battery life is about the same as Bus A's: {ma / 12:.1f} years against {mb / 12:.1f} years." if abs(dm) < 0.5 else
+                   f"Bus B's battery lasts about {abs(dm):.1f} months {'longer' if dm > 0 else 'less'} than Bus A's at the median ({ma / 12:.1f} years for Bus A, {mb / 12:.1f} years for Bus B).")
     elif ma is None and mb is None:
         out.append("Neither bus reaches the replacement line within the forecast at the median, so the difference in life cannot be measured.")
     else:
         out.append(f"The median replacement date is beyond the forecast for {'Bus A' if ma is None else 'Bus B'}, so the difference in life cannot be measured exactly.")
-    later = _val(d.prob_variant_later)
+    later = _val(d.prob_variant_later) if changes(pa.scenario, pb.scenario) else None
     if later is not None:
         out.append(f"Bus B lasts longer than Bus A in {round(later * 100)} % of the model's reference runs.")
     ca, cb = _val(pa.cost.cost_per_km_p50), _val(pb.cost.cost_per_km_p50)
     if ca is not None and cb is not None:
         dc = cb - ca
-        out.append("Battery cost per kilometre is about the same." if abs(dc) < 0.005 else
-                   f"Battery cost per kilometre is <b>₹{abs(dc):.2f} {'lower' if dc < 0 else 'higher'}</b> for Bus B (₹{cb:.2f} against ₹{ca:.2f}).")
+        out.append("Battery cost per kilometre is about the same." if abs(dc) < 0.005 else f"Battery cost per kilometre is ₹{abs(dc):.2f} {'lower' if dc < 0 else 'higher'} for Bus B (₹{cb:.2f} against ₹{ca:.2f}).")
     ra, rb, need = range_at_replacement(pa), range_at_replacement(pb), route_need_km(pa.scenario)
     a_ok, b_ok = ra >= need - 0.5, rb >= need - 0.5
     if a_ok and b_ok:
         out.append(f"Both buses keep enough range for the route at replacement: Bus A {ra:.0f} km, Bus B {rb:.0f} km against {need:.0f} km needed (daily distance plus a 20 % reserve).")
     elif a_ok:
-        out.append(f"<b>Range warning:</b> when Bus B's pack is due for replacement it could drive about {rb:.0f} km on a charge, below the {need:.0f} km the route needs "
-                   f"(daily distance plus a 20 % reserve). Bus A would still manage {ra:.0f} km.")
+        out.append(f"Range warning: when Bus B's pack is due for replacement it could drive about {rb:.0f} km on a charge, below the {need:.0f} km the route needs (daily distance plus a 20 % reserve). Bus A would still manage {ra:.0f} km.")
     elif b_ok:
         out.append(f"Bus A falls below the {need:.0f} km the route needs at replacement ({ra:.0f} km), while Bus B keeps {rb:.0f} km.")
     else:
@@ -185,57 +190,96 @@ def headline(pa: PredictionResult, pb: PredictionResult, d) -> list[str]:
     return out
 
 
-# ---- chart -------------------------------------------------------------------------------------------------------------------------------
-
-def _chart(pa: PredictionResult, pb: PredictionResult, width: float, height: float) -> Drawing:
-    """Health over time for both buses: Bus A median with its 10th to 90th percentile band, Bus B median (dashed), and the replacement line."""
-    months = pa.replacement.months
-    ya = {k: [v * 100 for v in _arr(getattr(pa.replacement, f"retention_{k}"))] for k in ("p10", "p50", "p90")}
-    yb = {k: [v * 100 for v in _arr(getattr(pb.replacement, f"retention_{k}"))] for k in ("p10", "p50", "p90")}
-    horizon = months[-1] / 12
-    meds = [_val(pa.replacement.months_p50), _val(pb.replacement.months_p50)]
-    xmax = min(horizon, 15 if any(m is None or m / 12 > 9 for m in meds) else 10)
-    lo_val = min(min(ya["p10"][: int(xmax * 12) + 1]), min(yb["p50"][: int(xmax * 12) + 1]), pa.scenario.threshold * 100, pb.scenario.threshold * 100)
-    ymin = max(0.0, 5 * int((lo_val - 4) // 5))
-    L, R, T, B = 36, 8, 8, 24
-    d = Drawing(width, height)
-    X = lambda yr: L + (width - L - R) * yr / xmax
-    Y = lambda v: B + (height - T - B) * (v - ymin) / (100 - ymin)
-    d.add(Rect(L, B, width - L - R, height - T - B, fillColor=colors.white, strokeColor=RULE, strokeWidth=0.6))
-    step = 5 if 100 - ymin <= 30 else 10
-    v = ymin
-    while v <= 100 + 1e-9:
-        d.add(Line(L, Y(v), width - R, Y(v), strokeColor=RULE, strokeWidth=0.3))
-        d.add(String(L - 4, Y(v) - 3, f"{v:g}", fontName="DV", fontSize=7, fillColor=MUTED, textAnchor="end"))
-        v += step
-    for yr in range(0, int(xmax) + 1, 1 if xmax <= 10 else 2):
-        d.add(String(X(yr), B - 11, str(yr), fontName="DV", fontSize=7, fillColor=MUTED, textAnchor="middle"))
-    d.add(String(L + (width - L - R) / 2, 1, "years in service", fontName="DV", fontSize=7, fillColor=MUTED, textAnchor="middle"))
-    d.add(String(2, height - 8, "% capacity left", fontName="DV", fontSize=7, fillColor=MUTED))
-    n = int(xmax * 12)
-    pts = lambda ys: [c for i in range(n + 1) for c in (X(months[i] / 12), Y(ys[i]))]
-    band = [c for i in range(n + 1) for c in (X(months[i] / 12), Y(ya["p90"][i]))] + [c for i in range(n, -1, -1) for c in (X(months[i] / 12), Y(ya["p10"][i]))]
-    d.add(Polygon(band, fillColor=colors.Color(0.2, 0.25, 0.33, alpha=0.13), strokeColor=None))
-    thr = pa.scenario.threshold * 100
-    d.add(Line(L, Y(thr), width - R, Y(thr), strokeColor=colors.HexColor("#DC2626"), strokeWidth=0.8, strokeDashArray=[3, 2]))
-    d.add(String(L + 4, Y(thr) - 8, f"replacement line {thr:g} %", fontName="DV", fontSize=6.8, fillColor=colors.HexColor("#B91C1C")))
-    d.add(PolyLine(pts(ya["p50"]), strokeColor=BUS_A, strokeWidth=1.6))
-    d.add(PolyLine(pts(yb["p50"]), strokeColor=BUS_B, strokeWidth=1.6, strokeDashArray=[5, 2.5]))
-    return d
-
-
-def _legend(width: float) -> Drawing:
-    d = Drawing(width, 14)
-    d.add(Line(0, 7, 18, 7, strokeColor=BUS_A, strokeWidth=1.6)); d.add(String(22, 4, "Bus A median", fontName="DV", fontSize=7.5, fillColor=INK))
-    d.add(Rect(92, 3, 18, 8, fillColor=colors.Color(0.2, 0.25, 0.33, alpha=0.13), strokeColor=None)); d.add(String(114, 4, "Bus A, 10th to 90th percentile", fontName="DV", fontSize=7.5, fillColor=INK))
-    d.add(Line(250, 7, 268, 7, strokeColor=BUS_B, strokeWidth=1.6, strokeDashArray=[5, 2.5])); d.add(String(272, 4, "Bus B median", fontName="DV", fontSize=7.5, fillColor=INK))
-    return d
+def insights(f: dict) -> list[dict]:
+    """The few things that matter most: a tone (gain, loss, warn, same), a short title and a sentence of detail. Risks first, then losses, then gains."""
+    out: list[dict] = []
+    ma, mb = f["m"]["p50"]
+    if f["dm"] is None:
+        out.append({"tone": "same", "title": "Life difference cannot be measured", "text": "At least one bus has its median replacement beyond the forecast, so only the ranges in the charts can be compared."})
+    elif f["life_tone"] == "same":
+        out.append({"tone": "same", "title": "Battery life is about the same", "text": f"Median replacement: {ma / 12:.1f} years for Bus A, {mb / 12:.1f} years for Bus B."})
+    else:
+        p10a, p10b = f["m"]["p10"]
+        early = f" The earliest tenth of runs move by {_signed(p10b - p10a, 1, ' months')}." if p10a is not None and p10b is not None else ""
+        word = "longer" if f["dm"] > 0 else "less"
+        out.append({"tone": f["life_tone"], "title": f"Battery lasts {abs(f['dm']):.1f} months {word}", "text": f"Median replacement moves from {ma / 12:.1f} to {mb / 12:.1f} years.{early}"})
+    if f["cost"]:
+        ca, cb = f["cost"]
+        if f["cost_tone"] == "same":
+            out.append({"tone": "same", "title": "Cost per km is about the same", "text": f"Median ₹{ca:.2f} for Bus A and ₹{cb:.2f} for Bus B."})
+        else:
+            word = "cheaper" if cb < ca else "dearer"
+            out.append({"tone": f["cost_tone"], "title": f"₹{abs(cb - ca):.2f} {word} per km", "text": f"Battery cost per kilometre moves from ₹{ca:.2f} to ₹{cb:.2f} (pack price over the kilometres driven until replacement)."})
+    need, ra, rb = f["need"], f["ra"], f["rb"]
+    if f["risk"]:
+        out.append({"tone": "warn", "title": "Range falls below your route", "text": f"At replacement Bus B could drive about {rb:.0f} km on a charge, short of the {need:.0f} km the route needs (daily distance plus 20 %). Bus A keeps {ra:.0f} km."})
+    elif not f["a_ok"] and not f["b_ok"]:
+        out.append({"tone": "warn", "title": "Neither bus keeps the route range", "text": f"At replacement Bus A manages {ra:.0f} km and Bus B {rb:.0f} km against the {need:.0f} km the route needs (daily distance plus 20 %)."})
+    elif f["b_ok"] and not f["a_ok"]:
+        out.append({"tone": "gain", "title": "Bus B keeps the route range", "text": f"Bus A drops to {ra:.0f} km at replacement, below the {need:.0f} km needed. Bus B keeps {rb:.0f} km."})
+    elif abs(rb - ra) >= 0.5:
+        sign = "+" if rb > ra else "−"
+        out.append({"tone": "same", "title": f"Range at replacement {sign}{abs(rb - ra):.0f} km, still enough", "text": f"{ra:.0f} km for Bus A and {rb:.0f} km for Bus B, both above the {need:.0f} km the route needs."})
+    if f["money"] is not None and f["money_tone"] != "same":
+        per, n = f["money"], f["fleet"]
+        word = "saved" if per > 0 else "more"
+        out.append({"tone": f["money_tone"], "title": f"About {_rupees(abs(per))} per bus a year {word}",
+                    "text": f"{_rupees(abs(per) * n)} a year for {n} bus{'es' if n != 1 else ''}. The pack price spread over its median life: straight-line, undiscounted, first pack only."})
+    if f["later"] is not None:
+        later = f["later"]
+        out.append({"tone": "gain" if later >= 0.6 else "loss" if later <= 0.4 else "same", "title": f"Bus B lasts longer in {round(later * 100)} % of runs",
+                    "text": "Share of the model's 50 reference runs in which Bus B reaches the replacement line later than Bus A."})
+    order = {"warn": 0, "loss": 1, "gain": 2, "same": 3}
+    return sorted(out, key=lambda x: order[x["tone"]])
 
 
-# ---- document ----------------------------------------------------------------------------------------------------------------------------
+# ---- styles ------------------------------------------------------------------------------------------------------------------------------
+
+def _styles() -> dict[str, ParagraphStyle]:
+    def s(name, **k):
+        return ParagraphStyle(name, **{"fontName": "MR", "fontSize": 9, "leading": 13, "textColor": T2, "alignment": TA_LEFT, **k})
+    return {
+        "kicker": s("kicker", fontName="LX-SB", fontSize=8, leading=11, textColor=VOLT),
+        "h1": s("h1", fontName="LX-SB", fontSize=25, leading=29, textColor=TEXT),
+        "sub": s("sub", fontSize=9.4, leading=14),
+        "h2": s("h2", fontName="LX-SB", fontSize=12.5, leading=16, textColor=TEXT, spaceBefore=14, spaceAfter=6),
+        "p": s("p"), "small": s("small", fontSize=7.8, leading=11, textColor=T3), "tiny": s("tiny", fontSize=7, leading=9.5, textColor=T3), "note": s("note", fontSize=7.8, leading=11, textColor=T3, leftIndent=9, firstLineIndent=-9, spaceAfter=2),
+        "cell": s("cell", fontSize=8.6, leading=11.6), "head": s("head", fontName="LX", fontSize=7.2, leading=10, textColor=T3),
+        "lab": s("lab", fontName="LX", fontSize=7, leading=9, textColor=T3),
+        "tag": s("tag", fontName="LX-SB", fontSize=6.6, leading=9, alignment=TA_RIGHT),
+        "big": s("big", fontName="LX-SB", fontSize=21, leading=24, textColor=TEXT),
+        "ttl": s("ttl", fontName="LX-SB", fontSize=10.4, leading=13.5, textColor=TEXT),
+        "num": s("num", fontName="LX-SB", fontSize=15, leading=18, textColor=TEXT),
+        "cardh": s("cardh", fontName="LX-SB", fontSize=10, leading=13, textColor=TEXT),
+        "right": s("right", fontSize=8.6, leading=11.6, alignment=TA_RIGHT, textColor=TEXT),
+    }
+
+
+def P(t: str, st: ParagraphStyle) -> Paragraph:
+    return Paragraph(t, st)
+
+
+def col(c, text: str) -> str:
+    return f'<font color="{HEX(c)}">{text}</font>'
+
+
+# ---- page furniture ----------------------------------------------------------------------------------------------------------------------
+
+def _page(c: canvas.Canvas, doc) -> None:
+    c.saveState()
+    c.setFillColor(BG); c.rect(0, 0, W, H, stroke=0, fill=1)
+    # a soft volt glow in the top-right corner, like the app's hero cards (stacked solid discs: viewers differ on transparency)
+    for i, a in enumerate((0.012, 0.016, 0.02, 0.024, 0.028)):
+        c.setFillColor(blend(VOLT, BG, a)); c.circle(W - 14 * mm, H - 4 * mm, (74 - i * 13) * mm, stroke=0, fill=1)
+    renderPDF.draw(V.brand_mark(17), c, MARGIN, H - 15.5 * mm)
+    c.setFont("LX-SB", 10.5); c.setFillColor(TEXT); c.drawString(MARGIN + 23, H - 12.4 * mm, "Pack Horizon")
+    c.setFont("MR", 8); c.setFillColor(T3); c.drawRightString(W - MARGIN, H - 12.3 * mm, "E-bus battery lifecycle · Bus comparison report")
+    c.setStrokeColor(LINE2); c.setLineWidth(0.6); c.line(MARGIN, H - 18.5 * mm, W - MARGIN, H - 18.5 * mm)
+    c.restoreState()
+
 
 class _Numbered(canvas.Canvas):
-    """Canvas that knows the page count, so every footer can say "page 2 of 3"."""
+    """Canvas that knows the page count, so every footer can say "Page 2 of 4"."""
 
     def __init__(self, *a, **k):
         super().__init__(*a, **k)
@@ -249,124 +293,255 @@ class _Numbered(canvas.Canvas):
         total = len(self._saved)
         for state in self._saved:
             self.__dict__.update(state)
-            self._footer(total)
+            self.setStrokeColor(LINE2); self.setLineWidth(0.6); self.line(MARGIN, 14 * mm, W - MARGIN, 14 * mm)
+            self.setFont("MR", 7.5); self.setFillColor(T3)
+            self.drawString(MARGIN, 9.5 * mm, "Not yet validated on buses · Prior mode: published laboratory cell models, assumed inputs")
+            self.drawRightString(W - MARGIN, 9.5 * mm, f"Page {self._pageNumber} of {total}")
             super().showPage()
         super().save()
 
-    def _footer(self, total: int):
-        self.setStrokeColor(RULE); self.setLineWidth(0.5); self.line(MARGIN, 14 * mm, W - MARGIN, 14 * mm)
-        self.setFont("DV", 7.5); self.setFillColor(MUTED)
-        self.drawString(MARGIN, 10 * mm, "Pack Horizon · Not yet validated on buses · Prior mode")
-        self.drawRightString(W - MARGIN, 10 * mm, f"Page {self._pageNumber} of {total}")
+
+def _plain(pad_l=0, pad_r=0, pad_t=0, pad_b=0) -> list:
+    return [("LEFTPADDING", (0, 0), (-1, -1), pad_l), ("RIGHTPADDING", (0, 0), (-1, -1), pad_r), ("TOPPADDING", (0, 0), (-1, -1), pad_t), ("BOTTOMPADDING", (0, 0), (-1, -1), pad_b), ("VALIGN", (0, 0), (-1, -1), "TOP")]
 
 
-def _table(rows: list[list], widths: list[float], head: bool = True, zebra: bool = True) -> Table:
-    t = Table(rows, colWidths=widths, repeatRows=1 if head else 0)
-    st = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-          ("TOPPADDING", (0, 0), (-1, -1), 3.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5), ("LINEBELOW", (0, 0), (-1, -1), 0.4, RULE)]
-    if head:
-        st += [("BACKGROUND", (0, 0), (-1, 0), SOFT), ("LINEBELOW", (0, 0), (-1, 0), 0.8, MUTED)]
+def _card(rows, width: float, accent=None, pad: float = 10, heights=None) -> Table:
+    t = Table(rows, colWidths=[width], rowHeights=heights)
+    st = [("BACKGROUND", (0, 0), (-1, -1), S1), ("BOX", (0, 0), (-1, -1), 0.7, LINE2), ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+          ("LEFTPADDING", (0, 0), (-1, -1), pad), ("RIGHTPADDING", (0, 0), (-1, -1), pad), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+          ("TOPPADDING", (0, 0), (-1, 0), 10), ("BOTTOMPADDING", (0, -1), (-1, -1), 9), ("VALIGN", (0, 0), (-1, -1), "TOP")]
+    if accent is not None:
+        st.append(("LINEABOVE", (0, 0), (-1, 0), 2.2, accent))
     t.setStyle(TableStyle(st))
     return t
 
 
+def _grid(rows, widths, pad: float = 5) -> Table:
+    t = Table(rows, colWidths=widths, repeatRows=1)
+    t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                           ("TOPPADDING", (0, 0), (-1, -1), pad), ("BOTTOMPADDING", (0, 0), (-1, -1), pad), ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE2),
+                           ("BACKGROUND", (0, 0), (-1, -1), S1), ("BACKGROUND", (0, 0), (-1, 0), S2), ("LINEBELOW", (0, 0), (-1, 0), 0.8, LINE),
+                           ("BOX", (0, 0), (-1, -1), 0.6, LINE2), ("ROUNDEDCORNERS", [8, 8, 8, 8])]))
+    return t
+
+
+def _row_of(items: list, widths: list[float], gap: float) -> Table:
+    cells, ws = [], []
+    for i, (it, w) in enumerate(zip(items, widths)):
+        if i:
+            cells.append(""); ws.append(gap)
+        cells.append(it); ws.append(w)
+    t = Table([cells], colWidths=ws)
+    t.setStyle(TableStyle(_plain()))
+    return t
+
+
+def _tile(S, label: str, value: str, sub: str, tone: str, width: float, tag: str | None = None) -> Table:
+    c = TONE[tone]
+    head = Table([[P(label.upper(), S["lab"]), P(col(c, tag or TAG[tone]), S["tag"])]], colWidths=[(width - 14) * 0.62, (width - 14) * 0.38])
+    head.setStyle(TableStyle(_plain()))
+    return _card([[head], [P(col(c if tone != "same" else TEXT, value), S["big"])], [P(sub, S["small"])]], width, accent=c, pad=7, heights=[36, 32, 32])
+
+
+# ---- the document ------------------------------------------------------------------------------------------------------------------------
+
 def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fleet: int = 50, now: datetime | None = None) -> bytes:
     """The full report as PDF bytes. `pa`/`pb` are the predictions for Bus A and Bus B, `cmp` the paired comparison of the same two scenarios."""
-    _fonts()
+    V.register_fonts()
     S = _styles()
     now = now or datetime.now(timezone.utc)
-    d = cmp.deltas[0]
+    f = facts(pa, pb, cmp, fleet)
     sa, sb = pa.scenario, pb.scenario
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=16 * mm, bottomMargin=20 * mm,
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=24 * mm, bottomMargin=19 * mm,
                             title="Pack Horizon: Bus A vs Bus B comparison", author="Pack Horizon", subject="Battery lifecycle comparison, prior mode")
-    full = W - 2 * MARGIN
     story: list = []
+    ma, mb = f["m"]["p50"]
+    risk = f["risk"]
 
-    story += [_p("PACK HORIZON · E-BUS BATTERY LIFECYCLE", S["kicker"]), Spacer(1, 3),
-              _p("Bus A vs Bus B comparison", S["title"]), Spacer(1, 3),
-              _p(f"{sa.archetype} bus, {sa.zone.replace('_', ' ')} climate · prepared {now.strftime('%d %B %Y, %H:%M')} UTC · model version {cmp.model_version}", S["small"]), Spacer(1, 8)]
-    box = Table([[_p(f"<b>Read this first.</b> {escape(DISCLAIMER)} Every figure is a forecast from the model, not a measurement. "
-                     "The 10th to 90th percentile band is the spread between two published cell models, not a statistical confidence interval.", S["small"])]], colWidths=[full])
-    box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), WARN_BG), ("BOX", (0, 0), (-1, -1), 0.6, WARN_LINE), ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                             ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
-    story += [box]
-
-    # 1. what the comparison found
-    story += [_p("What the comparison found", S["h"])]
-    lines = headline(pa, pb, d)
-    story += [_p(lines[0], S["lead"]), Spacer(1, 4)] + [_p("• " + t, S["p"]) for t in lines[1:]]
-    per_bus = life_value_per_bus_year(pa, pb)
-    if per_bus is not None and abs(per_bus) >= 1:
-        verb = "saves about" if per_bus > 0 else "costs about"
-        more = "" if per_bus > 0 else " more"
-        story += [Spacer(1, 3), _p(f"• In money, spreading the pack price over its median life, Bus B {verb} <b>{_rupees(abs(per_bus))}</b>{more} per bus per year "
-                                   f"(<b>{_rupees(abs(per_bus) * fleet)}</b> a year for {fleet} bus{'es' if fleet != 1 else ''}). Straight-line, undiscounted, first pack only.", S["p"])]
-
-    # 2. what was changed
-    ch = changes(sa, sb)
-    story += [_p("What was changed on Bus B", S["h"])]
-    if ch:
-        rows = [[_p("Setting", S["head"]), _p("Bus A", S["head"]), _p("Bus B", S["head"])]] + [[_p(a, S["cell"]), _p(b, S["cell"]), _p(f"<b>{c}</b>", S["cell"])] for a, b, c in ch]
-        story += [_table(rows, [full * 0.44, full * 0.28, full * 0.28])]
+    # -- page 1: the snapshot ------------------------------------------------------------------------------------------------------------
+    if f["dm"] is None:
+        hl = f"Bus A and Bus B, {col(VOLT, 'compared')}"
+    elif f["life_tone"] == "same":
+        hl = f"Bus B's battery life is {col(T2, 'about the same')} as Bus A's"
     else:
-        story += [_p("Bus B uses the same settings as Bus A.", S["p"])]
+        amount = f"{abs(f['dm']):.1f} months {'longer' if f['dm'] > 0 else 'less'}"
+        hl = f"Bus B's battery lasts {col(TONE[f['life_tone']], amount)}"
+    named = (("battery life", f["life_tone"]), ("cost per km", f["cost_tone"]), ("range at replacement", f["range_tone"]), ("yearly money", f["money_tone"]))
+    gains, losses = [n for n, t in named if t == "gain"], [n for n, t in named if t == "loss"]
+    verdict = []
+    if gains:
+        verdict.append(f"{col(VOLT, '<b>Gains</b>')} in {', '.join(gains)}")
+    if losses:
+        verdict.append(f"{col(BAD, '<b>Losses</b>')} in {', '.join(losses)}")
+    if risk:
+        verdict.append(f"{col(WARN, '<b>Watch</b>')}: range at replacement is below what your route needs")
+    story += [P("BUS A VS BUS B · COMPARISON SNAPSHOT", S["kicker"]), Spacer(1, 5), P(hl, S["h1"]), Spacer(1, 5),
+              P(" · ".join(verdict) if verdict else "No gains or losses beyond the model's noise.", S["sub"]), Spacer(1, 2),
+              P(escape(f"{sa.archetype} bus · {sa.zone.replace('_', ' ')} climate · {sa.km_per_day:g} km a day · prepared {now.strftime('%d %B %Y')}"), S["small"]), Spacer(1, 11)]
 
-    # 3. results side by side
-    def row(label, a, b, diff=""):
-        return [_p(label, S["cell"]), _p(a, S["cell"]), _p(b, S["cell"]), _p(diff, S["cellb"])]
-    ra, rb, need = range_at_replacement(pa), range_at_replacement(pb), route_need_km(sa)
-    mon = lambda r, k: _val(getattr(r.replacement, f"months_{k}"))
-    ma, mb = mon(pa, "p50"), mon(pb, "p50")
-    rows = [[_p("", S["head"]), _p("Bus A", S["head"]), _p("Bus B", S["head"]), _p("Difference (B − A)", S["head"])],
-            row("Replace around (median)", _years(ma), _years(mb), _signed(mb - ma, 1, " months") if ma is not None and mb is not None else "not measurable"),
-            row("Earliest tenth reach the line", _years(mon(pa, "p10")), _years(mon(pb, "p10")),
-                _signed(mon(pb, "p10") - mon(pa, "p10"), 1, " months") if mon(pa, "p10") is not None and mon(pb, "p10") is not None else ""),
-            row("Latest tenth reach the line", _years(mon(pa, "p90")), _years(mon(pb, "p90")),
-                _signed(mon(pb, "p90") - mon(pa, "p90"), 1, " months") if mon(pa, "p90") is not None and mon(pb, "p90") is not None else "")]
-    ca, cb = _val(pa.cost.cost_per_km_p50), _val(pb.cost.cost_per_km_p50)
-    if ca is not None and cb is not None:
-        rng = lambda r: f"(₹{_val(r.cost.cost_per_km_p10):.2f} to ₹{_val(r.cost.cost_per_km_p90):.2f})" if r.cost.cost_per_km_p10 and r.cost.cost_per_km_p90 else ""
-        rows.append(row("Battery cost per km (median)", f"₹{ca:.2f} {rng(pa)}", f"₹{cb:.2f} {rng(pb)}", f"{'−' if cb < ca else '+'}₹{abs(cb - ca):.2f}"))
-    rows += [row("Range on a full charge, new pack", f"{_val(pa.range.new_pack_range_km):.0f} km", f"{_val(pb.range.new_pack_range_km):.0f} km", _signed(_val(pb.range.new_pack_range_km) - _val(pa.range.new_pack_range_km), 0, " km")),
-             row(f"Range at replacement ({sa.threshold * 100:g} % health)", f"{ra:.0f} km", f"{rb:.0f} km", _signed(rb - ra, 0, " km")),
-             row("Range the route needs", f"{need:.0f} km", f"{route_need_km(sb):.0f} km", ""),
-             row("Share of loss from waiting (calendar ageing)", f"{(_val(pa.driver_split.calendar_share) or 0) * 100:.0f} %", f"{(_val(pb.driver_split.calendar_share) or 0) * 100:.0f} %", "")]
-    results_block = [_p("Results side by side", S["h"]), _table(rows, [full * 0.34, full * 0.24, full * 0.24, full * 0.18])]
+    gap = 7.0
+    tw4 = (FULL - 3 * gap) / 4
+    tiles = [_tile(S, "Battery life", "—" if f["dm"] is None else _signed(f["dm"], 1, " mo"),
+                   f"{ma / 12:.1f} to {mb / 12:.1f} years (median)" if f["dm"] is not None else "median beyond the forecast", f["life_tone"], tw4, tag=None if f["dm"] is not None else "N/A")]
+    if f["cost"]:
+        ca, cb = f["cost"]
+        cval = "₹0.00" if f["cost_tone"] == "same" else ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}"
+        tiles.append(_tile(S, "Cost per km", cval, f"₹{ca:.2f} to ₹{cb:.2f} (median)", f["cost_tone"], tw4))
+    else:
+        tiles.append(_tile(S, "Cost per km", "—", "set a battery price to see it", "same", tw4, tag="NOT SET"))
+    rdelta = f["rb"] - f["ra"]
+    tiles.append(_tile(S, "Range at replacement", _signed(rdelta, 0, " km") if abs(rdelta) >= 0.5 else "0 km", f"{f['ra']:.0f} to {f['rb']:.0f} km · route needs {f['need']:.0f} km", f["range_tone"], tw4))
+    if f["money"] is not None and f["money_tone"] != "same":
+        n = f["fleet"]
+        tiles.append(_tile(S, "Per bus, per year", ("+" if f["money"] > 0 else "−") + _rupees(abs(f["money"])), f"{_rupees(abs(f['money']) * n)} a year for {n} bus{'es' if n != 1 else ''}", f["money_tone"], tw4))
+    else:
+        later = f["later"]
+        tone = "same" if later is None else "gain" if later >= 0.6 else "loss" if later <= 0.4 else "same"
+        tiles.append(_tile(S, "Lasts longer", "—" if later is None else f"{round(later * 100)} %", "share of runs where Bus B outlasts Bus A", tone, tw4))
+    story += [_row_of(tiles, [tw4] * 4, gap), Spacer(1, 6)]
 
-    # 4. chart
-    story += [KeepTogether([_p("Battery health over time", S["h"]), _legend(full), Spacer(1, 3), _chart(pa, pb, full, 62 * mm),
-                            Spacer(1, 3), _p("The line is each bus's median across the model's runs. The grey band is Bus A's 10th to 90th percentile. "
-                                             "The red dashed line is where the pack is due for replacement.", S["small"])])]
+    # the two buses, cut away, coloured by health at the snapshot year
+    yr = f["year"]
+    line_pct = sa.threshold * 100
 
-    story += [KeepTogether(results_block)]
+    def band(p):
+        return tuple(V.series_at(p.replacement.months, [v * 100 for v in _arr(getattr(p.replacement, f"retention_{k}"))], yr) for k in ("p10", "p50", "p90"))
+    band_a, band_b = band(pa), band(pb)
+    due = ", when Bus A's pack is due for replacement" if ma is not None and abs(yr - ma / 12) < 0.76 else ""
+    story += [P(f"Snapshot at year {yr:g}{due}", S["h2"])]
+    cw = (FULL - 10) / 2
+    inner = cw - 20
 
-    # 5. limits and warnings
+    def bus_card(name: str, sub: str, accent, p, bnd, is_b: bool) -> Table:
+        m = lambda k: _val(getattr(p.replacement, f"months_{k}"))
+        median_colour = col(V.health_color(bnd[1], line_pct), f"{bnd[1]:.1f} %")
+        rows = [[P(f'{col(accent, name)}  <font color="{HEX(T3)}" size="8">{escape(sub)}</font>', S["cardh"])],
+                [V.bus_snapshot(inner, bnd, line_pct, accent)],
+                [P(f'{median_colour} <font name="MR" size="8.5" color="{HEX(T3)}">median health · {bnd[0]:.0f} to {bnd[2]:.0f} % across runs</font>', S["num"])]]
+        fr = []
+
+        def add(label, val, delta="", tone="same"):
+            fr.append([P(label, S["cell"]), P(val, S["right"]), P(col(TONE[tone], delta) if delta else "", S["right"])])
+        add("Replace around", _years(m("p50")), _signed(f["dm"], 1, " mo") if is_b and f["dm"] is not None and abs(f["dm"]) >= 0.5 else "", f["life_tone"])
+        if f["cost"]:
+            ca, cb = f["cost"]
+            add("Cost per km", f"₹{(cb if is_b else ca):.2f}", (("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}") if is_b and f["cost_tone"] != "same" else "", f["cost_tone"])
+        rr = f["rb"] if is_b else f["ra"]
+        add("Range at replacement", f"{rr:.0f} km", _signed(f["rb"] - f["ra"], 0, " km") if is_b and abs(f["rb"] - f["ra"]) >= 0.5 else "", f["range_tone"])
+        add("Earliest tenth", _years(m("p10")))
+        ft = Table(fr, colWidths=[inner * 0.40, inner * 0.36, inner * 0.24])
+        ft.setStyle(TableStyle(_plain(0, 0, 4, 4) + [("LINEABOVE", (0, 0), (-1, -1), 0.4, LINE2), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+        rows.append([ft])
+        return _card(rows, cw, accent=accent)
+
+    story += [_row_of([bus_card("BUS A", "baseline", VOLT, pa, band_a, False), bus_card("BUS B", "with your changes", TEXT, pb, band_b, True)], [cw, cw], 10), Spacer(1, 6),
+              V.health_scale(FULL, line_pct), Spacer(1, 5),
+              P("Each of the 96 cells is coloured by its health, scattered inside the model's 10th to 90th percentile range. An illustration of the forecast, not a measurement of any bus.", S["tiny"]), Spacer(1, 6)]
+
+    ch = changes(sa, sb)
+    story += [P("What changed on Bus B", S["h2"])]
+    if ch:
+        chips = [P(f'<font color="{HEX(T3)}">{escape(a)}</font>  {escape(b)} <font color="{HEX(VOLT)}">to</font> <b><font color="{HEX(TEXT)}">{escape(c)}</font></b>', S["cell"]) for a, b, c in ch[:6]]
+        if len(ch) > 6:
+            chips[-1] = P(f'<font color="{HEX(T3)}">and {len(ch) - 5} more, listed on the last page</font>', S["cell"])
+        per = 2
+        rows = [chips[i:i + per] + [""] * (per - len(chips[i:i + per])) for i in range(0, len(chips), per)]
+        t = Table(rows, colWidths=[FULL / per] * per)
+        t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), S1), ("ROUNDEDCORNERS", [8, 8, 8, 8]), ("BOX", (0, 0), (-1, -1), 0.6, LINE2), ("INNERGRID", (0, 0), (-1, -1), 0.4, LINE2),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 9), ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+        story += [t]
+    else:
+        story += [P("Bus B uses the same settings as Bus A.", S["p"])]
+
+    # -- page 2: what matters, and when ---------------------------------------------------------------------------------------------------
+    story += [PageBreak(), P("What matters most", S["h2"])]
+    for it in insights(f):
+        t = Table([["", [P(it["title"], S["ttl"]), Spacer(1, 1), P(escape(it["text"]), S["small"])]]], colWidths=[4, FULL - 4])
+        t.setStyle(TableStyle([("BACKGROUND", (1, 0), (1, 0), S1), ("BACKGROUND", (0, 0), (0, 0), TONE[it["tone"]]), ("LEFTPADDING", (1, 0), (1, 0), 11), ("RIGHTPADDING", (1, 0), (1, 0), 10),
+                               ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (0, 0), (0, 0), 0), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                               ("BOX", (1, 0), (1, 0), 0.5, LINE2), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+        story += [t, Spacer(1, 5)]
+
+    story += [KeepTogether([P("Battery health over time", S["h2"]), V.chart_legend(FULL), Spacer(1, 4), V.health_chart(pa, pb, FULL, 215, _val, _arr), Spacer(1, 2),
+                            P("Where a line meets the orange line, that pack is due for replacement. The gap between the two crossings is the difference in battery life.", S["tiny"])]),
+              KeepTogether([P("When packs reach the replacement line", S["h2"]), V.timing_chart(pa, pb, FULL, _val, f["horizon"]), Spacer(1, 12),
+                            P("Each bar runs from the earliest tenth to the latest tenth of the model's runs, the dot is the median.", S["tiny"])])]
+
+    # -- page 3: cost, range, the full table -----------------------------------------------------------------------------------------------
+    story += [PageBreak(), P("Cost and range", S["h2"])]
+    half = (FULL - 12) / 2
+    right = [P("Range on a full charge", S["cardh"]), Spacer(1, 3), V.bars_chart([
+        {"label": "A", "value": f["ra"], "ghost": f["new_a"], "color": VOLT, "text": f"{f['ra']:.0f} km"},
+        {"label": "B", "value": f["rb"], "ghost": f["new_b"], "color": TEXT, "text": f"{f['rb']:.0f} km"}], half - 20, "km",
+        flag=(f["need"], f"route needs {f['need']:.0f} km"), xmax=max(f["new_a"], f["new_b"], f["need"]) * 1.08),
+        P("Solid = at replacement, dashed outline = new pack. The orange line is your daily distance plus a 20 % reserve.", S["tiny"])]
+    if f["cost"]:
+        ca, cb = f["cost"]
+        g = lambda p, k: _val(getattr(p.cost, f"cost_per_km_{k}"))
+        left = [P("Battery cost per km", S["cardh"]), Spacer(1, 3), V.bars_chart([
+            {"label": "A", "value": ca, "color": VOLT, "low": g(pa, "p10"), "high": g(pa, "p90"), "text": f"₹{ca:.2f}"},
+            {"label": "B", "value": cb, "color": TEXT, "low": g(pb, "p10"), "high": g(pb, "p90"), "text": f"₹{cb:.2f}"}], half - 20, "₹"),
+            Spacer(1, 27), P("Bar = median, line = 10th to 90th percentile. Lower is better.", S["tiny"])]
+        story += [_row_of([_card([[left]], half), _card([[right]], half)], [half, half], 12)]
+    else:
+        story += [_card([[right]], FULL)]
+    story += [Spacer(1, 10)]
+
+    def row(label, a, b, diff="", tone="same"):
+        return [P(label, S["cell"]), P(a, S["right"]), P(b, S["right"]), P(col(TONE[tone], diff) if diff else "", S["right"])]
+    mon = lambda p, k: _val(getattr(p.replacement, f"months_{k}"))
+    pair = lambda k: (mon(pa, k), mon(pb, k))
+    rows = [[P("", S["head"]), P("BUS A", S["head"]), P("BUS B", S["head"]), P("CHANGE (B − A)", S["head"])]]
+    rows.append(row("Replace around (median)", _years(ma), _years(mb), _signed(f["dm"], 1, " months") if f["dm"] is not None else "not measurable", f["life_tone"]))
+    for label, k in (("Earliest tenth reach the line", "p10"), ("Latest tenth reach the line", "p90")):
+        xa, xb = pair(k)
+        both = xa is not None and xb is not None
+        rows.append(row(label, _years(xa), _years(xb), _signed(xb - xa, 1, " months") if both else "", _tone(xb - xa, 0.5) if both else "same"))
+    if f["cost"]:
+        ca, cb = f["cost"]
+        rows.append(row("Battery cost per km (median)", f"₹{ca:.2f}", f"₹{cb:.2f}", ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}", f["cost_tone"]))
+    rows.append(row("Range, new pack", f"{f['new_a']:.0f} km", f"{f['new_b']:.0f} km", _signed(f["new_b"] - f["new_a"], 0, " km"), _tone(f["new_b"] - f["new_a"], 0.5)))
+    rows.append(row(f"Range at replacement ({sa.threshold * 100:g} % health)", f"{f['ra']:.0f} km", f"{f['rb']:.0f} km", _signed(f["rb"] - f["ra"], 0, " km"), f["range_tone"]))
+    rows.append(row("Range the route needs", f"{f['need']:.0f} km", f"{route_need_km(sb):.0f} km"))
+    rows.append(row("Share of loss from waiting (calendar ageing)", f"{(_val(pa.driver_split.calendar_share) or 0) * 100:.0f} %", f"{(_val(pb.driver_split.calendar_share) or 0) * 100:.0f} %"))
+    if f["later"] is not None:
+        rows.append(row("Bus B outlasts Bus A in", "", "", f"{round(f['later'] * 100)} % of runs"))
+    if f["money"] is not None:
+        rows.append(row("Pack price spread over life, per bus a year", "", "", ("+" if f["money"] > 0 else "−") + _rupees(abs(f["money"])), f["money_tone"]))
+    story += [P("Side by side", S["h2"]), _grid(rows, [FULL * 0.40, FULL * 0.20, FULL * 0.20, FULL * 0.20])]
+
+    limits = ["Nothing here has been checked against a battery pack in service. Capacity comes from published laboratory cell models; every scenario input is an assumption or your own figure.",
+              "The 10th to 90th percentile spread is the difference between two published cell models plus assumptions. It is not a statistical confidence interval.",
+              "Range uses usable energy times battery health divided by energy use. Air conditioning, season and temperature effects on range are not modelled.",
+              "Cost per km is the pack price divided by the kilometres driven until replacement. It ignores interest, inflation, resale value and the cost of charging.",
+              "Money figures spread the pack price evenly over its median life. They are undiscounted and cover the first pack only."]
+    box = Table([[P("What this report cannot tell you", S["cardh"])]] + [[P(f'<font color="{HEX(WARN)}">•</font>  ' + t, S["note"])] for t in limits], colWidths=[FULL])
+    box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), blend(WARN, BG, 0.07)), ("BOX", (0, 0), (-1, -1), 0.7, blend(WARN, BG, 0.45)), ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+                             ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                             ("TOPPADDING", (0, 0), (-1, 0), 9), ("BOTTOMPADDING", (0, -1), (-1, -1), 9)]))
+    story += [Spacer(1, 12), KeepTogether([box])]
+
+    # -- notes and inputs -------------------------------------------------------------------------------------------------------------------
     tidy = lambda w: w.replace(" (see extrapolation_reasons)", "")
     ext = lambda p: [f"Outside the tested conditions: {r}" for r in p.replacement.extrapolation_reasons]
     wa = [tidy(w) for w in [*pa.warnings, *ext(pa)] if w != DISCLAIMER]
     wb = [tidy(w) for w in [*pb.warnings, *ext(pb)] if w != DISCLAIMER and tidy(w) not in wa]
-    wc = [w for w in [*cmp.warnings, *cmp.notes] if w != DISCLAIMER and w not in wa and w not in wb]
-    story += [_p("What this report cannot tell you", S["h"])]
-    limits = ["Nothing here has been checked against a battery pack in service. Capacity comes from published laboratory cell models; every scenario input is an assumption or your own figure.",
-              "Range uses usable energy times battery health divided by energy use. Air conditioning, season and temperature effects on range are not modelled.",
-              "Cost per km is the pack price divided by the kilometres driven until replacement. It ignores interest, inflation, resale value and the cost of charging.",
-              "Money figures spread the pack price evenly over its median life. They are undiscounted and cover the first pack only."]
-    story += [_p("• " + t, S["p"]) for t in limits]
-    for title, ws in (("Notes returned for Bus A", wa), ("Notes that apply to Bus B only", wb), ("Notes on the comparison", wc)):
+    wc = [tidy(w) for w in [*cmp.warnings, *cmp.notes] if w != DISCLAIMER and tidy(w) not in wa and tidy(w) not in wb]
+    story += [PageBreak(), P("Notes from the model", S["h2"])]
+    for title, ws in (("Returned for Bus A", wa), ("Apply to Bus B only", wb), ("On the comparison", wc)):
         if ws:
-            story += [Spacer(1, 4), _p(title, S["cellb"])] + [_p("• " + escape(w), S["small"]) for w in ws]
+            story += [P(col(VOLT, title.upper()), S["head"]), Spacer(1, 2)] + [P(f'<font color="{HEX(T3)}">•</font>  ' + escape(w), S["note"]) for w in ws] + [Spacer(1, 7)]
 
-    # 6. appendix
-    rows = [[_p("Input", S["head"]), _p("Bus A", S["head"]), _p("Bus B", S["head"])]]
+    rows = [[P("INPUT", S["head"]), P("BUS A", S["head"]), P("BUS B", S["head"])]]
     for key, label, fmt in FIELDS:
         va, vb = getattr(sa, key), getattr(sb, key)
-        f = lambda v: "not set" if v is None else fmt(v)
-        rows.append([_p(label, S["cell"]), _p(f(va), S["cell"]), _p(f(vb) if va == vb else f"<b>{f(vb)}</b>", S["cell"])])
-    story += [KeepTogether([_p("Appendix: every input", S["h"]), _table(rows, [full * 0.44, full * 0.28, full * 0.28]),
-                            Spacer(1, 3), _p("Bold in the Bus B column means it differs from Bus A.", S["small"])])]
+        fm = lambda v: "not set" if v is None else fmt(v)
+        rows.append([P(label, S["cell"]), P(fm(va), S["cell"]), P(fm(vb) if va == vb else col(VOLT, f"<b>{fm(vb)}</b>"), S["cell"])])
+    story += [KeepTogether([P("Every input", S["h2"]), _grid(rows, [FULL * 0.44, FULL * 0.28, FULL * 0.28], pad=3.4), Spacer(1, 4),
+                            P("Highlighted in the Bus B column: it differs from Bus A.", S["tiny"])])]
 
-    doc.build(story, canvasmaker=_Numbered)
+    doc.build(story, onFirstPage=_page, onLaterPages=_page, canvasmaker=_Numbered)
     return buf.getvalue()
 
 

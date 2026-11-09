@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import auth, mailer
 from backend.app.main import create_app
-from backend.app.report import changes, headline, range_at_replacement
+from backend.app.report import changes, facts, headline, insights, range_at_replacement
 from tests.test_api_predict import BODY
 
 A = BODY["scenario"]
@@ -178,3 +178,52 @@ def test_spaces_in_a_pasted_app_password_are_ignored(monkeypatch):
     from backend.app.config import get_settings
     monkeypatch.setenv("EV_SMTP_PASSWORD", "abcd efgh ijkl mnop ")
     assert get_settings().smtp_password == "abcdefghijklmnop"
+
+
+def _pair(client, a_update=None, b_update=None):
+    from backend.app import service
+    from backend.app.schemas import CompareRequest, PredictRequest
+    from engine.bus.scenario import Scenario
+    m = client.app.state.models
+    a = Scenario.model_validate({**A, **(a_update or {})}); b = a.model_copy(update=b_update or {})
+    pa, pb = (service.run_prediction(PredictRequest(scenario=s), m, "t") for s in (a, b))
+    return pa, pb, service.run_compare(CompareRequest(scenarios=[a, b]), m, "t")
+
+
+def test_report_uses_the_apps_own_fonts_and_nothing_else(client):
+    pdf = client.post("/api/v1/report/pdf", json=REQ).content
+    assert b"Lexend" in pdf and b"Manrope" in pdf and b"DejaVu" not in pdf
+
+
+def test_facts_say_who_gains_and_who_loses(client):
+    pa, pb, cmp = _pair(client, {"km_per_day": 150}, {"soc_max_pct": 70})
+    f = facts(pa, pb, cmp, 50)
+    assert f["risk"] and f["range_tone"] == "warn" and f["rb"] < f["ra"]
+    assert f["life_tone"] in ("gain", "same") and f["need"] == 180
+    first = insights(f)[0]
+    assert first["tone"] == "warn" and "Range falls below your route" in first["title"]       # the risk is shown before any gain
+    tones = [i["tone"] for i in insights(f)]
+    assert tones == sorted(tones, key=["warn", "loss", "gain", "same"].index)
+
+
+def test_identical_buses_make_no_claim_about_one_outlasting_the_other(client):
+    pa, pb, cmp = _pair(client)
+    f = facts(pa, pb, cmp, 50)
+    assert f["later"] is None and f["dm"] == 0 and f["life_tone"] == "same"
+    assert not any("lasts longer" in i["title"] for i in insights(f))
+    assert "lasts longer than" not in " ".join(headline(pa, pb, cmp.deltas[0]))
+
+
+def test_snapshot_year_stays_inside_the_forecast(client):
+    pa, pb, cmp = _pair(client, {"horizon_years": 5}, {"soc_max_pct": 80})
+    f = facts(pa, pb, cmp, 50)
+    assert 1.0 <= f["year"] <= f["horizon"] == 5
+
+
+def test_a_long_list_of_changes_does_not_leave_a_blank_page(client):
+    from backend.app.report import build_pdf
+    pa, pb, cmp = _pair(client, {}, {"soc_max_pct": 80, "charge_start_hour": 1.0, "heat_rise_c": 1.0, "km_per_day": 150, "charge_power_kw": 60, "soc_min_pct": 20, "threshold": 0.75, "pack_kwh": 300})
+    pdf = build_pdf(pa, pb, cmp, 50)
+    import re
+    pages = len(re.findall(rb"/Type\s*/Page(?![s\w])", pdf))
+    assert 4 <= pages <= 5
