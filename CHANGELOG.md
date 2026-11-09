@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Cost and Range heroes fit one screen too (after v1.0.0)
+- The same fix as the Replacement dot plot for the other big pictures: the cost-against-price curve (Cost), and the route road and the range-by-age curve (Range). Each is as tall as the window allows (with a floor) and as wide as its card, with the drawing's width following the box's shape so lines, dots and text keep one scale. One small shared helper, `lib/useFit.ts`, does it for all four charts. At 800 px of window height the Cost hero is 576 px tall and the Range hero 694 px, so each fits once scrolled to it.
+
 ## Replacement dot plot fits one screen (after v1.0.0)
 - The "Fifty runs, fifty replacement dates" picture used to scale with the card's width, so on a wide window it grew taller than the screen and pushed the "with your change" row and the axis out of view. Its height is now limited by the window (down to 300 px, up to its natural size), and its drawing width follows the card's shape, so dots and text keep one scale instead of stretching. At 800 px of window height the whole card, including the second row, fits once scrolled to it.
 

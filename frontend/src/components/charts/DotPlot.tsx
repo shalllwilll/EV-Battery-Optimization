@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useFit } from '../../lib/useFit'
 import { quantileDots } from '../../lib/planner'
 import { useYear } from '../../state/YearContext'
 
@@ -10,19 +10,7 @@ export function DotPlot({ cdf, ghost, xMax, horizonYears, marks }: Props) {
   const { year, setYear, hover, setHover } = useYear()
   const yr = hover ?? year
   const H = TOP + ROW + (ghost ? GAP + GHOST : 0) + AXIS
-  // The picture is as tall as the screen allows (so the whole card fits without scrolling) and as wide as its card: the drawing's width in
-  // its own units follows the box's shape, so dots and text keep one scale instead of stretching.
-  const ref = useRef<SVGSVGElement>(null)
-  const [aspect, setAspect] = useState(BASE_W / H)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const measure = () => { const b = el.getBoundingClientRect(); if (b.width > 0 && b.height > 0) setAspect(b.width / b.height) }
-    measure()
-    const ro = new ResizeObserver(measure); ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-  const W = Math.max(520, Math.min(2400, Math.round(H * aspect)))
+  const { ref, W } = useFit(BASE_W, H)
   const nb = Math.ceil(xMax * 2), cols = nb + 3, cw = (W - L - R) / cols
   const px = (y: number) => L + y * 2 * cw
   const afterX = L + (nb + 2) * cw

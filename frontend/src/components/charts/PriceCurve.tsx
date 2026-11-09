@@ -1,7 +1,7 @@
-import { useRef } from 'react'
+import { useFit } from '../../lib/useFit'
 import { priceCurve, scaleCost, type CostBand } from '../../lib/costcalc'
 
-const W = 700, H = 240, L = 54, R = 18, T = 18, B = 36
+const BASE_W = 700, H = 240, L = 54, R = 18, T = 18, B = 36
 const niceStep = (v: number) => { const m = 10 ** Math.floor(Math.log10(v)), f = v / m; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * m }
 type Props = { band: CostBand; basePrice: number; price: number; onPrice: (p: number) => void; lo: number; hi: number; target: number | null; breakEven: number | null; ghost?: { price: number; p50: number } | null }
 const STEP = 500
@@ -9,7 +9,7 @@ const STEP = 500
 /** Cost per km against battery price. Cost is price / km driven, so the whole spread scales straight with price: the curve is exact, not a fit.
  *  Drag the marker (or use the slider under the chart) to set the price the whole app uses. */
 export function PriceCurve({ band, basePrice, price, onPrice, lo, hi, target, breakEven, ghost }: Props) {
-  const ref = useRef<SVGSVGElement>(null)
+  const { ref, W } = useFit(BASE_W, H)
   const pts = priceCurve(band, basePrice, lo, hi, 24)
   const rawMax = Math.max(pts[pts.length - 1].p90, target ?? 0, 1) * 1.05
   const stepY = niceStep(rawMax / 4), yMax = stepY * Math.ceil(rawMax / stepY)
@@ -27,7 +27,7 @@ export function PriceCurve({ band, basePrice, price, onPrice, lo, hi, target, br
   return (
     <div className="pcurve">
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Cost per kilometre against battery price. At ₹${Math.round(price).toLocaleString('en-IN')} per kWh the median is ₹${cur.p50.toFixed(2)} per km, from ₹${cur.p10.toFixed(2)} to ₹${cur.p90.toFixed(2)}.`}
-        onPointerDown={(e) => { (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId); at(e.clientX) }} onPointerMove={(e) => { if (e.buttons) at(e.clientX) }} style={{ touchAction: 'none', cursor: 'ew-resize' }}>
+        onPointerDown={(e) => { (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId); at(e.clientX) }} onPointerMove={(e) => { if (e.buttons) at(e.clientX) }} style={{ touchAction: 'none', cursor: 'ew-resize', height: `clamp(220px, calc(100vh - 450px), ${Math.round(H * 1.15)}px)` }}>
         {yTicks.map((t) => <g key={t}><line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,.07)" /><text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize="11.5" fill="var(--t3)">₹{t}</text></g>)}
         {xTicks.map((t) => <text key={t} x={x(t)} y={H - 12} textAnchor="middle" fontSize="11.5" fill="var(--t3)">{(t / 1000).toFixed(0)}k</text>)}
         <text x={W - R} y={H - 1} textAnchor="end" fontSize="11" fill="var(--t3)">battery price, ₹ per kWh</text>
