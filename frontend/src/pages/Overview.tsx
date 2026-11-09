@@ -1,4 +1,5 @@
 import { lazy, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ErrorState, Skeleton } from '../components/Async'
 import { Dock, DockButton, Drawer, DOCK_PX, Immersive, StatStrip, useWide } from '../components/Overlay'
 import { BusLetter, IconNotes, IconView } from '../components/Icons'
@@ -18,7 +19,7 @@ import type { BusSpec } from '../three/BusStage'
 import { LensLegend } from '../three/Legend'
 import { PackInspector } from '../three/PackInspector'
 import { ViewPanel } from '../three/ViewPanel'
-import { useViewState } from '../three/viewState'
+import { LENSES, useViewState, type Lens } from '../three/viewState'
 
 const BusViewer = lazy(() => import('../three/BusViewer').then((m) => ({ default: m.BusViewer })))
 type Panel = 'bus' | 'view' | 'notes' | null
@@ -28,7 +29,9 @@ export default function Overview() {
   const { q, scenario } = useCurrent()
   const { valid, errors } = useScenario()
   const { year } = useYear()
-  const [view, api] = useViewState('iso')
+  // An "Open in 3D" link on an analysis page can choose the lens through router state (the URL is left alone because the scenario owns the query string).
+  const asked = (useLocation().state as { lens?: string } | null)?.lens
+  const [view, api] = useViewState('iso', LENSES.some((l) => l.id === asked) ? (asked as Lens) : 'health')
   const wide = useWide()
   const [panel, setPanel] = useState<Panel>(null)
   const shown: Panel = valid ? panel : 'bus'

@@ -2,6 +2,15 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Analysis pages as instruments (after v1.0.0)
+- Health, Replacement, Range and Cost each lead with one interactive picture and a one-line insight built from the page's own numbers, with a "Try it" button where a lever applies. Frontend only: no API changes.
+- **Cost lab**: cost per km against battery price (10th to 90th percentile band), draggable price marker that sets the scenario price, a target cost per km with the break-even price, "Pack cost per year of life", and a tornado whose bars show the cheaper and dearer case with a "Try the cheaper case" button. Cost per run is pack price over km, so every percentile scales exactly with the battery price; `tests/test_cost_scaling.py` locks that. Threshold and km per day are never extrapolated: they come back from `/predict`.
+- **Route fit** (Range): a road meter of range now (median and cautious) against the route plus 20 % reserve, a draggable route flag that sets km per day, and range over the years with the shortfall shaded. Range at any age is new-pack range times the health curve.
+- **Replacement planner**: fifty dots, each 2 % of the model's runs, placed where that run reaches the line, with a "beyond the forecast" pile; a fleet planner (fleet size kept in this browser) turning the same spread into expected replacements per year and undiscounted first-pack spend. Assumes independent buses and one replacement each.
+- **Ageing lab** (Health): 96 rings drained by the shared year with play, a one-day strip (drive, charge, rest full), a twelve-month cell temperature ring, and warnings moved into the shared Notes list. The waiting / cycling split is the share at replacement applied to the loss, not a time series.
+- **Try a change** bar on each page: sliders for the levers that page cares about draw a ghost (hollow dots, dashed line, "was" values) and a life-change chip from a second `/predict`. The real scenario is never modified. "See it on the bus" links open the 3D page on the matching lens.
+- Everything stays labelled not yet validated on buses.
+
 ## 3D views as instruments (after v1.0.0)
 - Four lenses on both 3D pages (Ageing, Charge, Heat, Range; keys A, G, T, R), one at a time so the scene stays clear.
 - Ageing: every battery cell is a ring that drains as the years pass. Lit arc = capacity left (median at that year), slate = lost to calendar ageing, umber = lost to cycling (split from the model's driver shares), white tick = replacement line, faint outer arc = the 10th to 90th percentile range. Cell-to-cell spread is illustrative scatter inside that range, not measured per cell. Cells below the replacement line pulse orange.

@@ -25,10 +25,10 @@ export const CAM_ORDER: CamId[] = ['iso', 'side', 'top', 'pack', 'cmp']
 
 export type ViewState = { layers: Layers; explode: number; shell: number; cam: CamId; camNonce: number; selected: PackId | null; isolate: boolean; lens: Lens; hoverLever: string | null }
 
-export function useViewState(initialCam: CamId = 'iso') {
+export function useViewState(initialCam: CamId = 'iso', initialLens: Lens = 'health') {
   const [v, setV] = useState<ViewState>({
     layers: { shell: true, chassis: true, packs: true, labels: true, dims: false, flow: false, scan: false },
-    explode: 0, shell: 1, cam: initialCam, camNonce: 0, selected: null, isolate: false, lens: 'health', hoverLever: null,
+    explode: 0, shell: 1, cam: initialCam, camNonce: 0, selected: null, isolate: false, lens: initialLens, hoverLever: null,
   })
   const toggle = useCallback((k: LayerKey) => setV((s) => ({ ...s, layers: { ...s.layers, [k]: !s.layers[k] } })), [])
   const setExplode = useCallback((explode: number) => setV((s) => ({ ...s, explode })), [])
