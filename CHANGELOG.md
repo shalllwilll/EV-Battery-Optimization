@@ -13,7 +13,7 @@ Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in
 
 ## 3D views as instruments (after v1.0.0)
 - Four lenses on both 3D pages (Ageing, Charge, Heat, Range; keys A, G, T, R), one at a time so the scene stays clear.
-- Ageing: every battery cell is a ring that drains as the years pass. Lit arc = capacity left (median at that year), slate = lost to calendar ageing, umber = lost to cycling (split from the model's driver shares), white tick = replacement line, faint outer arc = the 10th to 90th percentile range. Cell-to-cell spread is illustrative scatter inside that range, not measured per cell. Cells below the replacement line pulse orange.
+- Ageing: every battery cell is a ring that drains as the years pass. Lit arc = capacity left (median at that year), slate = lost to calendar ageing, umber = lost to cycling (split from the model's driver shares), white tick = replacement line, faint outer arc = the 10th to 90th percentile range. Cell-to-cell spread is illustrative scatter inside that range, not measured per cell. Cells below the replacement line glow orange (steady; a pulse there read as screen flicker).
 - A depot charger beside each bus with a thin cable to the charge port; light pulses speed up with charger power. Pack thickness steps with pack energy.
 - Charge lens: 24-hour day animation (drive, charge, rest) shared by both buses, a client port of the engine's day profile; rings show state of charge with ticks for the cap and minimum; a hatched bar means charging does not finish before departure.
 - Heat lens: ring colour from the model's cell temperature, rising motes scaled by pack warmth. Range lens: a ground ruler of range on a full charge against the route plus 20 % reserve, with the shortfall in amber.

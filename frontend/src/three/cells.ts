@@ -36,7 +36,7 @@ void main(){
     float lost=1.-lvl, calEnd=lvl+lost*uCal; vec3 c; float on;
     if(a<lvl){ c=uColor*uGlow; on=1.; } else if(a<calEnd){ c=vec3(.42,.55,.70); on=.85; } else { c=vec3(.62,.38,.20); on=.85; }
     float weak=step(lvl,uLine)*uWear*step(a,lvl);
-    c=mix(c,vec3(1.,.42,.08)*1.5,weak*(.45+.45*sin(uTime*2.+vS*9.)));
+    c=mix(c,vec3(1.,.42,.08)*1.1,weak*.8);   // steady: a time-based pulse here crossed the bloom threshold every ~3 s and read as screen flicker
     col=mix(col,c,ring*on); alpha=max(alpha,ring*(.4+.6*on));
     col+=uColor*uGlow*.3*lvl*disc; alpha=max(alpha,disc*.95);
     float rim=smoothstep(.95,.965,r)*(1.-smoothstep(.985,1.,r)); float inb=step(uLo,a)*step(a,uHi);

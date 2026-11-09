@@ -198,7 +198,7 @@ export default function BusStage({ buses, lengthM, linePct, view, insetLeft, hov
   // Bloom softens the glowing cells and cable. If the frame rate drops, it is the first thing to go.
   const post = !lowPower
   return (
-    <Canvas flat dpr={lowPower ? 1 : [1, 2]} camera={{ position: c.pos, fov: 36, near: 0.1, far: 120 }} gl={{ antialias: !post, alpha: false, powerPreference: 'high-performance' }} onPointerMissed={() => onSelect(null)} role="img" aria-label={ariaLabel}>
+    <Canvas flat dpr={lowPower ? 1 : [1, 1.5]} camera={{ position: c.pos, fov: 36, near: 0.1, far: 120 }} gl={{ antialias: !post, alpha: false, powerPreference: 'high-performance' }} onPointerMissed={() => onSelect(null)} role="img" aria-label={ariaLabel}>
       <color attach="background" args={['#09090b']} />
       <PerformanceMonitor onDecline={() => setLowPower(true)} />
       <ambientLight intensity={0.62} />
@@ -209,7 +209,7 @@ export default function BusStage({ buses, lengthM, linePct, view, insetLeft, hov
       {buses.map((b) => <Bus key={b.key} spec={b} lengthM={lengthM} linePct={linePct} view={view} hovered={hovered} onHover={onHover} onSelect={onSelect} />)}
       <CameraRig cam={view.cam} nonce={view.camNonce} insetLeft={insetLeft} />
       {post && (
-        <EffectComposer multisampling={4}>
+        <EffectComposer multisampling={2}>
           <Bloom intensity={0.7} luminanceThreshold={0.9} luminanceSmoothing={0.25} mipmapBlur radius={0.7} />
           <Vignette eskil={false} offset={0.25} darkness={0.55} />
         </EffectComposer>
