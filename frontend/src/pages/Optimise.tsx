@@ -123,8 +123,8 @@ export default function Optimise() {
       ...(Math.abs(dPts) >= 0.05 ? [{ text: `${signed(dPts, 1)} pts`, tone: tone(dPts, 0.05) }] : []),
     ] : []
     buses = [
-      { key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z, rgb: diff ? BASELINE_RGB : undefined, clock: r[1] == null ? null : { years: r[1], frac: Math.min(1, r[1] / xMax) }, scene: buildSceneParams(scenario, pa, y), attention: countAttention(notes) > 0 },
-      { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false, rgb: diff ? diffRGB(dPts) : undefined, badges, pulseKey: usingB ? String(cmp.dataUpdatedAt) : 'same', scene: buildSceneParams(busB, pb, y), changed: Object.keys(eff), clock: usingB && repYears(rB)[1] != null ? { years: repYears(rB)[1]!, frac: Math.min(1, repYears(rB)[1]! / xMax) } : null },
+      { key: 'a', label: 'Bus A', healthPct: hA, offsetZ: -Z, rgb: diff ? BASELINE_RGB : undefined, clock: r[1] == null ? null : { years: r[1], frac: Math.min(1, r[1] / xMax) }, scene: buildSceneParams(scenario, pa, y, null, rA), attention: countAttention(notes) > 0 },
+      { key: 'b', label: 'Bus B', healthPct: hB, offsetZ: Z, packLabels: false, rgb: diff ? diffRGB(dPts) : undefined, badges, pulseKey: usingB ? String(cmp.dataUpdatedAt) : 'same', scene: buildSceneParams(busB, pb, y, null, rB), changed: Object.keys(eff), clock: usingB && repYears(rB)[1] != null ? { years: repYears(rB)[1]!, frac: Math.min(1, repYears(rB)[1]! / xMax) } : null },
     ]
     if (usingB) other = { p50: cB.p50, aYear: r[1], bYear: repYears(rB)[1] }
     stats = [

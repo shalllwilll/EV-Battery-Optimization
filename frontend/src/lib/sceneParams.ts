@@ -18,8 +18,9 @@ export type SceneParams = {
   unfinishedCharge: boolean
 }
 
-export function buildSceneParams(s: Scenario, p: PredictionResult, year: number, routeNeedKm: number | null = null): SceneParams {
-  const c = p.conditions, r = p.replacement
+/** `replacement` lets a page pass the replacement block it already shows numbers from (Optimise uses the paired comparison's), so the cells and the label can never disagree. */
+export function buildSceneParams(s: Scenario, p: PredictionResult, year: number, routeNeedKm: number | null = null, replacement?: PredictionResult['replacement']): SceneParams {
+  const c = p.conditions, r = replacement ?? p.replacement
   const energy = num(c.energy_per_day_kwh) ?? s.km_per_day * s.kwh_per_km
   const day: DayParams = { departure: s.departure_hour, chargeStart: s.charge_start_hour, chargeHours: num(c.charge_hours) ?? 2, socMin: s.soc_min_pct, socMax: s.soc_max_pct, energyKwh: energy, packKwh: s.pack_kwh }
   const at = (l: { value: number | number[] }) => atYear(Array.isArray(l.value) ? l.value : [l.value], year)

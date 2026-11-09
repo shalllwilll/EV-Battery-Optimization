@@ -75,7 +75,7 @@ describe('insightLine', () => {
   })
   it('reports time resting full and the change in life', () => {
     const t = insightLine({ lifeHeadline: '+4.4 months', a, b: { ...a, chargeStart: 1 }, unfinishedB: false })
-    expect(t).toContain('rests full for'); expect(t).toContain('+4.4 months')
+    expect(t).toContain('rests at its charge cap for'); expect(t).toContain('+4.4 months')
   })
   it('flags unfinished charging', () => {
     expect(insightLine({ lifeHeadline: null, a, b: { ...a, chargeStart: 5, chargeHours: 4 }, unfinishedB: true })).toContain('does not finish charging')

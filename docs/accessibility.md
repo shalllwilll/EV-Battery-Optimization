@@ -27,7 +27,7 @@ Scope: all seven pages, the sign-in page, and the Overview and Optimise drawers.
 Result after fixes: **0 axe violations** on all pages in the browser and in the test suite.
 
 ## Reduced motion
-A global `prefers-reduced-motion` rule switches off CSS animation and transitions. The year scrubber's play button steps one year instead of animating, and the 3D camera snaps to its target instead of gliding. Nothing in the app moves on its own. The 24-hour day animation in the Charge lens does not play with reduced motion; its play button steps one hour and the bar can still be scrubbed. This was verified in code and by test setup; emulating the media query in the browser pane is not available, so it was not checked visually.
+A global `prefers-reduced-motion` rule switches off CSS animation and transitions. The year scrubber's play button steps one year instead of animating, and the 3D camera snaps to its target instead of gliding. Idle motion is gentle (light pulses on the charger cable, a slow pulse on cells below the replacement line, faint heat motes in the Heat lens, a short entrance fade), and with reduced motion all of it stops. The 24-hour day animation in the Charge lens does not play with reduced motion; its play button steps one hour and the bar can still be scrubbed. This was verified in code and by test setup; emulating the media query in the browser pane is not available, so it was not checked visually.
 
 ## Not done, and why
 - **Playwright end-to-end tests with `@axe-core/playwright`** (the playbook's wording) were not added. Playwright needs a roughly 150 MB browser download, and the same coverage was obtained with axe-core in the test suite plus real-browser scans. They can be added later without changing the app.

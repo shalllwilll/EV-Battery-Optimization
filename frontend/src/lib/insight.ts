@@ -7,7 +7,7 @@ const h1 = (x: number) => `${Number(x.toFixed(1))} h`
 export function insightLine(o: { lifeHeadline: string | null; a: DayParams; b: DayParams; unfinishedB: boolean }): string | null {
   const parts: string[] = []
   const idleA = dayShape(o.a).idleH, idleB = dayShape(o.b).idleH
-  if (Math.abs(idleA - idleB) >= 0.25) parts.push(`rests full for ${h1(idleB)} before leaving (Bus A: ${h1(idleA)})`)
+  if (Math.abs(idleA - idleB) >= 0.25) parts.push(`rests at its charge cap for ${h1(idleB)} before leaving (Bus A: ${h1(idleA)})`)
   if (o.unfinishedB) parts.push('does not finish charging before it leaves')
   if (o.lifeHeadline && o.lifeHeadline !== 'No change') parts.push(`battery life ${o.lifeHeadline}`)
   if (!parts.length) return null
