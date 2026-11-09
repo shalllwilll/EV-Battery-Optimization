@@ -70,8 +70,12 @@ export function Drawer({ open, title, onClose, width = 340, fixed, children }: {
 }
 
 export const Dock = ({ children }: { children: ReactNode }) => <nav className="dock glass" aria-label="Panels">{children}</nav>
-export function DockButton({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
-  return <button className="dk" aria-pressed={active} onClick={onClick}><span className="ic">{children}</span><span>{label}</span></button>
+export function DockButton({ label, active, onClick, children, badge }: { label: string; active: boolean; onClick: () => void; children: ReactNode; badge?: number }) {
+  return (
+    <button className="dk" aria-pressed={active} onClick={onClick} aria-label={badge ? `${label}, ${badge} need attention` : undefined}>
+      <span className="ic">{children}{badge ? <i className="dkb" aria-hidden="true">{badge}</i> : null}</span><span>{label}</span>
+    </button>
+  )
 }
 
 export type Stat = { label: string; value: ReactNode; unit?: string; sub?: string; tone?: 'up' | 'down' | 'none' }

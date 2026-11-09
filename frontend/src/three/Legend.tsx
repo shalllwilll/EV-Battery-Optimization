@@ -1,4 +1,5 @@
-import { DIFF_SCALE, diffCss, healthCss } from '../lib/colors'
+import { DIFF_SCALE, TEMP_HI, TEMP_LO, diffCss, healthCss, tempCss } from '../lib/colors'
+import type { Lens } from './viewState'
 
 export function Legend({ linePct, bare }: { linePct: number; bare?: boolean }) {
   const lo = linePct - 25, span = 100 - lo
@@ -30,6 +31,37 @@ export function CompareLegend({ mode, onMode, linePct, idle }: { mode: CompareMo
             <em>{idle ? 'Change Bus B to see where it differs.' : 'Bus B health minus Bus A, at this year. Bus A is grey.'}</em>
           </div>
         )}
+    </div>
+  )
+}
+
+const TIPS = {
+  health: 'Each ring is one cell: lit arc = capacity left, slate = lost to calendar ageing, umber = lost to cycling. Spread between cells is illustrative, inside the model’s range.',
+} as const
+
+/** Key for the active lens. Health keeps the colour scale; the other lenses show only what they need. */
+export function LensLegend({ lens, linePct, tempRange }: { lens: Lens; linePct: number; tempRange?: [number, number] }) {
+  if (lens === 'health') return <div className="lensleg"><Legend linePct={linePct} /><p className="lensnote">{TIPS.health}</p></div>
+  if (lens === 'charge') return (
+    <div className="vlegend glass" role="img" aria-label="Rings show state of charge. White ticks mark the charge cap and the minimum charge.">
+      <span>Rings</span><i style={{ background: 'linear-gradient(90deg,#27303a,#FACC15)' }} /><span>state of charge</span>
+      <em>White ticks = charge cap and minimum · cable pulses = charger power</em>
+    </div>
+  )
+  if (lens === 'heat') {
+    const [lo, hi] = tempRange ?? [TEMP_LO, TEMP_HI]
+    const stops = Array.from({ length: 7 }, (_, i) => `${tempCss(TEMP_LO + ((TEMP_HI - TEMP_LO) * i) / 6)} ${(i / 6) * 100}%`).join(',')
+    return (
+      <div className="vlegend glass" role="img" aria-label={`Colour scale for cell temperature from ${TEMP_LO} to ${TEMP_HI} degrees Celsius. This bus's cells run ${Math.round(lo)} to ${Math.round(hi)} degrees over the year.`}>
+        <span>{TEMP_LO}°</span><i style={{ background: `linear-gradient(90deg,${stops})` }}><u style={{ left: `${((((lo + hi) / 2) - TEMP_LO) / (TEMP_HI - TEMP_LO)) * 100}%` }} /></i><span>{TEMP_HI}°</span>
+        <em>Yearly mean cell temperature · this bus runs {Math.round(lo)}–{Math.round(hi)} °C</em>
+      </div>
+    )
+  }
+  return (
+    <div className="vlegend glass" role="img" aria-label="The bar on the ground is the distance a full charge covers now. The white tick is what the route plus a 20 percent reserve needs.">
+      <span>Bar</span><i style={{ background: 'linear-gradient(90deg,#FACC15,#FACC15)' }}><u style={{ left: '100%' }} /></i><span>route + 20 %</span>
+      <em>Amber gap = the pack no longer covers the route</em>
     </div>
   )
 }

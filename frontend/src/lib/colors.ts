@@ -26,3 +26,16 @@ export function luminance([r, g, b]: RGB): number {
   const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
   return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
 }
+
+/** Cell temperature (deg C) -> colour for the Heat lens: cool blue, amber, hot orange-red. Lightness rises then falls, so it is not the only cue (the legend carries the numbers). */
+export const TEMP_LO = 15, TEMP_HI = 45
+const TEMP_STOPS: [number, RGB][] = [[15, [56, 189, 248]], [27, [226, 232, 240]], [36, [251, 146, 60]], [45, [239, 68, 68]]]
+export function tempRGB(c: number): RGB {
+  const t = clamp(c, TEMP_LO, TEMP_HI)
+  for (let i = 1; i < TEMP_STOPS.length; i++) {
+    const [t1, c1] = TEMP_STOPS[i], [t0, c0] = TEMP_STOPS[i - 1]
+    if (t <= t1) return mix(c0, c1, (t - t0) / (t1 - t0))
+  }
+  return TEMP_STOPS[TEMP_STOPS.length - 1][1]
+}
+export const tempCss = (c: number) => `rgb(${tempRGB(c).join(',')})`

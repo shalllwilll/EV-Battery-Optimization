@@ -30,7 +30,7 @@ export function ViewPanel({ view, api, compare }: { view: ViewState; api: ViewAp
         </label>
       </section>
       <details className="keys"><summary>Keyboard shortcuts</summary>
-        <p>1–5 camera · S body · C wheels · P packs · L labels · D length · F charging flow · X scan · E pull apart · I isolate · Esc clear</p>
+        <p>A ageing · G charge · T heat · R range · 1–5 camera · S body · C wheels · P packs · L labels · D length · F charging flow · X scan · E pull apart · I isolate · Esc clear</p>
       </details>
     </div>
   )

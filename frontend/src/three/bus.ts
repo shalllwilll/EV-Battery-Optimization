@@ -1,22 +1,21 @@
 import * as THREE from 'three'
 import { healthRGB } from '../lib/colors'
+import { scatter } from '../lib/ageCells'
+import { buildCells, makeCellMaterial, makeCellUniforms, type CellUniforms } from './cells'
+import { buildDepot } from './depot'
+import { buildLane, buildRuler, buildShimmer } from './instruments'
 
 export type PackId = 'roof' | 'under' | 'rear'
 export type BusRig = ReturnType<typeof buildBus>
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
 
-/** Canvas texture of a 4 x 4 cell grid, repeated across a pack face. It is a schematic: the real cell layout is not known. */
-function cellTexture(rx: number, ry: number) {
-  const c = document.createElement('canvas')
-  c.width = c.height = 128
-  const g = c.getContext('2d')!
-  g.fillStyle = '#0a0a0c'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#fff'
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.beginPath(); g.arc(16 + i * 32, 16 + j * 32, 10.5, 0, Math.PI * 2); g.fill() }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(rx, ry)
-  return t
+function shadowTexture() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 80
+  const g = c.getContext('2d')!, r = g.createRadialGradient(128, 40, 4, 128, 40, 128)
+  r.addColorStop(0, 'rgba(0,0,0,0.75)'); r.addColorStop(0.6, 'rgba(0,0,0,0.32)'); r.addColorStop(1, 'rgba(0,0,0,0)')
+  g.setTransform(1, 0, 0, 80 / 256, 0, 0); g.fillStyle = r; g.fillRect(0, 0, 256, 256)
+  return new THREE.CanvasTexture(c)
 }
 
 /** Procedural bus. Everything is boxes, cylinders and lines: no model files, so no licensing and no loading. `lengthM` is 12 or 9 (x positions scale; wheels and doors keep their size). */
@@ -67,8 +66,9 @@ export function buildBus(lengthM: 12 | 9) {
   // wheels and axles
   const tyre = new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.9 }), rim = new THREE.MeshStandardMaterial({ color: 0x71717a, metalness: 0.8, roughness: 0.3 }), spoke = new THREE.MeshStandardMaterial({ color: 0xa1a1aa, metalness: 0.8, roughness: 0.35 })
   const axles = [-3.7 * k, 2.2 * k]
+  const wheels: THREE.Group[] = []
   axles.forEach((ax) => [-1, 1].forEach((s) => {
-    const w = new THREE.Group(); w.position.set(ax, 0.52, s * 1.2)
+    const w = new THREE.Group(); w.position.set(ax, 0.52, s * 1.2); wheels.push(w)
     const t = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.34, 32), tyre); t.rotation.x = Math.PI / 2; w.add(t)
     const r = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.36, 24), rim); r.rotation.x = Math.PI / 2; w.add(r)
     for (let i = 0; i < 5; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05), spoke); b.rotation.z = (i * Math.PI * 2) / 5; b.position.z = s * 0.19; w.add(b) }
@@ -79,12 +79,17 @@ export function buildBus(lengthM: 12 | 9) {
   axles.forEach((x) => { const a = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 2.4), axleM); a.position.set(x, 0.52, 0); chassisG.add(a) })
 
   // battery packs: roof x4, underfloor x2, rear x1 (the layout is a typical arrangement, shown as a schematic)
+  const U: CellUniforms = makeCellUniforms()
+  let seed = 0
   const mod = (id: PackId, w: number, h: number, d: number, x: number, y: number, z: number, ex: [number, number, number]) => {
-    const mat = new THREE.MeshStandardMaterial({ map: cellTexture(Math.max(1, Math.round(w * 1.1)), Math.max(1, Math.round(d * 1.1))), color: 0x1c1c20, emissive: 0xfacc15, emissiveIntensity: 1.0, roughness: 0.45, metalness: 0.35, transparent: true })
-    mat.emissiveMap = mat.map
+    // dark module body; the cells on its top face carry the health colour as capacity rings (see cells.ts)
+    const mat = new THREE.MeshStandardMaterial({ color: 0x17171b, emissive: 0xfacc15, emissiveIntensity: 0.07, roughness: 0.5, metalness: 0.4, transparent: true })
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z)
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0x52525b, transparent: true, opacity: 0.9 })); m.add(edge)
-    m.userData = { id, base: new THREE.Vector3(x, y, z), ex: new THREE.Vector3(...ex), edge }
+    const cmat = makeCellMaterial(U)
+    const cols = Math.max(2, Math.round(w / 0.3)), rows = Math.max(2, Math.round(d / 0.3))
+    const cells = buildCells(w, d, h / 2 + 0.008, cols, rows, seed, scatter, cmat); seed += cols * rows; m.add(cells)
+    m.userData = { id, base: new THREE.Vector3(x, y, z), ex: new THREE.Vector3(...ex), edge, cmat }
     packG.add(m); mods[id].push(m)
   }
   ;[-4.05, -1.9, 2.85, 4.9].forEach((x, i) => mod('roof', 1.8 * k, 0.3, 1.55, x * k, 3.37, 0, [(i - 1.5) * 0.5, 2.2, 0]))
@@ -117,10 +122,18 @@ export function buildBus(lengthM: 12 | 9) {
   ;[[[-6 * k, -0.05, 2.1], [6 * k, -0.05, 2.1]], [[-6 * k, -0.05, 1.9], [-6 * k, -0.05, 2.3]], [[6 * k, -0.05, 1.9], [6 * k, -0.05, 2.3]]].forEach((p) => dim.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p.map((a) => new THREE.Vector3(a[0], a[1], a[2]))), dmat)))
   dim.visible = false; group.add(dim)
 
+  // depot charger and cable, range ruler, heat shimmer, moving lane marks and a soft ground shadow
+  const depot = buildDepot(k); group.add(depot.group)
+  const ruler = buildRuler(k); group.add(ruler.group)
+  const shimmer = buildShimmer(k); group.add(shimmer.pts)
+  const lane = buildLane(k); group.add(lane.group)
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(15 * k, 4.6), new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, toneMapped: false }))
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.004; group.add(shadow)
+
   // only the battery modules are pickable; the transparent shell must never swallow a click meant for a pack
   group.traverse((o) => { if (!o.userData.id) o.raycast = () => {} })
 
-  return { group, shellG, chassisG, packG, mods, fres, edgeM, glass, lines, hvac, port, flow, curves, pg, N, dim, k, lengthM }
+  return { group, shellG, chassisG, packG, mods, fres, edgeM, glass, lines, hvac, port, flow, curves, pg, N, dim, k, lengthM, U, wheels, depot, ruler, shimmer, lane, shadow }
 }
 
 export const allMods = (r: BusRig) => [...r.mods.roof, ...r.mods.under, ...r.mods.rear]
@@ -129,11 +142,13 @@ export function paintHealth(r: BusRig, healthPct: number, linePct = 80, rgb?: [n
   const [R, G, B] = rgb ?? healthRGB(healthPct, linePct)
   const c = new THREE.Color(R / 255, G / 255, B / 255)
   allMods(r).forEach((m) => (m.material as THREE.MeshStandardMaterial).emissive.copy(c))
+  r.U.color.value.setRGB(R / 255, G / 255, B / 255)
 }
 
 /** Move the pack glow toward a target colour. Returns nothing; call every frame. `k` is the easing for this frame (0..1). */
 export function easePaint(r: BusRig, target: THREE.Color, k: number) {
   allMods(r).forEach((m) => (m.material as THREE.MeshStandardMaterial).emissive.lerp(target, k))
+  r.U.color.value.lerp(target, k)
 }
 
 export function setShellOpacity(r: BusRig, o: number) {
@@ -147,16 +162,20 @@ export function updateFlow(r: BusRig, t: number) {
   r.pg.attributes.position.needsUpdate = true
 }
 
-export function updateMods(r: BusRig, o: { explode: number; selected: PackId | null; hovered: PackId | null; isolate: boolean; scanX: number | null; scanOffsetX: number; pulse?: number }) {
+export function updateMods(r: BusRig, o: { explode: number; selected: PackId | null; hovered: PackId | null; isolate: boolean; scanX: number | null; scanOffsetX: number; pulse?: number; thick?: number; dim?: number }) {
   allMods(r).forEach((m) => {
     m.position.copy(m.userData.base).addScaledVector(m.userData.ex, o.explode)
+    m.scale.y = o.thick ?? 1
     const id = m.userData.id as PackId, mat = m.material as THREE.MeshStandardMaterial
     const sel = o.selected === id
     let b = 1.0
     if (sel) b = 1.7; else if (o.hovered === id) b = 1.4
     if (o.scanX != null) b += clamp(1 - Math.abs(m.position.x + o.scanOffsetX - o.scanX) / 1.3, 0, 1) * 1.6
-    mat.emissiveIntensity = b + (o.pulse ?? 0) * 1.4
+    mat.emissiveIntensity = 0.07 * b + (o.pulse ?? 0) * 0.3
+    const cm = m.userData.cmat as THREE.ShaderMaterial
+    cm.uniforms.uBoost.value = (0.85 + 0.15 * b + (o.pulse ?? 0) * 0.9) * (o.dim ?? 1) + (o.scanX != null ? clamp(1 - Math.abs(m.position.x + o.scanOffsetX - o.scanX) / 1.3, 0, 1) * 0.8 : 0)
     mat.opacity = o.isolate && o.selected && !sel ? 0.18 : 1
+    cm.uniforms.uOpacity.value = mat.opacity
     ;(m.userData.edge as THREE.LineSegments).material = (m.userData.edge as THREE.LineSegments).material
     ;((m.userData.edge as THREE.LineSegments).material as THREE.LineBasicMaterial).color.setHex(sel ? 0xfacc15 : 0x52525b)
   })

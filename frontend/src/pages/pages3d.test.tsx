@@ -124,3 +124,24 @@ describe('Optimise (compare two buses)', () => {
     expect(await within(g).findByRole('alert')).toBeInTheDocument()
   })
 })
+
+describe('Lenses and notes', () => {
+  it('Overview offers four lenses, swaps the year bar for the day bar in Charge, and keeps warnings out of the scene', async () => {
+    mockApi(); renderApp('/')
+    const lens = await screen.findByRole('group', { name: 'What the 3D view shows' })
+    for (const n of ['Ageing', 'Charge', 'Heat', 'Range']) expect(within(lens).getByRole('button', { name: n })).toBeInTheDocument()
+    expect(screen.getByLabelText('Years in service')).toBeInTheDocument()
+    await userEvent.click(within(lens).getByRole('button', { name: 'Charge' }))
+    expect(await screen.findByLabelText('Hour of the day')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Years in service')).not.toBeInTheDocument()
+    await userEvent.click(within(lens).getByRole('button', { name: 'Heat' }))
+    expect(screen.queryByLabelText('Hour of the day')).not.toBeInTheDocument()
+    expect(document.querySelector('.errbox')).toBeNull()
+  })
+  it('Notes drawer groups the warnings', async () => {
+    mockApi(); renderApp('/optimise')
+    const btn = await screen.findByRole('button', { name: /^Notes/ })
+    await userEvent.click(btn)
+    expect(await screen.findByText('Good to know')).toBeInTheDocument()
+  })
+})

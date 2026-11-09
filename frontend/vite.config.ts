@@ -7,6 +7,6 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173, proxy: { '/api': { target: `http://127.0.0.1:${process.env.EV_API_PORT ?? 8000}`, changeOrigin: false } } },
   // The 3D chunk (three.js, about 240 kB gzipped) is loaded only on the Overview and Optimise pages; the rest of the app stays under 100 kB gzipped.
-  build: { chunkSizeWarningLimit: 950 },
+  build: { chunkSizeWarningLimit: 1100 },
   test: { environment: 'jsdom', globals: true, setupFiles: ['./src/test/setup.ts'], css: false },
 })
