@@ -58,12 +58,22 @@ describe('electricity cost', () => {
     expect(await screen.findByRole('heading', { name: 'Cost to run the bus, per km' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add Pune electricity (MSEDCL HT IX)' })).toBeInTheDocument()
   })
+  it('Cost: with electricity on but no battery price, shows the electricity alone and asks for the price', async () => {
+    const e = withElec() as Record<string, unknown> & { cost: Record<string, unknown> }
+    const c = { ...e.cost, cost_per_km_p10: null, cost_per_km_p50: null, cost_per_km_p90: null, battery_cost: null, total_cost_per_km_p10: null, total_cost_per_km_p50: null, total_cost_per_km_p90: null }
+    mockApi({ '/predict': () => ({ body: { ...e, scenario: { ...(e.scenario as object), battery_cost_per_kwh_inr: null }, cost: c } }) }); renderApp('/cost?electricity_tariff=msedcl_ht_ix')
+    expect(await screen.findByText(/Enter a battery price to add the battery and see the total/)).toBeInTheDocument()
+    expect(screen.queryByText(/Add Maharashtra electricity/)).not.toBeInTheDocument()
+  })
   it('Cost: shows battery plus electricity, the split and what is left out when the tariff is on', async () => {
     mockApi({ '/predict': () => ({ body: withElec() }) }); renderApp('/cost?electricity_tariff=msedcl_ht_ix')
     const bar = await screen.findByRole('img', { name: /battery ₹.* and electricity ₹14\.40/ })
     expect(bar).toBeInTheDocument()
     expect(screen.getByText(/Electricity is about \d+ %/)).toBeInTheDocument()
     expect(screen.getByText('22:00 to 00:30')).toBeInTheDocument()
+    expect(screen.getByText('Electricity per km').nextElementSibling).toHaveTextContent('₹14.40')
+    expect(screen.getByText('Battery per km')).toBeInTheDocument()
+    expect(screen.getByText(/check your first bill/)).toBeInTheDocument()
     expect(screen.getByText(/Left out: electricity duty, the fuel adjustment charge/)).toBeInTheDocument()
     expect(screen.getByText(/The tariff is an assumption, not yet validated on buses/)).toBeInTheDocument()
   })

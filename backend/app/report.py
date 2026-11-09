@@ -149,6 +149,7 @@ def facts(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fleet:
     f["elec"] = (ea, eb) if ea is not None and eb is not None else None
     f["total"] = (ca + ea, cb + eb) if f["cost"] and f["elec"] else None
     f["total_tone"] = _tone(f["total"][1] - f["total"][0], 0.005, higher_is_better=False) if f["total"] else "same"
+    f["cost_head_tone"] = f["total_tone"] if f["total"] else f["cost_tone"]  # the figure the tile and snapshot show: with electricity it is the total
     f["need"] = route_need_km(pa.scenario)
     f["new_a"], f["new_b"] = _val(pa.range.new_pack_range_km) or 0.0, _val(pb.range.new_pack_range_km) or 0.0
     f["ra"], f["rb"] = range_at_replacement(pa), range_at_replacement(pb)
@@ -220,7 +221,7 @@ def insights(f: dict) -> list[dict]:
         out.append({"tone": f["life_tone"], "title": f"Battery lasts {abs(f['dm']):.1f} months {word}", "text": f"Median replacement moves from {ma / 12:.1f} to {mb / 12:.1f} years.{early}"})
     if f["cost"]:
         ca, cb = f["total"] if f["total"] else f["cost"]
-        tone = f["total_tone"] if f["total"] else f["cost_tone"]
+        tone = f["cost_head_tone"]
         what = "Battery plus electricity per kilometre" if f["total"] else "Battery cost per kilometre"
         tail = " (published tariff, held flat)." if f["total"] else " (pack price over the kilometres driven until replacement)."
         if tone == "same":
@@ -385,7 +386,7 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
     else:
         amount = f"{abs(f['dm']):.1f} months {'longer' if f['dm'] > 0 else 'less'}"
         hl = f"Bus B's battery lasts {col(TONE[f['life_tone']], amount)}"
-    named = (("battery life", f["life_tone"]), ("cost per km", f["cost_tone"]), ("range at replacement", f["range_tone"]), ("yearly money", f["money_tone"]))
+    named = (("battery life", f["life_tone"]), ("cost per km", f["cost_head_tone"]), ("range at replacement", f["range_tone"]), ("yearly money", f["money_tone"]))
     gains, losses = [n for n, t in named if t == "gain"], [n for n, t in named if t == "loss"]
     verdict = []
     if gains:
@@ -404,7 +405,7 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
                    f"{ma / 12:.1f} to {mb / 12:.1f} years (median)" if f["dm"] is not None else "median beyond the forecast", f["life_tone"], tw4, tag=None if f["dm"] is not None else "N/A")]
     if f["cost"]:
         ca, cb = f["total"] if f["total"] else f["cost"]
-        tone = f["total_tone"] if f["total"] else f["cost_tone"]
+        tone = f["cost_head_tone"]
         cval = "₹0.00" if tone == "same" else ("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}"
         tiles.append(_tile(S, "Cost per km", cval, f"₹{ca:.2f} to ₹{cb:.2f} " + ("(median, with electricity)" if f["total"] else "(median)"), tone, tw4))
     else:
@@ -445,7 +446,7 @@ def build_pdf(pa: PredictionResult, pb: PredictionResult, cmp: CompareResult, fl
         add("Replace around", _years(m("p50")), _signed(f["dm"], 1, " mo") if is_b and f["dm"] is not None and abs(f["dm"]) >= 0.5 else "", f["life_tone"])
         if f["cost"]:
             ca, cb = f["total"] if f["total"] else f["cost"]
-            tone = f["total_tone"] if f["total"] else f["cost_tone"]
+            tone = f["cost_head_tone"]
             add("Cost per km", f"₹{(cb if is_b else ca):.2f}", (("−" if cb < ca else "+") + f"₹{abs(cb - ca):.2f}") if is_b and tone != "same" else "", tone)
         rr = f["rb"] if is_b else f["ra"]
         add("Range at replacement", f"{rr:.0f} km", _signed(f["rb"] - f["ra"], 0, " km") if is_b and abs(f["rb"] - f["ra"]) >= 0.5 else "", f["range_tone"])

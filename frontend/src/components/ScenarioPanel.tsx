@@ -84,7 +84,7 @@ function ElectricityGroup({ serverFields, cost }: { serverFields: Record<string,
         <select id="tariff" className="sel" value={t} onChange={(e) => s.setTariff(e.target.value as typeof t)}>
           {TARIFF_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
-        <div className="src">{t === 'none' ? 'Adds the cost of charging to cost per km. Maharashtra rates only for now.' : t === 'custom' ? 'Flat price all day, set below.' : 'MERC order, Case 75 of 2025 (25 March 2026), FY 2026-27. Energy plus wheeling charge; the time of day you charge shifts the energy charge.'}</div>
+        <div className="src">{t === 'none' ? 'Adds the cost of charging to cost per km. Maharashtra rates only for now.' : t === 'custom' ? 'Flat price all day, set below.' : 'MERC order, Case 75 of 2025 (25 March 2026), FY 2026-27. Energy plus wheeling charge; the time of day you charge shifts the energy charge (the evening-peak rate for EV is taken from MERC’s press note: check your first bill).'}</div>
         {cost && t !== 'custom' && price != null && tod != null && <div className="src" aria-live="polite">Effective price <b>₹{price.toFixed(2)} / kWh</b> for charging {cost.charge_window}{Math.abs(tod) >= 0.05 ? ` (${tod > 0 ? '+' : ''}${tod.toFixed(0)} % on the energy charge)` : ''}</div>}
       </div>
       {t === 'custom' && <Field k="electricity_custom_inr_per_kwh" serverFields={serverFields} />}

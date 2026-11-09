@@ -8,7 +8,7 @@ function Tiles({ st }: { st: Stage }) {
   return (
     <div className="tiles">
       <div><small>Battery life</small><b>{life.headline}</b><span>{life.range}</span></div>
-      <div><small>Cost per km</small><b>{cost == null ? '–' : cost === 0 ? 'No change' : `${cost < 0 ? '−' : '+'}₹${Math.abs(cost).toFixed(2)}`}</b><span>{cost == null ? 'enter a battery price' : 'median'}</span></div>
+      <div><small>Battery cost per km</small><b>{cost == null ? '–' : cost === 0 ? 'No change' : `${cost < 0 ? '−' : '+'}₹${Math.abs(cost).toFixed(2)}`}</b><span>{cost == null ? 'enter a battery price' : 'median'}</span></div>
       <div><small>Range at replacement</small><b>{Math.abs(rng) < 0.5 ? 'Same' : signed(rng, 0, ' km')}</b><span>when the pack is due</span></div>
     </div>
   )

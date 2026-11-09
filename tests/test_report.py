@@ -245,6 +245,15 @@ def test_report_adds_electricity_to_the_cost_figures(client):
     assert facts(pa2, pb2, cmp2, 50)["total"] is None
 
 
+def test_headline_follows_the_total_when_battery_gains_but_electricity_loses(client):
+    tariff = {"electricity_tariff": "msedcl_ht_ix", "charge_start_hour": 0.0}
+    pa, pb, cmp = _pair(client, tariff, {"soc_max_pct": 90, "charge_start_hour": 18.0})  # gentler on the pack, but charging sits in the evening peak
+    f = facts(pa, pb, cmp, 50)
+    assert f["cost"][1] < f["cost"][0] and f["elec"][1] > f["elec"][0]
+    assert f["total"][1] > f["total"][0] and f["cost_tone"] == "gain" and f["total_tone"] == "loss"
+    assert f["cost_head_tone"] == "loss"  # the headline's gains and losses, the tile and the snapshot all use the same figure
+
+
 def test_env_file_fills_missing_settings_but_never_overrides(tmp_path, monkeypatch):
     import os
     from backend.app import config

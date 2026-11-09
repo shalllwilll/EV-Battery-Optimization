@@ -30,7 +30,7 @@ const LEVER: Record<string, (s: Scenario) => { key: WKey; low: number; high: num
 }
 const DEFAULT_PRICE = 12000
 const NOT_IN = 'electricity duty, the fuel adjustment charge, taxes and power-factor penalties.'
-const tariffNote = (t: string, tod: number | null) => t === 'custom' ? 'Your price is applied flat, with no time-of-day change.' : tod == null || Math.abs(tod) < 0.05 ? 'The charging hours fall in the no-change time slot.' : `The hours you charge move the energy charge by ${tod > 0 ? '+' : ''}${tod.toFixed(0)} % (evening peak 17:00 to 24:00 is +20 %, solar hours 09:00 to 17:00 about −20 %, the rest 0 %); charging later in the night avoids the peak.`
+const tariffNote = (t: string, tod: number | null) => t === 'custom' ? 'Your price is applied flat, with no time-of-day change.' : tod == null || Math.abs(tod) < 0.05 ? 'The charging hours fall in the no-change time slot.' : `The hours you charge move the energy charge by ${tod > 0 ? '+' : ''}${tod.toFixed(0)} % (evening peak 17:00 to 24:00 is +20 %, solar hours 09:00 to 17:00 about −20 %, the rest 0 %; the peak rate for EV charging is taken from MERC’s press note, so check your first bill); charging later in the night avoids the peak.`
 
 export default function Cost() {
   const { q, scenario } = useCurrent()
@@ -115,16 +115,27 @@ export default function Cost() {
               </div>
               <div className="card c12 runcost">
                 <div className="hd"><div><h2>Cost to run the bus, per km</h2><div className="sub">Battery plus the electricity you pay for</div></div><EvidenceBadge level={elec ? 'assumption' : 'derived'} /></div>
-                {!elec || !tot || !elecKm ? (
+                {!elec || !elecKm ? (
                   <div><p className="note">{scenario.electricity_tariff === 'custom' ? 'Enter your price per kWh in the scenario panel to include electricity.' : 'Charging has a bill too. Add Maharashtra electricity to see the total cost per km. Rates are the regulator’s published ones.'}</p>
                     {scenario.electricity_tariff === 'none' && <button className="btn sm primary" onClick={() => setTariff('msedcl_ht_ix')}>Add Pune electricity (MSEDCL HT IX)</button>}</div>
                 ) : <>
-                  <div className="rc-top"><div className="kpi"><span style={{ color: 'var(--volt)' }}>₹</span>{fmt(tot.total.p50, 1)}<small>/ km</small></div><div className="sub">Median total · {inr(tot.total.p10, 1)} to {inr(tot.total.p90, 1)} across the battery runs; electricity is one tariff, not a range</div></div>
-                  <div className="rc-bar" role="img" aria-label={`Of ₹${tot.total.p50.toFixed(2)} per km, battery ₹${tot.battery.p50.toFixed(2)} and electricity ₹${tot.electricity.toFixed(2)}`}>
-                    <i className="b" style={{ width: `${(1 - tot.electricityShare) * 100}%` }}><span>Battery {inr(tot.battery.p50, 2)}</span></i>
-                    <i className="e" style={{ width: `${tot.electricityShare * 100}%` }}><span>Electricity {inr(tot.electricity, 2)}</span></i>
-                  </div>
-                  <p className="tnote">{shareSentence(tot)}</p>
+                  {tot ? (
+                    <>
+                      <div className="rc-top"><div className="kpi"><span style={{ color: 'var(--volt)' }}>₹</span>{fmt(tot.total.p50, 1)}<small>/ km</small></div><div className="sub">Median total · {inr(tot.total.p10, 1)} to {inr(tot.total.p90, 1)} across the battery runs; electricity is one tariff, not a range</div></div>
+                      <div className="rc-bar" role="img" aria-label={`Of ₹${tot.total.p50.toFixed(2)} per km, battery ₹${tot.battery.p50.toFixed(2)} and electricity ₹${tot.electricity.toFixed(2)}`}>
+                        <i className="b" style={{ width: `${(1 - tot.electricityShare) * 100}%` }}><span>Battery {inr(tot.battery.p50, 2)}</span></i>
+                        <i className="e" style={{ width: `${tot.electricityShare * 100}%` }}><span>Electricity {inr(tot.electricity, 2)}</span></i>
+                      </div>
+                      <p className="tnote">{shareSentence(tot)}</p>
+                      <div className="row mt"><span>Battery per km</span><b>{inr(tot.battery.p50, 2)}</b></div>
+                      <div className="row"><span>Electricity per km</span><b>{inr(tot.electricity, 2)}</b></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="rc-top"><div className="kpi"><span style={{ color: 'var(--volt)' }}>₹</span>{fmt(elecKm, 1)}<small>/ km electricity</small></div><div className="sub">Enter a battery price to add the battery and see the total</div></div>
+                      <button className="btn sm primary" onClick={() => setField('battery_cost_per_kwh_inr', DEFAULT_PRICE)}>Use ₹12,000 per kWh</button>
+                    </>
+                  )}
                   <div className="row mt"><span>Energy from the grid</span><b>{fmt(num(elec.grid_kwh_per_km), 2)} kWh / km</b></div>
                   <div className="row"><span>Price per kWh</span><b>{inr(num(elec.price_inr_per_kwh), 2)}</b></div>
                   <div className="row"><span>Charging window</span><b>{elec.charge_window}</b></div>
