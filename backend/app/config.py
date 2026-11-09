@@ -33,7 +33,8 @@ class Settings:
     smtp_host: str = field(default_factory=lambda: os.environ.get("EV_SMTP_HOST", "smtp.gmail.com"))
     smtp_port: int = field(default_factory=lambda: int(os.environ.get("EV_SMTP_PORT", 587)))
     smtp_user: str = field(default_factory=lambda: os.environ.get("EV_SMTP_USER", ""))
-    smtp_password: str = field(default_factory=lambda: os.environ.get("EV_SMTP_PASSWORD", ""))
+    # Google shows app passwords in groups of four with spaces; they are not part of the password
+    smtp_password: str = field(default_factory=lambda: "".join(os.environ.get("EV_SMTP_PASSWORD", "").split()))
     mail_from: str = field(default_factory=lambda: os.environ.get("EV_MAIL_FROM", ""))
     token_ttl_s: int = field(default_factory=lambda: int(os.environ.get("EV_TOKEN_TTL_S", 8 * 3600)))
 

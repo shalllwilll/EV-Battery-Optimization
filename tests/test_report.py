@@ -172,3 +172,9 @@ def test_send_uses_tls_before_logging_in(monkeypatch, port, expect):
     st = get_settings()
     mailer.send(st, mailer.build_message(st, "boss@company.com", b"%PDF-1.4", "r.pdf", ["x"]))
     assert [e[0] for e in _FakeSMTP.log] == expect and _FakeSMTP.log[0][1:] == ("smtp.gmail.com", port)
+
+
+def test_spaces_in_a_pasted_app_password_are_ignored(monkeypatch):
+    from backend.app.config import get_settings
+    monkeypatch.setenv("EV_SMTP_PASSWORD", "abcd efgh ijkl mnop ")
+    assert get_settings().smtp_password == "abcdefghijklmnop"
