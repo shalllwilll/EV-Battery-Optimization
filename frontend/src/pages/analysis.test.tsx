@@ -79,6 +79,17 @@ describe('electricity cost', () => {
   })
 })
 
+describe('Cost: Try the cheaper case', () => {
+  it('applies the change, says what it does right there, and can be undone', async () => {
+    mockApi(); renderApp('/cost')
+    const btns = await screen.findAllByRole('button', { name: 'Try the cheaper case' })
+    await userEvent.click(btns[0])
+    expect(await screen.findByText(/With this change/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.queryByText(/With this change/)).not.toBeInTheDocument()
+  })
+})
+
 describe('decision insights', () => {
   it('Health: ranks one-lever changes, applies one to the Try a change bar, and says how far charging can be staggered', async () => {
     mockApi(); renderApp('/health')

@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## "Try the cheaper case" shows its result (after v1.0.0)
+- On the Cost page, the button in "What moves it most" did work, but its only visible effect was in the Try a change bar and a ghost on the charts, far from the button, so it looked dead. It now says what it did right under the button ("With this change: ₹4.09 per km (was ₹5.12)"), and turns into **Undo** while applied.
+
 ## Electricity cost per km, Pune (after v1.0.0)
 - New: what the operator pays the utility to charge the bus, added to the battery cost per km. Maharashtra only for now. Choose **Electricity** in the scenario panel: **MSEDCL HT IX** (HT EV charging station, energy 8.92 + wheeling 0.81 = ₹9.73 per unit) or **MSEDCL LT VIII** (LT EV charging station, 7.73 + 1.52 = ₹9.26), both FY 2026-27, in force from 1 April 2026, or your own flat price. Off by default; nothing existing changes until it is on.
 - Source: MERC order in Case No. 75 of 2025 (post-remand), 25 March 2026, Annexure II. It supersedes the March 2025 MYT order in Case 217 of 2024 (whose ₹8.02 and ₹8.46 figures are not used). Both categories are single-part tariffs: no fixed or demand charge. Rates, page numbers and the link are in `engine/bus/tariffs.json` and `docs/data-attribution.md`.

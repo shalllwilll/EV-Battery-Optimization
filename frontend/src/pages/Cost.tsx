@@ -35,7 +35,7 @@ const tariffNote = (t: string, tod: number | null) => t === 'custom' ? 'Your pri
 export default function Cost() {
   const { q, scenario } = useCurrent()
   const { setField, setTariff } = useScenario()
-  const { set, changed, busB, predB } = useWhatIf()
+  const { set, reset, over, changed, busB, predB } = useWhatIf()
   const [target, setTarget] = useState<number | null>(null)
   return (
     <Page title="Battery cost per kilometre" intro="The pack price divided by the kilometres driven until it reaches the replacement line. No interest, inflation or resale value.">
@@ -153,7 +153,16 @@ export default function Cost() {
                       <div className="r" key={t.input}>
                         <div className="rh"><span>{n[0]} <span className="tag">{n[1]}</span></span><b>{inr(cheap, 2)} to {inr(dear, 2)}</b></div>
                         <div className="track" role="img" aria-label={`${n[0]}: cost per km from ₹${cheap.toFixed(2)} to ₹${dear.toFixed(2)}, today ₹${base.toFixed(2)}`}><i className="span" style={{ left: pos(cheap), width: `calc(${pos(dear)} - ${pos(cheap)})` }} /><i className="base" style={{ left: pos(base) }} /></div>
-                        {lv && <div className="acts"><button className="btn sm" onClick={() => set(lv.key, cheaperLow ? lv.low : lv.high)}>Try the cheaper case</button></div>}
+                        {lv && (() => {
+                          const target = cheaperLow ? lv.low : lv.high, on = over[lv.key] != null && Math.abs((over[lv.key] as number) - target) < 1e-6
+                          const val = (x: typeof p) => num(x.cost.total_cost_per_km_p50) ?? num(x.cost.cost_per_km_p50), was = val(p), alt = predB.data ? val(predB.data) : null
+                          return (
+                            <div className="acts">
+                              <button className="btn sm" aria-pressed={on} onClick={() => (on ? reset() : set(lv.key, target))}>{on ? 'Undo' : 'Try the cheaper case'}</button>
+                              {on && <span className="tried" role="status">{predB.isFetching || alt == null ? 'Working it out…' : was != null ? <>With this change: <b>{inr(alt, 2)}</b> per km (was {inr(was, 2)}). Also shown in Try a change above.</> : null}</span>}
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })}</div>}
