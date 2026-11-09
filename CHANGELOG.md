@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Replacement dot plot fits one screen (after v1.0.0)
+- The "Fifty runs, fifty replacement dates" picture used to scale with the card's width, so on a wide window it grew taller than the screen and pushed the "with your change" row and the axis out of view. Its height is now limited by the window (down to 300 px, up to its natural size), and its drawing width follows the card's shape, so dots and text keep one scale instead of stretching. At 800 px of window height the whole card, including the second row, fits once scrolled to it.
+
 ## Scenario drawer: one toolbar (after v1.0.0)
 - "Import your duty data", "Reset to defaults" and "Copy link" no longer sit as two loose rows of buttons at the bottom of the long Bus A drawer. They are one slim toolbar at the top: **Import CSV** on the left, **Reset** and **Copy link** on the right, with icons and tooltips. Import CSV folds open a small panel (what it fills in, that the file is read in the browser and never uploaded, Choose CSV file, Download a sample) and the results table appears inside it; closed, nothing extra is on screen. The behaviour of all three is unchanged.
 
