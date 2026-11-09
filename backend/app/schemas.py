@@ -65,6 +65,27 @@ class CompareResult(BaseModel):
     warnings: list[str]
 
 
+class ReportRequest(BaseModel):
+    """Two scenarios to compare in the report. The server runs the model itself; nothing the client sends ends up in the document except these inputs."""
+    model_config = ConfigDict(extra="forbid")
+    scenario_a: Scenario
+    scenario_b: Scenario
+    fleet_size: int = Field(default=50, ge=1, le=5000, description="buses, only used to scale the money line")
+
+
+class ReportEmailRequest(ReportRequest):
+    to: str = Field(min_length=3, max_length=254, description="one recipient address")
+
+
+class ReportStatus(BaseModel):
+    email_enabled: bool
+
+
+class ReportSent(BaseModel):
+    sent: Literal[True] = True
+    to: str = Field(description="the address with its name part masked")
+
+
 class RecommendRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")

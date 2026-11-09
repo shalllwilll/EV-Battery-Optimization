@@ -57,3 +57,8 @@ export function useLeverSweep(variants: Scenario[], enabled: boolean, delay = 60
     }),
   })
 }
+
+/** Whether this server can send the report by email (it needs mail credentials in its environment). */
+export function useReportStatus() {
+  return useQuery({ queryKey: ['report-status'], queryFn: ({ signal }) => api.get<{ email_enabled: boolean }>('/report/status', signal), staleTime: Infinity, retry: false })
+}

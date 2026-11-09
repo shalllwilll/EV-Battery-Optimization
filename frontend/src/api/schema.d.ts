@@ -140,6 +140,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the comparison report to one address */
+        post: operations["report_email_api_v1_report_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The Bus A vs Bus B comparison as a PDF */
+        post: operations["report_pdf_api_v1_report_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether report email is set up on this server */
+        get: operations["report_status_api_v1_report_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/zones": {
         parameters: {
             query?: never;
@@ -562,6 +613,55 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** ReportEmailRequest */
+        ReportEmailRequest: {
+            /**
+             * Fleet Size
+             * @description buses, only used to scale the money line
+             * @default 50
+             */
+            fleet_size: number;
+            scenario_a: components["schemas"]["Scenario"];
+            scenario_b: components["schemas"]["Scenario"];
+            /**
+             * To
+             * @description one recipient address
+             */
+            to: string;
+        };
+        /**
+         * ReportRequest
+         * @description Two scenarios to compare in the report. The server runs the model itself; nothing the client sends ends up in the document except these inputs.
+         */
+        ReportRequest: {
+            /**
+             * Fleet Size
+             * @description buses, only used to scale the money line
+             * @default 50
+             */
+            fleet_size: number;
+            scenario_a: components["schemas"]["Scenario"];
+            scenario_b: components["schemas"]["Scenario"];
+        };
+        /** ReportSent */
+        ReportSent: {
+            /**
+             * Sent
+             * @default true
+             * @constant
+             */
+            sent: true;
+            /**
+             * To
+             * @description the address with its name part masked
+             */
+            to: string;
+        };
+        /** ReportStatus */
+        ReportStatus: {
+            /** Email Enabled */
+            email_enabled: boolean;
+        };
         /** Scenario */
         Scenario: {
             /**
@@ -891,6 +991,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_email_api_v1_report_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_pdf_api_v1_report_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description the PDF report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_status_api_v1_report_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStatus"];
                 };
             };
         };

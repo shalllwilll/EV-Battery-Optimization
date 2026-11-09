@@ -37,6 +37,7 @@ Pygments==2.21.0
 pyparsing==3.3.3
 pytest==9.2.0
 python-dateutil==4.0.0
+reportlab==5.1.0
 requests==2.34.2
 scikit-learn==1.9.1
 scipy==1.18.1

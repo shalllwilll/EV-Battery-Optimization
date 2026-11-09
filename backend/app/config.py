@@ -29,6 +29,12 @@ class Settings:
     auth_secret: str = field(default_factory=lambda: os.environ.get("EV_AUTH_SECRET") or _PROCESS_SECRET)
     # Built frontend served by the API itself (set by scripts/run_all.sh). Missing folder means API only.
     static_dir: str = field(default_factory=lambda: os.environ.get("EV_STATIC_DIR", "frontend/dist"))
+    # Report email (SMTP, e.g. Gmail with an app password). Without a user and password the email option is switched off and the PDF download still works.
+    smtp_host: str = field(default_factory=lambda: os.environ.get("EV_SMTP_HOST", "smtp.gmail.com"))
+    smtp_port: int = field(default_factory=lambda: int(os.environ.get("EV_SMTP_PORT", 587)))
+    smtp_user: str = field(default_factory=lambda: os.environ.get("EV_SMTP_USER", ""))
+    smtp_password: str = field(default_factory=lambda: os.environ.get("EV_SMTP_PASSWORD", ""))
+    mail_from: str = field(default_factory=lambda: os.environ.get("EV_MAIL_FROM", ""))
     token_ttl_s: int = field(default_factory=lambda: int(os.environ.get("EV_TOKEN_TTL_S", 8 * 3600)))
 
 

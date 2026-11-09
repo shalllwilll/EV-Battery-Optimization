@@ -13,5 +13,8 @@ The repository contains a Render Blueprint (`render.yaml`). It creates one web s
 - The service stops after 15 minutes without traffic and takes about a minute to wake on the next visit. Open the address once before a presentation.
 - Free instances may restart at any time. Nothing is stored on the server, so nothing is lost.
 
+## Report email (optional)
+Optimise > Report downloads the comparison as a PDF with no set-up. To also email it, set `EV_SMTP_USER` and `EV_SMTP_PASSWORD` (for Gmail, an app password) and optionally `EV_MAIL_FROM` in the service's environment; without them the email option says it is not set up. **Render's free plan blocks outgoing SMTP**, so email will not send from a free hosted copy; it works locally and on a paid plan, or switch the sender to an HTTPS mail API.
+
 ## Checking it works
 `/api/v1/health` returns `status: ok` and the model version. If the page loads but every action fails, check that `EV_DEMO_PASSWORD` is set.

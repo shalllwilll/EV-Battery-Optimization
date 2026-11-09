@@ -1106,6 +1106,98 @@
         "title": "ReplacementResult",
         "type": "object"
       },
+      "ReportEmailRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet_size": {
+            "default": 50,
+            "description": "buses, only used to scale the money line",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Fleet Size",
+            "type": "integer"
+          },
+          "scenario_a": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "scenario_b": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "to": {
+            "description": "one recipient address",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_a",
+          "scenario_b",
+          "to"
+        ],
+        "title": "ReportEmailRequest",
+        "type": "object"
+      },
+      "ReportRequest": {
+        "additionalProperties": false,
+        "description": "Two scenarios to compare in the report. The server runs the model itself; nothing the client sends ends up in the document except these inputs.",
+        "properties": {
+          "fleet_size": {
+            "default": 50,
+            "description": "buses, only used to scale the money line",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Fleet Size",
+            "type": "integer"
+          },
+          "scenario_a": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "scenario_b": {
+            "$ref": "#/components/schemas/Scenario"
+          }
+        },
+        "required": [
+          "scenario_a",
+          "scenario_b"
+        ],
+        "title": "ReportRequest",
+        "type": "object"
+      },
+      "ReportSent": {
+        "properties": {
+          "sent": {
+            "const": true,
+            "default": true,
+            "title": "Sent",
+            "type": "boolean"
+          },
+          "to": {
+            "description": "the address with its name part masked",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "title": "ReportSent",
+        "type": "object"
+      },
+      "ReportStatus": {
+        "properties": {
+          "email_enabled": {
+            "title": "Email Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email_enabled"
+        ],
+        "title": "ReportStatus",
+        "type": "object"
+      },
       "Scenario": {
         "additionalProperties": false,
         "properties": {
@@ -1638,6 +1730,123 @@
         "summary": "Search real usage levers for a bus and return goal-based presets with plain-language explanations",
         "tags": [
           "predict"
+        ]
+      }
+    },
+    "/api/v1/report/email": {
+      "post": {
+        "operationId": "report_email_api_v1_report_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Email the comparison report to one address",
+        "tags": [
+          "report"
+        ]
+      }
+    },
+    "/api/v1/report/pdf": {
+      "post": {
+        "operationId": "report_pdf_api_v1_report_pdf_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/pdf": {}
+            },
+            "description": "the PDF report"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The Bus A vs Bus B comparison as a PDF",
+        "tags": [
+          "report"
+        ]
+      }
+    },
+    "/api/v1/report/status": {
+      "get": {
+        "operationId": "report_status_api_v1_report_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Whether report email is set up on this server",
+        "tags": [
+          "report"
         ]
       }
     },

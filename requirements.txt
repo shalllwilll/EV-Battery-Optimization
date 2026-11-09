@@ -10,6 +10,7 @@ requests
 pytest
 hypothesis
 matplotlib
+reportlab
 pydantic
 fastapi
 uvicorn

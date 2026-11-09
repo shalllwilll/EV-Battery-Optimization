@@ -125,6 +125,66 @@ describe('Optimise (compare two buses)', () => {
   })
 })
 
+describe('Optimise report (PDF and email)', () => {
+  const OK = { '/report/status': () => ({ body: { email_enabled: true } }), '/report/pdf': () => ({ body: { pdf: true } }), '/report/email': () => ({ body: { sent: true, to: 'b***@company.com' } }) }
+  const openReport = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Report' })); return screen.findByRole('complementary', { name: /Send report/ }) }
+  const changeB = async () => {
+    const g = await goals()
+    const card = (await within(g).findByRole('heading', { name: 'Lowest cost per km', level: 3 })).closest('article')!
+    await userEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Try on Bus B' }))
+    await waitFor(() => expect(screen.queryByRole('complementary')).not.toBeInTheDocument())
+  }
+
+  it('cannot be sent until Bus B differs from Bus A', async () => {
+    mockApi(OK); renderApp('/optimise')
+    const r = await openReport()
+    expect(within(r).getByText(/Change Bus B first/)).toBeInTheDocument()
+    expect(within(r).getByRole('button', { name: 'Download PDF' })).toBeDisabled()
+    await userEvent.type(within(r).getByLabelText('Send to'), 'boss@company.com')
+    expect(within(r).getByRole('button', { name: 'Send report' })).toBeDisabled()
+  })
+
+  it('downloads the PDF for the two buses and emails it to one valid address', async () => {
+    const make = vi.fn(() => 'blob:x'); vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: make, revokeObjectURL: vi.fn() }))
+    const api = mockApi(OK); renderApp('/optimise')
+    await changeB()
+    const r = await openReport()
+    expect(within(r).getByText(/Bus B changes in this report/)).toBeInTheDocument()
+    await userEvent.click(within(r).getByRole('button', { name: 'Download PDF' }))
+    await waitFor(() => expect(make).toHaveBeenCalled())
+    const pdf = api.calls.find((c) => c.path === '/report/pdf')!.body as { scenario_a: { soc_max_pct: number }; scenario_b: { soc_max_pct: number }; fleet_size: number }
+    expect(pdf.scenario_a.soc_max_pct).toBe(FIX.predict.scenario.soc_max_pct)
+    expect(pdf.scenario_b.soc_max_pct).toBe(byId('lowest_cost').charging.scenario.soc_max_pct)
+    expect(pdf.fleet_size).toBe(50)
+
+    const box = within(r).getByLabelText('Send to'), send = within(r).getByRole('button', { name: 'Send report' })
+    await userEvent.type(box, 'not an address')
+    expect(send).toBeDisabled(); expect(box).toHaveAttribute('aria-invalid', 'true')
+    await userEvent.clear(box); await userEvent.type(box, 'boss@company.com')
+    expect(box).toHaveAttribute('aria-invalid', 'false'); expect(send).toBeEnabled()
+    await userEvent.click(send)
+    expect(await within(r).findByRole('status')).toHaveTextContent('Report sent to b***@company.com.')
+    expect((api.calls.find((c) => c.path === '/report/email')!.body as { to: string }).to).toBe('boss@company.com')
+  })
+
+  it('says so plainly when the server has no email set up, and still offers the download', async () => {
+    mockApi({ ...OK, '/report/status': () => ({ body: { email_enabled: false } }) }); renderApp('/optimise')
+    const r = await openReport()
+    expect(await within(r).findByText(/Email is not set up on this server/)).toBeInTheDocument()
+    expect(within(r).queryByLabelText('Send to')).not.toBeInTheDocument()
+    expect(within(r).getByRole('button', { name: 'Download PDF' })).toBeInTheDocument()
+  })
+
+  it('shows the server\'s own message when sending fails', async () => {
+    mockApi({ ...OK, '/report/email': () => ({ status: 429, body: { error: { code: 'too_many_reports', message: 'Too many reports sent in the last hour.', fields: [] } } }) }); renderApp('/optimise')
+    await changeB()
+    const r = await openReport()
+    await userEvent.type(await within(r).findByLabelText('Send to'), 'boss@company.com')
+    await userEvent.click(within(r).getByRole('button', { name: 'Send report' }))
+    expect(await within(r).findByRole('alert')).toHaveTextContent('Too many reports sent in the last hour.')
+  })
+})
+
 describe('Lenses and notes', () => {
   it('Overview offers four lenses, swaps the year bar for the day bar in Charge, and keeps warnings out of the scene', async () => {
     mockApi(); renderApp('/')

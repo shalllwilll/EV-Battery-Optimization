@@ -20,7 +20,7 @@ export function setToken(t: string | null) {
 
 export const AUTH_EXPIRED = 'ph:auth-expired'
 
-export async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+async function send(path: string, init: RequestInit & { json?: unknown } = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
   let body = init.body
@@ -38,7 +38,18 @@ export async function request<T>(path: string, init: RequestInit & { json?: unkn
     if (res.status === 401 && token && path !== '/auth/login') { setToken(null); window.dispatchEvent(new Event(AUTH_EXPIRED)) }
     throw new ApiClientError(res.status, err.error?.code ?? 'http_error', err.error?.message ?? `Request failed (${res.status}).`, err.error?.fields ?? [])
   }
-  return (await res.json()) as T
+  return res
+}
+
+export async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  return (await (await send(path, init)).json()) as T
+}
+
+/** A POST whose answer is a file (the PDF report). Same sign-in and error handling as `request`. */
+export async function postFile(path: string, json: unknown): Promise<{ blob: Blob; filename: string }> {
+  const res = await send(path, { method: 'POST', json })
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1]
+  return { blob: await res.blob(), filename: name ?? 'pack-horizon-comparison.pdf' }
 }
 
 export const api = {

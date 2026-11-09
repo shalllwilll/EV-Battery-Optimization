@@ -6,7 +6,8 @@ import { BusBControls } from '../components/BusBControls'
 import { EvidenceBadge } from '../components/EvidenceBadge'
 import { HealthChart } from '../components/charts/HealthChart'
 import { WithTable } from '../components/DataTable'
-import { BusLetter, IconDetails, IconGoals, IconNotes, IconView } from '../components/Icons'
+import { BusLetter, IconDetails, IconGoals, IconNotes, IconReport, IconView } from '../components/Icons'
+import { ReportPanel } from '../components/ReportPanel'
 import { NotesList } from '../components/NotesDrawer'
 import { buildNotes, countAttention } from '../lib/notes'
 import { Dock, DockButton, Drawer, DOCK_PX, Immersive, StatStrip, WIDE_QUERY, useWide, type Stat } from '../components/Overlay'
@@ -35,8 +36,8 @@ import { useViewState } from '../three/viewState'
 
 const BusViewer = lazy(() => import('../three/BusViewer').then((m) => ({ default: m.BusViewer })))
 const Z = 3.1
-type Panel = 'a' | 'b' | 'goals' | 'details' | 'view' | 'notes' | null
-const WIDTH: Record<Exclude<Panel, null>, number> = { a: 340, b: 340, goals: 440, details: 460, view: 300, notes: 380 }
+type Panel = 'a' | 'b' | 'goals' | 'details' | 'view' | 'notes' | 'report' | null
+const WIDTH: Record<Exclude<Panel, null>, number> = { a: 340, b: 340, goals: 440, details: 460, view: 300, notes: 380, report: 360 }
 const tone = (x: number, eps: number): 'up' | 'down' | 'none' => (x > eps ? 'up' : x < -eps ? 'down' : 'none')
 
 export default function Optimise() {
@@ -168,6 +169,7 @@ export default function Optimise() {
             <DockButton label="Goals" active={shown === 'goals'} onClick={() => toggle('goals')}><IconGoals /></DockButton>
             <DockButton label="Details" active={shown === 'details'} onClick={() => toggle('details')}><IconDetails /></DockButton>
             <DockButton label="View" active={shown === 'view'} onClick={() => toggle('view')}><IconView /></DockButton>
+ <DockButton label="Report" active={shown === 'report'} onClick={() => toggle('report')}><IconReport /></DockButton>
             <DockButton label="Notes" active={shown === 'notes'} onClick={() => toggle('notes')} badge={countAttention(notes)}><IconNotes /></DockButton>
           </Dock>
         </div>
@@ -212,6 +214,9 @@ export default function Optimise() {
             </section>
           </div>
         ) : <Skeleton h={200} />}
+      </Drawer>
+      <Drawer open={shown === 'report'} title="Send report" width={WIDTH.report} onClose={close}>
+        <ReportPanel a={scenario} b={busB} ready={valid && changed} changes={chips.map((c) => c.text)} />
       </Drawer>
       <Drawer open={shown === 'notes'} title="Notes" width={WIDTH.notes} onClose={close}>
         <NotesList notes={notes} />

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from backend.app import service
+from backend.app import mailer, report, service
 from backend.app.auth import require_user
 from backend.app import reference
 from backend.app.config import get_settings
 from backend.app.errors import ApiError
-from backend.app.schemas import CompareRequest, CompareResult, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse
+from backend.app.schemas import (CompareRequest, CompareResult, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse, ReportEmailRequest,
+                                 ReportRequest, ReportSent, ReportStatus)
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_user)])
 
@@ -81,3 +84,59 @@ async def get_zones():
 async def get_evidence(request: Request):
     st = request.app.state
     return await run_in_threadpool(reference.evidence, get_settings().artifact_dir, st.versions, st.model_version, st.models)
+
+
+# ---- comparison report (PDF download and email) ----------------------------------------------------------------------------------------
+
+async def _predict_cached(request: Request, scenario) -> PredictionResult:
+    """Same cache as /predict, so a report for two buses already on screen costs no new model run."""
+    st = request.app.state
+    req = PredictRequest(scenario=scenario)
+    key = service.LRUCache.key(req, st.model_version)
+    hit = st.cache.get(key)
+    if hit is None:
+        hit = await run_in_threadpool(service.run_prediction, req, st.models, st.model_version)
+        st.cache.put(key, hit)
+    return hit
+
+
+async def _build_report(request: Request, req: ReportRequest) -> tuple[bytes, list[str]]:
+    st = request.app.state
+    pa, pb = await _predict_cached(request, req.scenario_a), await _predict_cached(request, req.scenario_b)
+    creq = CompareRequest(scenarios=[req.scenario_a, req.scenario_b])
+    key = service.LRUCache.key(creq, st.model_version)
+    cmp = st.cache.get(key)
+    if cmp is None:
+        cmp = await run_in_threadpool(service.run_compare, creq, st.models, st.model_version)
+        st.cache.put(key, cmp)
+    pdf = await run_in_threadpool(report.build_pdf, pa, pb, cmp, req.fleet_size)
+    return pdf, [re.sub(r"</?b>", "", t) for t in report.headline(pa, pb, cmp.deltas[0])]
+
+
+@router.get("/report/status", response_model=ReportStatus, tags=["report"], summary="Whether report email is set up on this server")
+async def report_status():
+    return ReportStatus(email_enabled=mailer.enabled(get_settings()))
+
+
+@router.post("/report/pdf", tags=["report"], summary="The Bus A vs Bus B comparison as a PDF",
+             responses={200: {"content": {"application/pdf": {}}, "description": "the PDF report"}})
+async def report_pdf(req: ReportRequest, request: Request):
+    pdf, _ = await _build_report(request, req)
+    return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{report.filename()}"', "Cache-Control": "no-store"})
+
+
+@router.post("/report/email", response_model=ReportSent, tags=["report"], summary="Email the comparison report to one address")
+async def report_email(req: ReportEmailRequest, request: Request, user: str = Depends(require_user)):
+    st = get_settings()
+    if not mailer.enabled(st):
+        raise ApiError(503, "email_not_set_up", "Email is not set up on this server. Download the PDF and send it yourself.")
+    to = req.to.strip()
+    if not mailer.valid_address(to):
+        raise ApiError(422, "invalid_address", "That does not look like one email address. Enter a single address such as name@company.com.")
+    client = f"{user}@{request.client.host if request.client else 'unknown'}"
+    mailer.check_rate(client)
+    pdf, summary = await _build_report(request, req)
+    msg = mailer.build_message(st, to, pdf, report.filename(), summary)
+    await run_in_threadpool(mailer.send, st, msg)
+    mailer.record(client)
+    return ReportSent(to=mailer.mask(to))

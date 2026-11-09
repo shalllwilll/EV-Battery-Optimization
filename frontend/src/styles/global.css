@@ -503,3 +503,12 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .tring{display:block;width:100%;max-width:230px;height:auto;margin:10px auto 2px}
 @media (max-width:760px){.lab{grid-template-columns:1fr}}
 .hero .play svg{width:14px;height:14px}
+
+.rp{display:flex;flex-direction:column;gap:14px;font-size:14.5px;color:var(--t2);line-height:1.55}.rp p{margin:0}
+.rp-ch small{display:block;color:var(--t3);font-size:12px;margin-bottom:4px}.rp-ch ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;color:var(--text);font-size:13.5px}
+.rp-s{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--line2)}.rp-s h3{margin:0;font-family:var(--head);font-size:14px;color:var(--text)}
+.rp-s label{font-size:13px;color:var(--t2)}
+.rp-s input[type=email]{width:100%;padding:11px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--s2);color:var(--text);font:inherit;font-size:15px}
+.rp-s input[type=email]:focus-visible{outline:2px solid var(--volt);outline-offset:1px}.rp-s input[aria-invalid=true]{border-color:#f87171}
+.rp-s form{display:flex;flex-direction:column;gap:8px}.rp-s .btn{align-self:flex-start}.rp .btn:disabled{opacity:.45;cursor:not-allowed}
+.rp-ok{color:#4ade80}.rp-err{color:#f87171}.rp-st:empty{display:none}
