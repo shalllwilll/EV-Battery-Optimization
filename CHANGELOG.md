@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Scenario drawer: one toolbar (after v1.0.0)
+- "Import your duty data", "Reset to defaults" and "Copy link" no longer sit as two loose rows of buttons at the bottom of the long Bus A drawer. They are one slim toolbar at the top: **Import CSV** on the left, **Reset** and **Copy link** on the right, with icons and tooltips. Import CSV folds open a small panel (what it fills in, that the file is read in the browser and never uploaded, Choose CSV file, Download a sample) and the results table appears inside it; closed, nothing extra is on screen. The behaviour of all three is unchanged.
+
 ## Settings from a local `.env` (after v1.0.0)
 - The backend now reads `EV_*` settings from a git-ignored `.env` in the project root at start-up (small built-in reader, no new dependency). Variables already set in the environment win; blank values and comments are skipped; `EV_NO_DOTENV=1` turns it off (the tests set it). This is how the report email password is kept between runs without exporting it in a terminal each time. `.env` is in `.gitignore` and was never committed.
 

@@ -198,6 +198,18 @@ describe('Lenses and notes', () => {
     expect(screen.queryByLabelText('Hour of the day')).not.toBeInTheDocument()
     expect(document.querySelector('.errbox')).toBeNull()
   })
+  it('keeps import, reset and copy link in one toolbar at the top of the scenario drawer, with the CSV panel folded away until asked for', async () => {
+    mockApi(); renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Bus A' }))
+    const bar = await screen.findByRole('toolbar', { name: 'Scenario actions' })
+    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Import CSV', 'Reset', 'Copy link'])
+    expect(screen.queryByText(/never uploaded/)).not.toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Import CSV' }))
+    expect(within(bar).getByRole('button', { name: 'Import CSV' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/never uploaded/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Download a sample' })).toHaveAttribute('href', '/samples/sample-fleet-duty-ILLUSTRATIVE.csv')
+    expect(screen.getAllByRole('button', { name: 'Reset to defaults' })).toHaveLength(1)
+  })
   it('Notes drawer groups the warnings', async () => {
     mockApi(); renderApp('/optimise')
     const btn = await screen.findByRole('button', { name: /^Notes/ })

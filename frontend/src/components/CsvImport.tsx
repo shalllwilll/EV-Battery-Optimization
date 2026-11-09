@@ -25,16 +25,15 @@ export function CsvImport() {
   }
   const fmt = (k: string, v: number) => (k.endsWith('_hour') ? hhmm(v) : String(v))
   return (
-    <div className="grp">
-      <h3>Import your duty data</h3>
-      <p className="note" style={{ marginTop: 0 }}>Optional. A CSV of daily distance and charging times fills in the fields above. It is read in your browser and never uploaded.</p>
-      <div className="row2" style={{ marginTop: 10 }}>
+    <div className="csvp" id="csv-panel">
+      <p>Fills in daily distance and charging times from your own CSV. It is read in your browser and never uploaded.</p>
+      <div className="csvp-act">
         <button className="btn sm" onClick={() => input.current?.click()}>Choose CSV file</button>
-        <a className="btn sm" href="/samples/sample-fleet-duty-ILLUSTRATIVE.csv" download>Sample file</a>
+        <a className="lnk" href="/samples/sample-fleet-duty-ILLUSTRATIVE.csv" download>Download a sample</a>
         <input ref={input} type="file" accept=".csv,text/csv" hidden onChange={(e) => onFile(e.target.files?.[0])} aria-label="Duty CSV file" />
       </div>
       {res && (
-        <div className="tip" style={{ marginTop: 12 }} role="status">
+        <div className="tip" style={{ margin: "12px 0 0" }} role="status">
           <b>{res.name}</b> · {res.rows} rows
           {res.errors.map((e) => <div className="err" key={e}>{e}</div>)}
           {res.derived.length > 0 && <table className="tbl" style={{ marginTop: 8 }}><tbody>

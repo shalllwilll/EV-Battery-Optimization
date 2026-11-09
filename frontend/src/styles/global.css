@@ -63,6 +63,15 @@ a{color:inherit}
 .scen h2{font-size:18px;font-weight:600}
 .tag{font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--t2);border:1px solid var(--line);border-radius:7px;padding:2px 8px;white-space:nowrap;display:inline-block;line-height:1.5}
 .tag.lab{color:var(--volt);border-color:rgba(250,204,21,.5)}.tag.assumption{color:var(--volt);border-color:rgba(250,204,21,.5)}.tag.derived{color:var(--t2)}
+.scen-tools{display:flex;align-items:center;gap:0;margin:2px -8px 12px;padding-bottom:10px;border-bottom:1px solid var(--line2)}
+.scen-tools .sp{flex:1}
+.sbt{display:inline-flex;align-items:center;gap:6px;padding:7px 8px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap;flex:none;color:var(--t2);transition:background-color .2s var(--ease),color .2s var(--ease)}
+.sbt:hover{background:var(--s2);color:var(--text)}.sbt[aria-expanded=true]{background:var(--s2);color:var(--volt)}
+.sbt svg{width:16px;height:16px}
+.csvp{margin:-2px 0 14px;padding:12px;border-radius:var(--r-sm);background:var(--s2);border:1px solid var(--line2)}
+.csvp>p{margin:0 0 10px;font-size:13px;line-height:1.5;color:var(--t2)}
+.csvp-act{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.lnk{font-size:13px;font-weight:600;color:var(--t2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}.lnk:hover{color:var(--volt);text-decoration-color:var(--volt)}
 .grp{margin-top:20px}
 .grp>h3{font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
 .fld{margin-bottom:14px}
@@ -355,7 +364,7 @@ svg.ch text{font-family:var(--body);font-size:12px;font-weight:600;fill:#B4B4BC}
   .tiles{grid-template-columns:1fr}
 }
 @media (pointer:coarse){
-  .vbtn{padding:11px 14px}.btn.sm{padding:11px 14px}.help{width:30px;height:30px}.lg button{padding:10px 13px}.links a{padding:11px 15px}
+  .vbtn{padding:11px 14px}.btn.sm{padding:11px 14px}.sbt{padding:11px 8px}.help{width:30px;height:30px}.lg button{padding:10px 13px}.links a{padding:11px 15px}
   input.rng{height:32px}input.rng::-webkit-slider-thumb{width:22px;height:22px;margin-top:-8.5px}
 }
 
