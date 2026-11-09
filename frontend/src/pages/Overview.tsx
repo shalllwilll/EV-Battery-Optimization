@@ -78,7 +78,7 @@ export default function Overview() {
           </Dock>
         </div>
         <div className="imm-tr">
-          {p && <StatStrip stats={stats} />}
+          {p && <StatStrip title="Your bus" stats={stats} />}
           <PackInspector selected={view.selected} rows={rows} year={y} isolate={view.isolate} onIsolate={api.toggleIsolate} onClose={() => api.select(null)} />
         </div>
       </div>

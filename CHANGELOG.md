@@ -2,8 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
-## Optimise change bar (after v1.0.0)
-- The row of change chips plus the insight sentence at the bottom of Optimise is now one slim line: "Bus B · 5 changes" and the headline sentence. Click it to open the full list above it; hovering a row still highlights that part of Bus B. Escape or a click elsewhere closes it.
+## Smaller key numbers and change bar (after v1.0.0)
+- The row of change chips plus the insight sentence at the bottom of Optimise is now one small pill, "Bus B · 5 changes". Click it to open the headline sentence and the full list above it; hovering a row still highlights that part of Bus B. Escape or a click elsewhere closes it.
+- The key-numbers block on Overview and Optimise is a compact translucent card with a small title chip ("Your bus", "Bus B"), smaller type and thin dividers, and a chevron that folds it to a single line of values so it stays out of the way when you zoom in.
 
 ## Analysis pages as instruments (after v1.0.0)
 - Health, Replacement, Range and Cost each lead with one interactive picture and a one-line insight built from the page's own numbers, with a "Try it" button where a lever applies. Frontend only: no API changes.

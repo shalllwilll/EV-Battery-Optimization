@@ -80,16 +80,27 @@ export function DockButton({ label, active, onClick, children, badge }: { label:
 
 export type Stat = { label: string; value: ReactNode; unit?: string; sub?: string; tone?: 'up' | 'down' | 'none' }
 export function StatStrip({ stats, busy, title, hint }: { stats: Stat[]; busy?: boolean; title?: string; hint?: string }) {
+  const [open, setOpen] = useState(true)
   return (
-    <div className="stats glass" role="group" aria-label="Key numbers" aria-busy={busy} data-busy={busy ? 'true' : 'false'}>
-      {title && <div className="st ttl"><span>{title}</span>{hint && <small>{hint}</small>}</div>}
-      {stats.map((s) => (
-        <div className="st" key={s.label}>
-          <small>{s.label}</small>
-          <b>{s.value}{s.unit && <span>{s.unit}</span>}</b>
-          {s.sub && <em className={s.tone ?? 'none'}>{s.sub}</em>}
-        </div>
-      ))}
+    <div className={`stats glass${open ? '' : ' shut'}`} role="group" aria-label="Key numbers" aria-busy={busy} data-busy={busy ? 'true' : 'false'}>
+      <div className="sth">
+        {title && <span className="stt">{title}</span>}
+        {open
+          ? hint && <small>{hint}</small>
+          : <span className="sts">{stats.map((s, i) => <span key={s.label}>{i > 0 && ' · '}{s.value}{s.unit && ` ${s.unit}`}</span>)}</span>}
+        <button className="stx" aria-expanded={open} aria-label={open ? 'Hide key numbers' : 'Show key numbers'} onClick={() => setOpen((o) => !o)}>
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style={{ transform: open ? undefined : 'rotate(180deg)' }}><path d="M2 6.5 5 3.5l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+      <div className="stb" hidden={!open}>
+        {stats.map((s) => (
+          <div className="st" key={s.label}>
+            <small>{s.label}</small>
+            <b>{s.value}{s.unit && <span>{s.unit}</span>}</b>
+            {s.sub && <em className={s.tone ?? 'none'}>{s.sub}</em>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
