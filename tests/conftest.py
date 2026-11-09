@@ -1,5 +1,8 @@
 import os
 
+# A developer's local .env (mail password and so on) must not leak into the tests.
+os.environ["EV_NO_DOTENV"] = "1"
+
 import pytest
 
 # Existing API tests exercise the model, not login; auth has its own tests (tests/test_api_auth.py) that switch it on.

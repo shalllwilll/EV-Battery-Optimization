@@ -4,6 +4,33 @@ from __future__ import annotations
 import os
 import secrets
 from dataclasses import dataclass, field
+from pathlib import Path
+
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+
+
+def load_env_file(path: Path = ENV_FILE) -> int:
+    """Read KEY=VALUE lines from a local `.env` (git-ignored) into the environment, so settings such as the mail password survive between runs.
+    Variables already set in the environment win; blank values, comments and malformed lines are skipped. Returns how many were set.
+    Set EV_NO_DOTENV=1 to turn this off (the tests do)."""
+    if os.environ.get("EV_NO_DOTENV") or not path.is_file():
+        return 0
+    n = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip().removeprefix("export ").strip(), val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        if key.startswith("EV_") and val and key not in os.environ:
+            os.environ[key] = val
+            n += 1
+    return n
+
+
+load_env_file()
 
 # Without EV_AUTH_SECRET each process signs tokens with its own random key, so nobody can forge a token from the public
 # source code. Sign-ins then end when the server restarts; with more than one worker, set EV_AUTH_SECRET.

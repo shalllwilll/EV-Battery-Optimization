@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Settings from a local `.env` (after v1.0.0)
+- The backend now reads `EV_*` settings from a git-ignored `.env` in the project root at start-up (small built-in reader, no new dependency). Variables already set in the environment win; blank values and comments are skipped; `EV_NO_DOTENV=1` turns it off (the tests set it). This is how the report email password is kept between runs without exporting it in a terminal each time. `.env` is in `.gitignore` and was never committed.
+
 ## Report redesigned in the app's own look (after v1.0.0)
 - The Bus A vs Bus B PDF now looks like the app: near-black pages with the volt yellow accent, Lexend for headings and numbers, Manrope for text, the same colour meaning (volt = Bus A and better, white = Bus B, orange = the replacement line and warnings, red = worse). Four pages instead of a light-theme document.
 - **Page 1, the snapshot**: one headline ("Bus B's battery lasts 28.9 months longer"), a one-line verdict of gains, losses and watch-outs, four tiles (battery life, cost per km, range at replacement, rupees per bus per year) each tagged GAIN, LOSS, WATCH or SAME, and both buses as a cutaway with their 96 cells coloured by health at the year Bus A is due for replacement. The cells are scattered inside the model's 10th to 90th percentile range and the page says it is an illustration of the forecast, not a measurement. Below: what changed on Bus B.

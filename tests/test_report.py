@@ -227,3 +227,20 @@ def test_a_long_list_of_changes_does_not_leave_a_blank_page(client):
     import re
     pages = len(re.findall(rb"/Type\s*/Page(?![s\w])", pdf))
     assert 4 <= pages <= 5
+
+
+def test_env_file_fills_missing_settings_but_never_overrides(tmp_path, monkeypatch):
+    import os
+    from backend.app import config
+    f = tmp_path / ".env"
+    f.write_text('# comment\nEV_SMTP_USER=me@example.com\nexport EV_SMTP_PASSWORD="abcd efgh"\nEV_SMTP_PORT=\nEV_MAIL_FROM=Name <me@example.com>\nOTHER=ignored\nbroken line\n')
+    for k in ("EV_SMTP_USER", "EV_SMTP_PASSWORD", "EV_MAIL_FROM", "OTHER", "EV_NO_DOTENV"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("EV_SMTP_PORT", "465")            # already set: stays
+    assert config.load_env_file(f) == 3
+    assert os.environ["EV_SMTP_USER"] == "me@example.com" and os.environ["EV_SMTP_PASSWORD"] == "abcd efgh" and os.environ["EV_SMTP_PORT"] == "465"
+    assert "OTHER" not in os.environ
+    for k in ("EV_SMTP_USER", "EV_SMTP_PASSWORD", "EV_MAIL_FROM"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("EV_NO_DOTENV", "1")
+    assert config.load_env_file(f) == 0
