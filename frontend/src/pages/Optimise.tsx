@@ -194,9 +194,9 @@ export default function Optimise() {
           <div className="dd">
             <section>
               <h3>Health over time</h3>
-              <p className="sub">{d ? `Bus B lasts longer in ${fmt((num(d.prob_variant_later) ?? 0) * 100)}% of simulated packs.` : 'Change Bus B to see how it compares.'} Yellow line and band: Bus A. White dashed line: Bus B.</p>
+              <p className="sub">{d ? `Bus B lasts longer in ${fmt((num(d.prob_variant_later) ?? 0) * 100)}% of reference runs.` : 'Change Bus B to see how it compares.'} Yellow line and band: Bus A. White dashed line: Bus B.</p>
               <EvidenceBadge level="derived" />
-              <WithTable chart={<HealthChart {...cA} thresholdPct={line} medianYear={r[1]} xMax={xMax} other={changed ? cB.p50 : undefined} label="Battery health of Bus A with its likely range, and the median health of Bus B" />}
+              <WithTable chart={<HealthChart {...cA} thresholdPct={line} medianYear={r[1]} xMax={xMax} other={changed ? cB.p50 : undefined} label="Battery health of Bus A with its range, and the median health of Bus B" />}
                 head={['Year', 'Bus A median %', 'Bus B median %']}
                 rows={Array.from({ length: Math.round(xMax) + 1 }, (_, i) => [i, fmt(cA!.p50[i * 12]), fmt(cB!.p50[i * 12])])} />
             </section>

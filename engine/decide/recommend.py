@@ -9,8 +9,8 @@ Levers searched (measured with the engine, see docs/phase-checkpoints.md):
   cell heat rise (cooling)       biggest effect; the client must confirm it is achievable          -> "needs confirmation"
   energy use per km (efficiency) real effect; the client must confirm it is achievable             -> "needs confirmation"
 Held fixed on purpose:
-  minimum charge (soc_min_pct)   the model has no depth-of-discharge effect, so lowering it would look free (it is not known to be)
-  charger power                  the cycling data show no charge-speed effect; effect is measured and reported, not recommended
+  minimum charge (soc_min_pct)   both NREL cells were cycled at 80-100 % depth of discharge, so a shallower window is extrapolated and not trusted
+  charger power                  the models show almost no charge-speed effect; effect is measured and reported, not recommended
   km per day                     a service level decided by the operator, not a battery-usage choice
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ from engine.bus.scenario import Scenario
 from engine.bus.translate import translate
 from engine.cell.uncertainty import Models, make_draws
 from engine.decide.cost import lifetime_km
-from engine.decide.replacement import ScenarioSim, simulate_scenario
+from engine.decide.replacement import ScenarioSim, life_percentiles, simulate_scenario
 from engine.labels import Labelled, L
 
 CAP_STEPS = (95.0, 90.0, 85.0, 80.0, 75.0, 70.0)
@@ -140,15 +140,15 @@ def range_at_replacement(s: Scenario) -> float:
 
 
 def _score(sim: ScenarioSim) -> float:
-    return float(np.percentile(np.minimum(sim.cross_months, sim.months[-1]), 50))
+    return min(life_percentiles(sim, (50,))[0], float(sim.months[-1]))
 
 
 def metrics(sim: ScenarioSim) -> Metrics:
     s, c = sim.scenario, sim.conditions
     h = float(sim.months[-1])
+    lp = dict(zip((10, 50, 90), life_percentiles(sim)))
     def pm(q):
-        v = np.percentile(sim.cross_months, q)
-        return None if not np.isfinite(v) or v > h else L(float(v), "months", "derived")
+        return None if not np.isfinite(lp[q]) else L(lp[q], "months", "derived")
     r = np.percentile(sim.retention, [10, 50, 90], axis=0)
     rng_new = c.usable_kwh.value / s.kwh_per_km
     cost = None
@@ -177,8 +177,8 @@ def delta_vs(base: ScenarioSim, sim: ScenarioSim, bm: Metrics, m: Metrics) -> De
                        months_p90=L(float(q[2]), "months", "derived"), prob_later=L(float((d > 0).mean()), "probability", "derived"),
                        cost_per_km_change=cost,
                        range_change_km=L(m.range_at_replacement_km.value - bm.range_at_replacement_km.value, "km", "derived"),
-                       note=f"paired on the same random draws; draws that never reach the line are counted at the {h / 12:g}-year horizon "
-                            f"(Bus A {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)")
+                       note=f"paired on the same {'reference runs' if sim.engine == 'reference' else 'random draws'}; those that never reach the line are counted at the "
+                            f"{h / 12:g}-year horizon (Bus A {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)")
 
 
 def _hhmm(h: float) -> str:
@@ -334,15 +334,21 @@ def recommend(base: Scenario, models: Models, n_draws: int = 2000, seed: int = 0
     # --- levers we measured but do not recommend
     def eff(**kw):
         sm = simulate_scenario(base.model_copy(update=kw), models, draws)
-        return float(np.percentile(np.minimum(sm.cross_months, sm.months[-1]), 50) - np.percentile(np.minimum(bsim.cross_months, bsim.months[-1]), 50))
+        return _score(sm) - _score(bsim)
     e_lo, e_hi = eff(charge_power_kw=base.charge_power_kw * 0.5), eff(charge_power_kw=min(base.charge_power_kw * 2, 500))
     swing = max(abs(e_lo), abs(e_hi))
     not_used = [
         NotUsed(lever="Charger power", effect_months=L(swing, "months", "derived", "largest change in median life when charger power is halved or doubled"),
-                reason=f"Halving or doubling charger power moves battery life by at most {swing:.1f} months in the model. The cycling data show no charge-speed effect, "
-                       "so power only changes how long the pack sits full. Not worth changing for battery health."),
-        NotUsed(lever="Minimum charge", reason="The model has no depth-of-discharge effect (the training cells were all cycled full depth), so lowering the minimum charge would look free. "
-                                               "That is a gap in the data, not proof it is free, so it is never suggested."),
+                reason=f"Halving or doubling charger power moves battery life by at most {swing:.1f} months in the model. "
+                       + ("In the NREL models charge speed has almost no effect on cycling loss within the tested range, so power only changes how long the pack sits full. "
+                          if models.engine == "reference" else "The cycling data show no charge-speed effect, so power only changes how long the pack sits full. ")
+                       + "Not worth changing for battery health."),
+        NotUsed(lever="Minimum charge", reason=(
+            "Both NREL cells were cycled at 80 to 100 % depth of discharge. A bus uses less than that, so the model is extrapolating, and any gain from changing the minimum charge "
+            "cannot be trusted. It is also a safety margin rather than a battery-usage choice, so it is never suggested."
+            if models.engine == "reference" else
+            "The model has no depth-of-discharge effect (the training cells were all cycled full depth), so lowering the minimum charge would look free. "
+            "That is a gap in the data, not proof it is free, so it is never suggested.")),
         NotUsed(lever="Km per day", reason="Daily distance is a service level set by the operator, not a battery-usage choice, so it is not changed. "
                                            "You can still explore it by editing Bus B by hand."),
     ]

@@ -212,7 +212,7 @@ export interface components {
             deltas: components["schemas"]["Delta"][];
             /**
              * Disclaimer
-             * @default Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.
+             * @default Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.
              */
             disclaimer: string;
             /**
@@ -418,7 +418,7 @@ export interface components {
             cost: components["schemas"]["CostResult"];
             /**
              * Disclaimer
-             * @default Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.
+             * @default Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.
              */
             disclaimer: string;
             driver_split: components["schemas"]["DriverSplit"];
@@ -502,7 +502,7 @@ export interface components {
             base: components["schemas"]["Metrics"];
             /**
              * Disclaimer
-             * @default Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.
+             * @default Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.
              */
             disclaimer: string;
             feasibility: components["schemas"]["Feasibility"];
@@ -597,13 +597,13 @@ export interface components {
             pack_kwh: number;
             /**
              * Pack Penalty Max
-             * @default 0.08
+             * @default 0.3
              */
             pack_penalty_max: number;
             /**
              * Pack Penalty Min
-             * @description ASSUMED weakest-cell earlier-end-of-life fraction
-             * @default 0
+             * @description ASSUMED weakest-cell earlier-end-of-life fraction (NREL: pack life is 20-30 % shorter than cell life)
+             * @default 0.2
              */
             pack_penalty_min: number;
             /**

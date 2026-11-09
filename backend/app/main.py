@@ -34,8 +34,12 @@ def artifact_versions(art_dir: str) -> dict[str, str]:
 async def lifespan(app: FastAPI):
     st = get_settings()
     app.state.versions = artifact_versions(st.artifact_dir)     # fails fast with the missing artifact named
-    app.state.models = load_models(st.artifact_dir)
-    app.state.model_version = hashlib.sha256(json.dumps(app.state.versions, sort_keys=True).encode()).hexdigest()[:12]
+    app.state.models = load_models(st.artifact_dir, engine=st.engine)
+    ident = {**app.state.versions, "engine": st.engine}
+    if st.engine == "reference":
+        from engine.reference import blast_lfp
+        ident["reference"] = hashlib.sha256(json.dumps({k: m.params for k, m in blast_lfp.MODELS.items()}, sort_keys=True).encode()).hexdigest()[:12]
+    app.state.model_version = hashlib.sha256(json.dumps(ident, sort_keys=True).encode()).hexdigest()[:12]
     app.state.cache = service.LRUCache(128)
     yield
 
@@ -43,7 +47,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     st = get_settings()
     app = FastAPI(title="E-bus battery lifecycle tool", version="0.1.0", lifespan=lifespan,
-                  description="Prior mode only: models trained on public lab data, scenario inputs are assumptions, "
+                  description="Prior mode only: published laboratory-fitted LFP cell models, scenario inputs are assumptions, "
                               "nothing is validated on buses.")
     # CORS is added after the body limit so it is outermost: 413 responses still carry CORS headers.
     app.add_middleware(BodyLimitMiddleware, max_bytes=st.max_body_bytes)

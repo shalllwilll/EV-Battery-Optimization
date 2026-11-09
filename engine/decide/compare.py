@@ -13,6 +13,10 @@ WHATIF_NOTES = {
     "charge_power_kw": "No data-backed C-rate effect on cycling (M2.3): charge power changes time at high SOC only.",
     "soc_max_pct": "Works through calendar stress at high SOC (storage data) and through the SOC window.",
 }
+REFERENCE_NOTES = {
+    "charge_power_kw": "Charge power acts only through the time spent full: in the NREL models cycling fade barely depends on charge rate within the tested range.",
+    "soc_max_pct": "Works through calendar ageing at high state of charge and through the daily state-of-charge window.",
+}
 
 
 class Delta(BaseModel):
@@ -48,8 +52,8 @@ def compare(scenarios: list[Scenario], n_draws: int = 2000, seed: int = 0, model
         cens = float(np.isinf(base.cross_months).mean()), float(np.isinf(sim.cross_months).mean())
         deltas.append(Delta(months_p10=L(float(q[0]), "months", "derived"), months_p50=L(float(q[1]), "months", "derived"),
                             months_p90=L(float(q[2]), "months", "derived"), prob_variant_later=L(float((d > 0).mean()), "probability", "derived"),
-                            censored_note=f"draws not reaching the threshold are counted at the {h / 12:g}-year horizon (base {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)"))
-        for field, note in WHATIF_NOTES.items():
+                            censored_note=f"{'runs' if models.engine == 'reference' else 'draws'} not reaching the threshold are counted at the {h / 12:g}-year horizon (base {cens[0] * 100:.0f}%, variant {cens[1] * 100:.0f}%)"))
+        for field, note in (REFERENCE_NOTES if models.engine == "reference" else WHATIF_NOTES).items():
             if getattr(s, field) != getattr(scenarios[0], field):
                 notes.append(note)
     return ComparisonResult(base=results[0].model_dump(), variants=[r.model_dump() for r in results[1:]], deltas=deltas, notes=sorted(set(notes)))

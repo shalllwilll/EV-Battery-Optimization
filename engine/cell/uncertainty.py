@@ -27,6 +27,7 @@ class Models:
     cyc: CycleParams
     sigma_cal: float
     widen: float
+    engine: str = "lab"          # "lab": our fit on public lab cells; "reference": the NREL BLAST-Lite LFP models (engine/reference)
 
 
 @dataclass(frozen=True)
@@ -58,12 +59,14 @@ def extrapolation_reasons(efc_max: float, temp_c: float, soc_pct: float, c_rate:
     return r
 
 
-def load_models(art_dir: str = "engine/artifacts") -> Models:
+def load_models(art_dir: str = "engine/artifacts", engine: str = "lab") -> Models:
+    if engine not in ("lab", "reference"):
+        raise ValueError("engine must be 'lab' or 'reference'")
     cal = json.load(open(f"{art_dir}/calendar_params.json"))
     cyc = json.load(open(f"{art_dir}/cycle_params.json"))
     unc = json.load(open(f"{art_dir}/uncertainty.json"))
     return Models(np.array(cal["bootstrap_draws"]), np.array(cyc["bootstrap_draws_logB_m_k_sigma"]),
-                  CycleParams.from_dict(cyc["params"]), float(unc["sigma_cal"]), float(unc["extrapolation_widening"]))
+                  CycleParams.from_dict(cyc["params"]), float(unc["sigma_cal"]), float(unc["extrapolation_widening"]), engine)
 
 
 def make_draws(n: int, models: Models, seed: int = 0) -> Draws:

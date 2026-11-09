@@ -14,8 +14,8 @@ from engine.labels import Labelled
 from engine.decide.compare import Delta
 from engine.decide.recommend import RecommendResult
 
-DISCLAIMER = ("Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. "
-              "Nothing here has been validated on buses.")
+DISCLAIMER = ("Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs "
+              "are assumptions. Nothing here has been validated on buses.")
 MAX_DRAWS = 5000
 
 

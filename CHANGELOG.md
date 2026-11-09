@@ -2,6 +2,15 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## NREL BLAST-Lite is now the engine (after v1.0.0)
+- The app's capacity curves, replacement timing, range, cost and recommendations now come from a Python port of NREL's two LFP cell models (`engine/reference/`, notice in `engine/reference/NOTICE`). Our own laboratory-fitted model is kept in the code behind `EV_ENGINE=lab` and is no longer shown.
+- Why: the cross-check below found our fit the most pessimistic in every scenario (4 to 5 year replacement) against NREL models and published EV-battery lifetimes of 10 to 15 years. Default 12 m hot-dry bus is now about 12 years (10th percentile about 8; 90th beyond the 15-year horizon).
+- Each result is 50 runs (2 models x 5 degradation scalars x 5 pack penalties); the range is a spread of models, not a confidence interval. Pack penalty default is now 20 to 30 % (was 0 to 8 %).
+- Port checked against package outputs: largest gap 0.47 points of capacity on bus scenarios, 0.005 on fixed conditions (`engine/artifacts/reference_port_check.json`).
+- Evidence page rewritten around the NREL models, their tested ranges and the port check; the old cross-check card and the lab-model accuracy figures are gone. `/evidence` now returns `reference_engine` and `engine`, and no longer returns `crosscheck`.
+- Replacement months at the 10th, 50th and 90th percentile come from the percentile retention curves, shared by Predict, Compare and Recommend. A percentile beyond the horizon is returned as null.
+- Uncached prediction is slower (about 0.2 s against 0.07 s locally).
+
 ## Interface redesign (after v1.0.0)
 - Removed the status chips ("Prior mode", "Not yet validated on buses", "Outside lab data", "Service online") and the "assumption" tags on scenario inputs. The not-validated statement stays in the page footer, on the Evidence page, in hover text and in every API number.
 - The scenario inputs on Health, Replacement, Range and Cost are a slide-out drawer opened from a "Scenario" button; they open by themselves when an input is invalid.
@@ -10,7 +19,7 @@ Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in
 - Label colour is the brand yellow. The README screenshots show the earlier layout.
 
 ## BLAST-Lite cross-check (after v1.0.0)
-- New Evidence card: our cell model against two public LFP models from NREL's BLAST-Lite on identical bus duty cycles (10 scenarios), a loss split into calendar and cycling, and same-condition storage and cycling runs. Generated offline by `scripts/crosscheck_blast.py` into `engine/artifacts/crosscheck_blast.json`; `/evidence` serves it as `crosscheck` (null if the file is absent). BLAST-Lite is not an app dependency.
+- (Card since removed: see the entry above.) New Evidence card: our cell model against two public LFP models from NREL's BLAST-Lite on identical bus duty cycles (10 scenarios), a loss split into calendar and cycling, and same-condition storage and cycling runs. Generated offline by `scripts/crosscheck_blast.py` into `engine/artifacts/crosscheck_blast.json`; `/evidence` serves it as `crosscheck` (null if the file is absent). BLAST-Lite is not an app dependency.
 - Finding: our model is the most pessimistic of the three in every scenario (12 m hot-dry, 10 years: 40 % retained against 82 to 88 %). Calendar ageing is in the same range as the two BLAST-Lite models (which differ 2 to 3× from each other); the gap is in cycling beyond about 1,000 cycles. The default replacement timing is probably early. The model itself was not changed.
 
 ## v1.0.0

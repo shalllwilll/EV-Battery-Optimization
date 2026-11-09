@@ -1,4 +1,5 @@
-"""BLAST-Lite cross-check: the duty-cycle builder (pure numpy), the committed artifact's integrity and its API exposure.
+"""BLAST-Lite cross-check: the duty-cycle builder (pure numpy) and the committed package-output artifact. The artifact is the golden
+reference the Python port in engine/reference is tested against (tests/test_reference_blast.py); it is not shown in the app.
 
 BLAST-Lite itself is not installed here (it needs Python <= 3.12), so these tests never import it.
 """
@@ -77,26 +78,6 @@ def test_artifact_loss_split_adds_up_and_checks_cover_both_kinds():
     kinds = {c["kind"] for c in a["single_condition_checks"]}
     assert kinds == {"storage", "cycling"}
     assert all({"ours", "blast_250ah", "blast_sony_3ah"} <= set(c) for c in a["single_condition_checks"])
-
-
-def test_evidence_endpoint_serves_the_crosscheck():
-    from fastapi.testclient import TestClient
-    from backend.app.main import create_app
-    with TestClient(create_app()) as c:
-        j = c.get("/api/v1/evidence").json()
-    assert j["crosscheck"] == json.load(open(ART))
-    assert j["validated_on_buses"] is False
-
-
-def test_evidence_still_works_without_the_crosscheck_file(tmp_path, monkeypatch):
-    import shutil
-    from fastapi.testclient import TestClient
-    from backend.app.main import create_app
-    shutil.copytree("engine/artifacts", tmp_path / "art")
-    (tmp_path / "art" / "crosscheck_blast.json").unlink()
-    monkeypatch.setenv("EV_ARTIFACT_DIR", str(tmp_path / "art"))
-    with TestClient(create_app()) as c:
-        assert c.get("/api/v1/evidence").json()["crosscheck"] is None
 
 
 def test_crosscheck_is_not_a_model_artifact():

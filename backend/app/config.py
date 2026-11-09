@@ -20,6 +20,8 @@ class Settings:
     allowed_origins: list[str] = field(default_factory=_origins)
     max_body_bytes: int = field(default_factory=lambda: int(os.environ.get("EV_MAX_BODY_BYTES", 1_000_000)))
     artifact_dir: str = field(default_factory=lambda: os.environ.get("EV_ARTIFACT_DIR", "engine/artifacts"))
+    # "reference": the NREL BLAST-Lite LFP models (shown in the app). "lab": our own fit on public laboratory cells, kept for comparison.
+    engine: str = field(default_factory=lambda: os.environ.get("EV_ENGINE", "reference").lower())
     # Demo login. Defaults are for local demos only; set real values in the environment (.env) for anything shared.
     auth_required: bool = field(default_factory=lambda: os.environ.get("EV_AUTH_REQUIRED", "true").lower() != "false")
     demo_user: str = field(default_factory=lambda: os.environ.get("EV_DEMO_USER", "demo"))

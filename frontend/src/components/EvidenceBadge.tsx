@@ -1,7 +1,7 @@
 import type { Labelled } from '../api/types'
 
 const TEXT = {
-  lab: 'Fitted on public laboratory data. Never checked on buses.',
+  lab: 'From published models fitted on laboratory cell tests. Never checked on buses.',
   assumption: 'An assumption: no data behind it for buses.',
   derived: 'Calculated from laboratory data and assumptions. Inherits the weakest of them.',
 }

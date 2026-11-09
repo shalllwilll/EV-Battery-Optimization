@@ -44,8 +44,8 @@ def test_compare_every_number_labelled(client):
 
 
 def test_compare_notes_name_the_changed_lever(client):
-    assert any("SOC" in n for n in cmp(client, {"soc_max_pct": 90}).json()["notes"])
-    assert any("C-rate" in n for n in cmp(client, {"charge_power_kw": 60}).json()["notes"])
+    assert any("state of charge" in n for n in cmp(client, {"soc_max_pct": 90}).json()["notes"])
+    assert any("time spent full" in n for n in cmp(client, {"charge_power_kw": 60}).json()["notes"])
 
 
 @pytest.mark.parametrize("n", [1, 5])

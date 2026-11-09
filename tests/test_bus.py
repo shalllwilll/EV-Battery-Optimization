@@ -65,7 +65,7 @@ def test_every_number_labelled():
 def test_pack_penalty_bounds_and_seed():
     s = Scenario.from_preset("12m")
     a = sample_pack_penalty(s, 1000, seed=3)
-    assert a.min() >= 0 and a.max() <= 0.08
+    assert a.min() >= 0.20 and a.max() <= 0.30            # NREL: pack life is 20-30 % shorter than cell life
     assert np.array_equal(a, sample_pack_penalty(s, 1000, seed=3))
 
 

@@ -42,7 +42,9 @@ def test_predict_ok_shape_and_mode(client):
     p10, p50, p90 = (j["replacement"][f"retention_{q}"]["value"] for q in ("p10", "p50", "p90"))
     assert all(a <= b <= c for a, b, c in zip(p10, p50, p90))
     assert j["driver_split"]["calendar_share"]["value"] + j["driver_split"]["cycling_share"]["value"] == pytest.approx(1.0)
-    assert j["replacement"]["months_p10"]["value"] <= j["replacement"]["months_p50"]["value"] <= j["replacement"]["months_p90"]["value"]
+    m = j["replacement"]
+    assert m["months_p10"]["value"] <= m["months_p50"]["value"]
+    assert m["months_p90"] is None or m["months_p50"]["value"] <= m["months_p90"]["value"]      # None = beyond the horizon, said not invented
     assert j["cost"]["cost_per_km_p50"]["value"] > 0
     assert any("not been validated" in w or "validated on buses" in w for w in j["warnings"])
 
@@ -57,13 +59,22 @@ def test_every_number_labelled_and_finite(client, arch, zone):
     assert find_bare_numbers(r.json()) == []
 
 
-def test_deterministic_by_seed_and_seed_changes_result(client):
+def test_reference_engine_is_deterministic_and_ignores_the_seed(client):
+    # The reference ensemble is a fixed 50-run grid (2 models x 5 scalars x 5 pack penalties): there is nothing random to seed.
     a = client.post("/api/v1/predict", json=body(seed=3)).json()
     with TestClient(create_app()) as c2:           # fresh app, empty cache
         b = c2.post("/api/v1/predict", json=body(seed=3)).json()
         c = c2.post("/api/v1/predict", json=body(seed=4)).json()
     assert a == b
-    assert a["replacement"]["months_p50"] != c["replacement"]["months_p50"] or a["replacement"]["retention_p10"] != c["replacement"]["retention_p10"]
+    assert a["replacement"] == c["replacement"]
+
+
+def test_lab_engine_seed_changes_result(monkeypatch):
+    monkeypatch.setenv("EV_ENGINE", "lab")
+    with TestClient(create_app()) as c:
+        a = c.post("/api/v1/predict", json=body(seed=3)).json()
+        b = c.post("/api/v1/predict", json=body(seed=4)).json()
+    assert a["replacement"]["months_p50"] != b["replacement"]["months_p50"] or a["replacement"]["retention_p10"] != b["replacement"]["retention_p10"]
 
 
 def test_cache_hit_returns_identical_body(client):
@@ -78,7 +89,8 @@ def test_cache_hit_returns_identical_body(client):
 def test_extrapolation_is_warned(client):
     j = client.post("/api/v1/predict", json=body(zone="hot_dry", heat_rise_c=20)).json()
     assert j["replacement"]["extrapolated"] is True and j["replacement"]["extrapolation_reasons"]
-    assert any("outside the range of the training data" in w for w in j["warnings"])
+    assert any("Outside the conditions the NREL cells were tested at" in w for w in j["warnings"])
+    assert any("degC" in r for r in j["replacement"]["extrapolation_reasons"])
 
 
 def test_cached_call_is_faster(client):

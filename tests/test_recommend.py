@@ -96,8 +96,9 @@ def test_base_metrics_match_predict_and_deltas_match_compare(client):
 def test_levers_not_recommended_are_explained_with_measured_effect(client):
     nu = {n["lever"]: n for n in rec(client)["not_used"]}
     assert set(nu) == {"Charger power", "Minimum charge", "Km per day"}
-    assert 0 <= nu["Charger power"]["effect_months"]["value"] < 2.0 and "no charge-speed effect" in nu["Charger power"]["reason"]
-    assert "depth-of-discharge" in nu["Minimum charge"]["reason"]
+    base_life = rec(client)["base"]["months_p50"]["value"]
+    assert 0 <= nu["Charger power"]["effect_months"]["value"] < 0.05 * base_life and "almost no effect" in nu["Charger power"]["reason"]
+    assert "depth of discharge" in nu["Minimum charge"]["reason"] and "extrapolating" in nu["Minimum charge"]["reason"]
 
 
 def test_no_change_worth_making_is_said_honestly(client):

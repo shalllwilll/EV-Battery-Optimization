@@ -20,7 +20,7 @@ export default function Cost() {
               <div className="hd"><div><h2>Cost per km</h2><div className="sub">Median, at ₹{scenario.battery_cost_per_kwh_inr?.toLocaleString('en-IN') ?? '–'} per kWh (your input)</div></div><EvidenceBadge level="derived" /></div>
               {med == null ? <p className="note">Enter a battery price in the scenario panel to see cost per km.</p> : <>
                 <div className="kpi"><span style={{ color: 'var(--volt)' }}>₹</span>{fmt(med, 1)}<small>/ km</small></div>
-                <div className="row mt"><span>Likely range</span><b>{inr(num(c.cost_per_km_p10))} to {inr(num(c.cost_per_km_p90))}</b></div>
+                <div className="row mt"><span>Range</span><b>{inr(num(c.cost_per_km_p10))} to {inr(num(c.cost_per_km_p90))}</b></div>
                 <div className="row"><span>Pack price</span><b>₹{fmt((num(c.battery_cost) ?? 0) / 100000, 1)} lakh</b></div>
                 <div className="row"><span>Kilometres until replacement</span><b>{fmt((num(c.lifetime_km_p50) ?? 0) / 1000)} thousand</b></div>
               </>}

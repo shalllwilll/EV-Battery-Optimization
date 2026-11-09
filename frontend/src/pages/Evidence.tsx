@@ -1,23 +1,23 @@
 import { useEvidence } from '../api/hooks'
 import { Async } from '../components/Async'
-import { CrosscheckCard } from '../components/CrosscheckCard'
+import { ReferenceEngineCard } from '../components/ReferenceEngineCard'
 import { Page } from '../components/Workspace'
 import { fmt } from '../lib/format'
 
-const NAME: Record<string, string> = { hust: 'HUST cycling', stanford_calendar: 'Stanford storage', naumann_calendar: 'Naumann storage', weather: 'NASA POWER weather', evbattery: 'EVBattery field data' }
-const TAG = ['Scope', 'Bias', 'Assumption', 'Not modelled', 'Assumption', 'Bias', 'Assumption', 'Policy']
+const NAME: Record<string, string> = { weather: 'NASA POWER weather', evbattery: 'EVBattery field data' }
+const SHOWN = Object.keys(NAME)           // our own lab-data fits are kept in the code but are not what the app shows
+const TAG = ['Scope', 'Scope', 'Extrapolated', 'Range', 'Assumption', 'Not modelled', 'Not modelled', 'Policy']
 
 export default function Evidence() {
   const q = useEvidence()
   return (
-    <Page wide title="What this rests on" intro="Public laboratory data only. Every bus-level number is an assumption or derived from one. These figures come from the project's own validation runs.">
+    <Page wide title="What this rests on" intro="Published laboratory-fitted cell models and public weather data. Every bus-level number is an assumption or derived from one, and none of it has been validated on buses.">
       <Async q={q} h={420}>{(e) => {
-        const m = e.metrics, naive = m.early_life.candidates.find((c) => c.model === 'mean only')?.mape, win = m.early_life.candidates.find((c) => c.model === m.early_life.winner)?.mape
-        const cl = Object.values(m.calendar_validation.cross_lab).map((v) => v.mae_within_train_horizon * 100)
+        const m = e.metrics, r = e.reference_engine, pc = r.port_check
         const nodes = [
-          { t: 'Cell ageing', s: 'Fitted on laboratory cells', n: `${fmt(win, 1)}%`, d: `cycle-life error vs ${fmt(naive, 1)}% for guessing`, f: `storage error ${fmt(Math.min(...cl), 1)} to ${fmt(Math.max(...cl), 1)} points, cross-lab`, h: true },
+          { t: 'Cell ageing', s: 'Published NREL LFP cell models', n: String(r.models.length), d: 'laboratory-fitted models, run side by side', f: pc ? `matches the original package within ${fmt(pc.bus_duty_max_diff_points, 1)} points` : 'ported from BLAST-Lite', h: true },
           { t: 'Bus translation', s: 'Scenario into cell conditions', n: '0', d: 'buses measured', f: 'labelled assumptions · real weather' },
-          { t: 'Decisions', s: 'Replacement, range, cost', n: `${fmt(m.uncertainty.cycle.coverage_point_weighted * 100, 1)}%`, d: 'of cases inside the 80 % band', f: `cycling · storage ${fmt(m.uncertainty.calendar.coverage_point_weighted * 100, 1)}%` },
+          { t: 'Decisions', s: 'Replacement, range, cost', n: String(r.ensemble.runs_per_scenario), d: 'runs per scenario give the range', f: 'a spread of models, not a confidence interval' },
         ]
         return (
           <div className="bento">
@@ -28,29 +28,26 @@ export default function Evidence() {
                   <div className="kpi" style={{ fontSize: 46, color: 'var(--volt)' }}>{n.n}</div><div style={{ marginTop: 6 }}>{n.d}</div><div className="note">{n.f}</div>
                 </div>))}</div>
             </div>
-            <div className="card c12"><h2>Datasets</h2><div className="sub">Real, free, public. Nothing synthetic is used to train or tune any model.</div>
-              <div className="bento" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(250px,100%),1fr))' }}>{e.datasets.map((d) => (
+            <ReferenceEngineCard r={r} />
+            <div className="card c12"><h2>Where the models were tested</h2><div className="sub">The default bus sits partly outside this, and every result says so when it does.</div>
+              <div className="scrollx"><table className="tbl">
+                <thead><tr><th scope="col">Condition</th>{r.models.map((x) => <th key={x.id} scope="col">{x.nominal_ah} Ah model</th>)}<th scope="col">Default 12 m bus</th></tr></thead>
+                <tbody>
+                  <tr><td>Cycling temperature</td>{r.models.map((x) => <td key={x.id}>{x.tested_range.cycling_temperature_c.join(' to ')} °C</td>)}<td>19 to 38 °C (hot, dry zone)</td></tr>
+                  <tr><td>Depth of discharge per day</td>{r.models.map((x) => <td key={x.id}>{x.tested_range.depth_of_discharge.map((v) => Math.round(v * 100)).join(' to ')} %</td>)}<td>about 69 %</td></tr>
+                  <tr><td>Highest charge rate</td>{r.models.map((x) => <td key={x.id}>{x.tested_range.max_charge_c_rate} C</td>)}<td>about 0.34 C</td></tr>
+                </tbody>
+              </table></div>
+              <p className="note">Neither cell was cycled below 80 % depth of discharge, so the cycling term is extrapolated for buses. Neither model has a late-life knee, so the point where capacity starts to fall quickly is not represented.</p></div>
+            <div className="card c12"><h2>Datasets</h2><div className="sub">Real, free, public. Nothing synthetic is used. The cell models' own laboratory data are described under the models above.</div>
+              <div className="bento" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(250px,100%),1fr))' }}>{e.datasets.filter((d) => SHOWN.includes(d.id)).map((d) => (
                 <div key={d.id} className="card" style={{ background: 'var(--bg)' }}>
                   <h3 style={{ fontSize: 16 }}>{NAME[d.id] ?? d.id}</h3><div className="sub" style={{ marginBottom: 8 }}>{d.used_for.split(' (')[0]}</div>
-                  <span className={`tag ${d.id === 'evbattery' ? 'assumption' : 'lab'}`}>{d.id === 'evbattery' ? 'real data · not LFP' : 'real data · LFP'}</span>
+                  <span className={`tag ${d.id === 'evbattery' ? 'assumption' : 'lab'}`}>{d.id === 'evbattery' ? 'real data · not LFP, demo only' : 'real data'}</span>
                   <div className="row mt"><span>Licence</span><b>{d.licence}</b></div><p className="note">{d.limitations}</p>
                   <a className="note" href={d.source_url} target="_blank" rel="noreferrer noopener">Source ↗</a>
                 </div>))}</div>
             </div>
-            <div className="card c6"><h2>How accurate is it?</h2><div className="sub">Measured by the project on held-out data. Not comparable to published numbers.</div>
-              <div className="row"><span>Cycle life, typical error</span><b>{fmt(win, 1)}% (guessing: {fmt(naive, 1)}%)</b></div>
-              <div className="row"><span>Cycling measurements inside the 80 % band</span><b>{fmt(m.uncertainty.cycle.coverage_point_weighted * 100, 1)}%</b></div>
-              <div className="row"><span>Cycling cells, average share inside the band</span><b>{fmt(m.uncertainty.cycle.coverage_cell_mean * 100, 1)}%</b></div>
-              <div className="row"><span>Storage points inside the 80 % band</span><b>{fmt(m.uncertainty.calendar.coverage_point_weighted * 100, 1)}%</b></div>
-              <div className="row"><span>Storage, cross-lab error</span><b>{fmt(Math.min(...cl), 1)} to {fmt(Math.max(...cl), 1)} points</b></div>
-              <div className="row"><span>Field-data demo (capacity from mileage)</span><b>{fmt(m.evbattery_capacity.mileage_only.mape, 2)}% error</b></div>
-              <p className="note">{m.evbattery_capacity.caveat}</p></div>
-            <div className="card c6"><h2>Where the data stops</h2><div className="sub">Training coverage. Outside this, bands are widened ×{e.uncertainty.extrapolation_widening}.</div>
-              <div className="row"><span>Cycling temperature</span><b>{e.training_coverage.cycling_temperature_c.join(' to ')} °C</b></div>
-              <div className="row"><span>Cycling charge rate</span><b>{e.training_coverage.cycling_c_rate.map((x) => x.toFixed(1)).join(' to ')} C</b></div>
-              <div className="row"><span>Cycling length</span><b>up to {e.training_coverage.cycling_efc_max.toLocaleString('en-IN')} cycles</b></div>
-              <p className="note">A bus charging at about 0.2 C is far below the 1.8 to 2.8 C used in the lab, so every bus result is flagged.</p></div>
-            {e.crosscheck && <CrosscheckCard x={e.crosscheck} cov={e.training_coverage} />}
             <div className="card c12"><h2>What vendor data would change</h2>
               <div className="sub">A method demonstration on public field data, not a result for LFP buses. Prior mode, which you are using, needs none of this.</div>
               {(() => {

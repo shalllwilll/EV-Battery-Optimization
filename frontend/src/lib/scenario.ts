@@ -41,7 +41,7 @@ export const FIELDS: FieldMeta[] = [
   { key: 'threshold', label: 'Replace when health falls to', unit: '%', group: 'Battery and replacement', scale: 100, step: 1, decimals: 0, source: 'Operator choice', help: 'Battery health at which you plan to replace the pack. 80 % is the common rule.' },
   { key: 'horizon_years', label: 'Forecast length', unit: 'years', group: 'Battery and replacement', step: 1, decimals: 0, source: 'Setting', help: 'How many years ahead the model looks.' },
   { key: 'pack_penalty_min', label: 'Weakest-cell effect, low', unit: '%', group: 'Advanced assumptions', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public data', help: 'Smallest share by which the weakest cell in a pack ends its life earlier than the average cell.' },
-  { key: 'pack_penalty_max', label: 'Weakest-cell effect, high', unit: '%', group: 'Advanced assumptions', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public data', help: 'Largest share by which the weakest cell ends its life earlier. The model draws a value between low and high.' },
+  { key: 'pack_penalty_max', label: 'Weakest-cell effect, high', unit: '%', group: 'Advanced assumptions', scale: 100, step: 1, decimals: 0, source: 'Assumption, no public data', help: 'Largest share by which the weakest cell ends its life earlier. The runs span values from low to high.' },
 ]
 export const FIELD_BY_KEY = Object.fromEntries(FIELDS.map((f) => [f.key, f])) as Record<FieldKey, FieldMeta>
 export const GROUPS: Group[] = ['Bus', 'Duty', 'Charging', 'Climate and heat', 'Battery and replacement', 'Advanced assumptions']

@@ -19,10 +19,13 @@ The EVBattery test reads `engine/data/processed/evb_segments.parquet`, built by 
 
 Dataset files are untrusted pickles: they are only read through `engine/data/safe_unpickle.py`, which blocks every class outside an exact numpy/pandas allow-list.
 
-## BLAST-Lite cross-check (optional)
-`engine/artifacts/crosscheck_blast.json` is committed. To regenerate it, install BLAST-Lite in a separate Python 3.9 to 3.12 environment (it is not an app dependency; Python 3.13.x is excluded by its pin):
+## The NREL reference engine
+The port in `engine/reference/` is tested against stored package outputs without needing the package: `pytest tests/test_reference_blast.py tests/test_crosscheck_blast.py`. `engine/artifacts/crosscheck_blast.json` (package outputs) and `engine/artifacts/reference_port_check.json` (how closely the port matches) are committed. To regenerate the package outputs, install BLAST-Lite in a separate Python 3.9 to 3.12 environment (it is not an app dependency; Python 3.13.x is excluded by its pin), then refresh the port check:
 
 ```bash
 python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite
 .venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python
+.venv/bin/python scripts/check_reference_port.py
 ```
+
+`EV_ENGINE=lab` runs our own laboratory-fitted model instead (history; the phase 0 reproduction numbers above belong to it).

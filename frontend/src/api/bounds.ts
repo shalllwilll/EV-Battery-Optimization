@@ -132,7 +132,7 @@ export const SCENARIO_BOUNDS: Record<string, FieldBound> = {
     "nullable": false
   },
   "pack_penalty_max": {
-    "default": 0.08,
+    "default": 0.3,
     "description": "",
     "kind": "number",
     "integer": false,
@@ -143,8 +143,8 @@ export const SCENARIO_BOUNDS: Record<string, FieldBound> = {
     "nullable": false
   },
   "pack_penalty_min": {
-    "default": 0,
-    "description": "ASSUMED weakest-cell earlier-end-of-life fraction",
+    "default": 0.2,
+    "description": "ASSUMED weakest-cell earlier-end-of-life fraction (NREL: pack life is 20-30 % shorter than cell life)",
     "kind": "number",
     "integer": false,
     "min": 0,

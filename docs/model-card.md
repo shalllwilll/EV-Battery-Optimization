@@ -1,6 +1,38 @@
 # Model card (living document)
 
-Status: v1.0.0 (Prior mode). Every number here is written from script output; see `engine/artifacts/`. The calibration method demonstration is in `docs/calibration-interface.md`.
+Status: Prior mode. **The app's ageing numbers come from the NREL BLAST-Lite LFP models (next section), not from the models fitted by this project.** Those fits (calendar, cycling, early-life, uncertainty; sections after the next one) are kept in the code behind `EV_ENGINE=lab` and are described here as history; the app does not show them. Numbers in the history sections are written from script output; see `engine/artifacts/`. The calibration method demonstration is in `docs/calibration-interface.md`.
+
+## Ageing engine used by the app: NREL BLAST-Lite LFP models
+Code: `engine/reference/` (a Python port of the equations, so the app needs neither the package nor Python 3.9 to 3.12). Licence: BSD-3-Clause, notice in `engine/reference/NOTICE`. Source: https://github.com/NatLabRockies/BLAST-Lite, version 1.1.3.
+
+| | 250 Ah prismatic (`Lfp_Gr_250AhPrismatic`) | 3 Ah cylindrical (`Lfp_Gr_SonyMurata3Ah_Battery`) |
+|---|---|---|
+| Parameters | 10 | 21 |
+| Calendar loss | grows with time^0.526; Arrhenius in temperature, graphite-potential term for state of charge | saturating sigmoid in time, same stressors |
+| Cycling loss | grows with cycles^0.828 (sublinear); rate depends on depth of discharge, charge rate and temperature | (rate x cycles)^1.13 (slightly super-linear); break-in term only above 3 full cycles a day, so inactive for buses |
+| Tested | cycling 10 to 45 °C, 80 to 100 % depth, charge up to 0.65 C | cycling 20 to 40 °C, 80 to 100 % depth, charge up to 1 C |
+| Data | NREL tests on a large commercial prismatic cell | TUM tests on Sony-Murata cells (includes the Naumann storage set also used by our own calendar fit) |
+
+Only the 250 Ah model is sublinear in cycling; the 3 Ah model is not.
+
+**From a bus to a curve.** One representative operating day (drive, charge, rest) plus rest days at the top of the charge window, 96 samples a day, with monthly air temperature (mean, plus a day-night swing from the monthly min and max) and the assumed heat rise. Models are stepped monthly, rates recomputed each month; depth of discharge grows as capacity falls (BLAST-Lite's "conserve energy throughput").
+
+**Ensemble.** 50 runs per scenario: 2 models x 5 degradation scalars (normal, mean 1, standard deviation 0.15, five equal-probability strata; 0.15 is the default of BLAST-Lite's own `simulate_battery_life_distribution`) x 5 pack penalties between 20 and 30 % (applied as time compression: pack capacity at time t equals cell capacity at t / (1 - penalty)). Percentiles over the 50 runs are the spread between two published models, cell-to-cell scatter and an assumption. **They are not a statistical confidence interval.** Replacement months at the 10th, 50th and 90th percentile are where the corresponding percentile retention curve crosses the threshold; a percentile beyond the horizon is reported as such, not invented.
+
+**How closely the port matches the package.** `engine/artifacts/reference_port_check.json`, from `scripts/check_reference_port.py`, compares the port with package outputs stored in `engine/artifacts/crosscheck_blast.json`: largest gap 0.47 points of capacity over ten 15-year bus scenarios, 0.005 points over six fixed conditions (storage and cycling). `tests/test_reference_blast.py` asserts these.
+
+**Known limits.**
+- Nothing has been checked against a battery pack in service.
+- Both cells were cycled at 80 to 100 % depth; a bus using about 69 % is outside that range. The default 12 m bus at 0.34 C and 19 to 38 °C cell temperature is also near the edges of the tested charge rate and temperature (the 3 Ah model was cycled at 20 to 40 °C). Every result carries `extrapolation_reasons`.
+- The models disagree by about 2 to 3 times on calendar ageing, so the range is wide on purpose.
+- Neither model has a late-life knee; sudden capacity loss near end of life is not represented.
+- Charge power matters only through the time the pack sits full; the NREL models show almost no charge-rate effect in the tested range. Temperature effects on usable capacity, HVAC load and seasonal energy use are not modelled.
+- The 20 to 30 % pack penalty is NREL's rule of thumb, an assumption.
+- At the default settings roughly 70 % of runs reach the 80 % line within 15 years; the rest are counted at the horizon in cost and in paired comparisons, and the app says so.
+
+**Result.** 12 m hot-dry default: median replacement about 12 years, 10th percentile about 8 years, 90th beyond 15 years. Our own fit gave about 4 years (see the cross-check below), which contradicts both the NREL models and published EV-battery experience.
+
+# Our own laboratory fit (history, not shown in the app)
 
 ## Calendar ageing model (M2.1)
 
@@ -107,8 +139,10 @@ Default 12 m scenario, 200 km/day, 1.2 kWh/km, 100 % charge cap, depot charging 
 
 **Read this before quoting any date.** The prior is probably pessimistic for buses. Reason: the only cycling data (HUST) were run at about 2 C average with 5 C charging, while a depot-charged bus works at about 0.2 C. The fitted cycle model has no C-rate effect (it could not be identified, see M2.3), so it applies the high-rate fade to a low-rate bus. The engine says so in a warning on every result, together with the list of ways inputs leave the training range (C-rate, cycle count beyond 2,689, cycling temperature below 25 C). The calendar part (about 45 to 60 % of loss at crossing) rests on storage data that do cover these temperatures. These dates will only become trustworthy when low-rate cycling data or vendor data calibrate them.
 
-## Cross-check against NREL BLAST-Lite (after v1.0.0)
-`scripts/crosscheck_blast.py` runs the same bus duty and climate through our cell model and through two public LFP models from NREL's BLAST-Lite 1.1.3 (`Lfp_Gr_250AhPrismatic`, and `Lfp_Gr_SonyMurata3Ah_Battery` as a second opinion). It writes `engine/artifacts/crosscheck_blast.json`, which `/evidence` serves and the Evidence page shows. It is a consistency check between lab-data models, **not** a validation on buses. BLAST-Lite is not an app dependency (it needs Python 3.9 to 3.12 and runs in a throw-away environment); its code and parameters are not shipped.
+## Cross-check against NREL BLAST-Lite (why the app switched engines)
+**Outcome:** this check showed our own fit to be the most pessimistic in every scenario, so the app now uses the NREL models (section above). The numbers below compare our fit with the package and are kept as the record of that decision; the Evidence page no longer shows them.
+
+`scripts/crosscheck_blast.py` runs the same bus duty and climate through our cell model and through two public LFP models from NREL's BLAST-Lite 1.1.3 (`Lfp_Gr_250AhPrismatic`, and `Lfp_Gr_SonyMurata3Ah_Battery` as a second opinion). It writes `engine/artifacts/crosscheck_blast.json`, which now serves as the package output the port is tested against (it is no longer served by `/evidence`). It is a consistency check between lab-data models, **not** a validation on buses. BLAST-Lite is not an app dependency (it needs Python 3.9 to 3.12 and runs in a throw-away environment); the app runs its own port of the equations.
 
 **Setup.** Ten scenarios: the 12 m and 9 m presets in all four climate zones, plus the 12 m hot-dry bus with the charge cap at 80 % and with the pack 8 °C hotter. BLAST-Lite receives an hourly state-of-charge and temperature series (drain over the duty window, constant-power charge, rest full, monthly air temperature plus the heat-rise assumption, operating days only) tiled over 15 years. Ours runs with the pack penalty set to zero so it is comparable to a cell model.
 
@@ -126,8 +160,8 @@ Default 12 m scenario, 200 km/day, 1.2 kWh/km, 100 % charge cap, depot charging 
 - Cycling agrees up to about 1,000 cycles and then parts: our fitted law (exponent about 1.9) bends sharply upward, BLAST-Lite's does not. A 12 m bus does about 3,500 cycles in 15 years, beyond the 2,689 covered by the HUST data, and at about 0.19 C against the 1.8 to 2.8 C of the lab cells. This is the same bias the Replacement page already warns about; the cross-check shows its size.
 - Heat sensitivity differs in size: a pack 8 °C hotter costs 13 points at 10 years in our model and 2 to 3 in BLAST-Lite. All three agree on the direction of that and of the charge-cap effect.
 
-**Reading it.** Treat the default replacement timing (about 4 years for the 12 m preset) as a likely early estimate. BLAST-Lite's own documentation calls its LFP models qualitative, fitted to low-rate data at 10 to 45 °C, and suggests pack life can be 20 to 30 % shorter than cell life, so the truth is not simply "BLAST-Lite is right". The model was **not** changed to match: reworking the cycling term (C-rate effect, behaviour beyond the data) is a separate decision.
+**Reading it.** The default replacement timing of our own fit (about 4 years for the 12 m preset) was a likely early estimate. BLAST-Lite's own documentation calls its LFP models qualitative, fitted to low-rate data at 10 to 45 °C, and suggests pack life can be 20 to 30 % shorter than cell life, so the truth is not simply "BLAST-Lite is right". The decision that followed was to run the NREL models in the app instead of reworking our cycling term, which would have had to extrapolate far beyond the HUST data.
 
-**Licence.** BLAST-Lite is listed as BSD-3-Clause on GitHub and Apache-2.0 on PyPI. It is used only as an external comparison.
+**Licence.** BLAST-Lite is listed as BSD-3-Clause on GitHub and Apache-2.0 on PyPI. The BSD-3 text shipped in the package is kept in `engine/reference/NOTICE`.
 
-Reproduce: `python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite && .venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python`. `tests/test_crosscheck_blast.py` checks the duty-series builder and the stored file without needing BLAST-Lite installed.
+Reproduce: `python3.11 -m venv /tmp/blast-venv && /tmp/blast-venv/bin/pip install blast-lite && .venv/bin/python scripts/crosscheck_blast.py --blast-python /tmp/blast-venv/bin/python`. `tests/test_crosscheck_blast.py` checks the duty-series builder and the stored file without needing BLAST-Lite installed. Afterwards run `.venv/bin/python scripts/check_reference_port.py` to refresh the port check.

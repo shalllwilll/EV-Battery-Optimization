@@ -55,9 +55,9 @@ export function duplicateOf(p: PresetResult, all: PresetResult[], includeConfirm
 }
 
 export const signed = (v: number, d = 1, unit = '') => { const s = v.toFixed(d); const z = Number(s) === 0; return `${z ? '' : v > 0 ? '+' : '−'}${z ? (0).toFixed(d) : Math.abs(v).toFixed(d)}${unit}` }
-/** "+0.9 months" and "likely +0.5 to +1.5": a change in battery life with its range. */
+/** "+0.9 months" and "range +0.5 to +1.5": a change in battery life with its range. */
 export function lifeChange(p50: number, p10: number, p90: number) {
-  return { headline: Math.abs(p50) < 0.05 ? 'No change' : `${signed(p50)} months`, range: `likely ${signed(p10)} to ${signed(p90)} months` }
+  return { headline: Math.abs(p50) < 0.05 ? 'No change' : `${signed(p50)} months`, range: `range ${signed(p10)} to ${signed(p90)} months` }
 }
 export function leverValue(lever: string, v: number, unit: string): string {
   if (lever === 'charge_start_hour') return hhmm(v)

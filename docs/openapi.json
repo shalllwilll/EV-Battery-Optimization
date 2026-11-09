@@ -120,7 +120,7 @@
             "type": "array"
           },
           "disclaimer": {
-            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "default": "Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.",
             "title": "Disclaimer",
             "type": "string"
           },
@@ -718,7 +718,7 @@
             "$ref": "#/components/schemas/CostResult"
           },
           "disclaimer": {
-            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "default": "Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.",
             "title": "Disclaimer",
             "type": "string"
           },
@@ -923,7 +923,7 @@
             "$ref": "#/components/schemas/Metrics"
           },
           "disclaimer": {
-            "default": "Prior mode: models are fitted on public laboratory cell data and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "default": "Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.",
             "title": "Disclaimer",
             "type": "string"
           },
@@ -1180,15 +1180,15 @@
             "type": "number"
           },
           "pack_penalty_max": {
-            "default": 0.08,
+            "default": 0.3,
             "maximum": 0.5,
             "minimum": 0.0,
             "title": "Pack Penalty Max",
             "type": "number"
           },
           "pack_penalty_min": {
-            "default": 0.0,
-            "description": "ASSUMED weakest-cell earlier-end-of-life fraction",
+            "default": 0.2,
+            "description": "ASSUMED weakest-cell earlier-end-of-life fraction (NREL: pack life is 20-30 % shorter than cell life)",
             "maximum": 0.5,
             "minimum": 0.0,
             "title": "Pack Penalty Min",
@@ -1354,7 +1354,7 @@
     }
   },
   "info": {
-    "description": "Prior mode only: models trained on public lab data, scenario inputs are assumptions, nothing is validated on buses.",
+    "description": "Prior mode only: published laboratory-fitted LFP cell models, scenario inputs are assumptions, nothing is validated on buses.",
     "title": "E-bus battery lifecycle tool",
     "version": "0.1.0"
   },

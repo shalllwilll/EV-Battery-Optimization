@@ -1,5 +1,4 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setToken } from '../api/client'
 import { FIX, mockApi, renderApp } from '../test/utils'
@@ -20,32 +19,39 @@ describe('Evidence: what vendor data would change', () => {
   })
 })
 
-describe('Evidence: BLAST-Lite cross-check', () => {
-  const x = FIX.evidence.crosscheck
+describe('Evidence: the NREL reference models', () => {
+  const r = FIX.evidence.reference_engine
 
-  it('states plainly that our model is the more pessimistic one, with the numbers from the API', async () => {
+  it('says the range is a spread of runs, not a confidence interval, and shows both models', async () => {
     mockApi(); renderApp('/evidence')
-    const h = await screen.findByRole('heading', { name: 'Cross-check against NREL BLAST-Lite' })
+    const h = await screen.findByRole('heading', { name: 'The ageing models behind every number' })
     const card = h.closest('.card') as HTMLElement
-    const i10 = x.scenarios[0].years.indexOf(10)
-    const ours = x.scenarios.map((s: { ours_cell_p50: number[] }) => s.ours_cell_p50[i10] * 100)
-    expect(within(card).getByText(/most pessimistic of the three/)).toBeInTheDocument()
-    expect(within(card).getByText(new RegExp(`${Math.round(Math.min(...ours))}.${Math.round(Math.max(...ours))}% of its capacity`))).toBeInTheDocument()
-    expect(within(card).getByText(/not a validation on buses/)).toBeInTheDocument()
-    expect(within(card).getByText(/Neither is validated on buses/, { exact: false })).toBeInTheDocument()
+    expect(within(card).getByText(new RegExp(`range from ${r.ensemble.runs_per_scenario} runs`))).toBeInTheDocument()
+    expect(within(card).getByText(/not a statistical confidence interval/)).toBeInTheDocument()
+    for (const m of r.models) expect(within(card).getByRole('heading', { name: m.label })).toBeInTheDocument()
+    expect(within(card).getByText(/Not validated on buses/)).toBeInTheDocument()
   })
 
-  it('shows the same-condition table, the loss split and switches scenario', async () => {
+  it('reports how closely the port matches the package, from the API', async () => {
     mockApi(); renderApp('/evidence')
-    const h = await screen.findByRole('heading', { name: 'Cross-check against NREL BLAST-Lite' })
+    const h = await screen.findByRole('heading', { name: 'How closely this tool reproduces the original package' })
     const card = h.closest('.card') as HTMLElement
-    expect(within(card).getAllByRole('row')).toHaveLength(x.single_condition_checks.reduce((n: number, c: { kind: string }) => n + (c.kind === 'storage' ? 1 : 2), 1))
-    expect(within(card).getAllByRole('img', { name: /from calendar ageing and .* from cycling/ })).toHaveLength(3)
-    const sel = within(card).getByLabelText('Scenario') as HTMLSelectElement
-    expect(sel.value).toBe('12m_hot_dry')
-    await userEvent.selectOptions(sel, '9m_cool')
-    expect(within(card).getByText('9m · cool', { selector: 'div' })).toBeInTheDocument()
-    await userEvent.click(within(card).getByRole('button', { name: 'Show as table' }))
-    expect(within(card).getAllByRole('row').length).toBeGreaterThan(x.scenarios[0].years.length)
+    expect(within(card).getByText(`largest gap ${r.port_check.bus_duty_max_diff_points.toFixed(2)} points of capacity`)).toBeInTheDocument()
+  })
+
+  it('no longer shows our own lab model or the old cross-check', async () => {
+    mockApi(); renderApp('/evidence')
+    await screen.findByRole('heading', { name: 'The ageing models behind every number' })
+    expect(screen.queryByText(/Cross-check against NREL/)).toBeNull()
+    expect(screen.queryByText(/HUST/)).toBeNull()
+    expect(screen.queryByText(/How accurate is it/)).toBeNull()
+  })
+
+  it('lists the known limits, matching the number of tags', async () => {
+    mockApi(); renderApp('/evidence')
+    const h = await screen.findByRole('heading', { name: 'Known limits' })
+    const card = h.closest('.card') as HTMLElement
+    expect(within(card).getAllByText(/^0\d · /)).toHaveLength(FIX.evidence.limitations.length)
+    expect(within(card).queryByText(/· Limit$/)).toBeNull()
   })
 })

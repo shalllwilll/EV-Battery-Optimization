@@ -24,8 +24,8 @@ class Scenario(BaseModel):
     departure_hour: float = Field(ge=0, lt=24, default=5.0)
     zone: Literal["hot_dry", "hot_humid", "composite", "cool"] = "hot_dry"
     heat_rise_c: float = Field(ge=0, le=20, default=3.0, description="ASSUMED average cell temperature above ambient")
-    pack_penalty_min: float = Field(ge=0, le=0.5, default=0.0, description="ASSUMED weakest-cell earlier-end-of-life fraction")
-    pack_penalty_max: float = Field(ge=0, le=0.5, default=0.08)
+    pack_penalty_min: float = Field(ge=0, le=0.5, default=0.20, description="ASSUMED weakest-cell earlier-end-of-life fraction (NREL: pack life is 20-30 % shorter than cell life)")
+    pack_penalty_max: float = Field(ge=0, le=0.5, default=0.30)
     battery_cost_per_kwh_inr: float | None = Field(default=None, gt=0)
     threshold: float = Field(gt=0.5, lt=0.95, default=0.8, description="replace when retention falls to this")
     horizon_years: int = Field(ge=1, le=20, default=15)

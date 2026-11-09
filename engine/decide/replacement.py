@@ -10,6 +10,7 @@ from engine.bus.scenario import Scenario
 from engine.bus.translate import CellConditions, translate
 from engine.cell.uncertainty import Draws, Models, extrapolation_reasons, load_models, make_draws, simulate_loss
 from engine.labels import Labelled, L
+from engine.reference.simulate import SCALAR_STD
 
 DAYS_PER_MONTH = 365.25 / 12
 
@@ -26,6 +27,7 @@ class ScenarioSim:
     cross_months: np.ndarray      # (D,) time to threshold in months, inf if not reached within horizon
     extrapolated: bool
     extrapolation_reasons: list[str]
+    engine: str = "lab"
 
 
 def first_crossing(retention: np.ndarray, months: np.ndarray, threshold: float) -> np.ndarray:
@@ -46,9 +48,35 @@ def first_crossing(retention: np.ndarray, months: np.ndarray, threshold: float) 
     return out
 
 
+def reference_conditions(s: Scenario):
+    """Conditions as the reference engine sees them: what the NREL models are driven by, not our fitted stress-equivalents."""
+    from engine.bus.translate import translate
+    c = translate(s)
+    temps = np.array(c.monthly_cell_temp_c.value)
+    warns = [w for w in c.warnings if not w.startswith("Depth-of-discharge effects")]
+    warns.insert(0, "Depth of discharge and C-rate are modelled by the NREL models, but both were fitted on 80-100 % depth cycles at charge rates up to 0.65-1 C.")
+    return c.model_copy(update=dict(
+        calendar_equivalent_soc_pct=L(c.mean_soc_pct.value, "%", "derived", "time-averaged state of charge over the day; the NREL models work from average state of charge"),
+        effective_temp_c=L(float(temps.mean()), "degC", "derived", "mean of the monthly air temperatures plus the assumed heat rise"),
+        c_rate_eff=L(c.c_rate_eff.value, "C", "derived", "mean of charge and discharge C-rate (the NREL models use average throughput rate)"),
+        warnings=warns))
+
+
+def _simulate_reference(s: Scenario) -> ScenarioSim:
+    from engine.reference.simulate import reference_curves
+    rc = reference_curves(s)
+    c = reference_conditions(s)
+    loss = np.clip(rc.cal_loss + rc.cyc_loss, 0.0, 1.0)
+    ret = 1.0 - loss
+    return ScenarioSim(s, c, rc.months, ret, rc.cal_loss, rc.cyc_loss, rc.pack_penalty, first_crossing(ret, rc.months, s.threshold),
+                       bool(rc.reasons), list(rc.reasons), "reference")
+
+
 def simulate_scenario(s: Scenario, models: Models | None = None, draws: Draws | None = None,
                       n_draws: int = 2000, seed: int = 0) -> ScenarioSim:
     models = models or load_models()
+    if models.engine == "reference":
+        return _simulate_reference(s)
     draws = draws or make_draws(n_draws, models, seed)
     c = translate(s)
     months = np.arange(0, s.horizon_years * 12 + 1, dtype=float)
@@ -81,6 +109,18 @@ class ReplacementResult(BaseModel):
     mode: str = "prior"
 
 
+def life_percentiles(sim: ScenarioSim, qs=(10, 50, 90)) -> list[float]:
+    """Months until retention reaches the threshold at each percentile; inf when beyond the horizon.
+
+    Reference engine: crossing of the percentile retention curves (the two models make row-wise crossing times bimodal, and
+    one of the modes is usually beyond the horizon). Lab engine: percentiles of the per-draw crossing times."""
+    h = float(sim.months[-1])
+    if sim.engine == "reference":
+        return [float(v) for v in first_crossing(np.percentile(sim.retention, list(qs), axis=0), sim.months, sim.scenario.threshold)]
+    capped = np.minimum(sim.cross_months, h * 10)           # inf-safe: a percentile that lands on a censored draw is beyond the horizon
+    return [float(v) if v <= h else float("inf") for v in np.percentile(capped, list(qs))]
+
+
 def _pct(cross: np.ndarray, q: float, horizon: float):
     v = np.percentile(cross, q)
     return None if not np.isfinite(v) or v > horizon else float(v)
@@ -102,17 +142,27 @@ def replacement_window(s: Scenario, n_draws: int = 2000, seed: int = 0, models: 
     ret = np.percentile(sim.retention, [10, 50, 90], axis=0)
     ev = "derived"
     warns = list(sim.conditions.warnings)
-    if sim.extrapolated:
-        warns.append("Inputs are outside the range of the training data (see extrapolation_reasons): bands were widened by an assumed factor.")
-    cmin = (models or load_models()).cyc.valid_c_rate[0]
-    if sim.conditions.c_rate_eff.value < cmin:
-        warns.append(f"Direction of likely bias: the cycling data are high-rate ({cmin:.1f}+ C) and the model has no C-rate effect, "
-                     f"so cycling loss for this {sim.conditions.c_rate_eff.value:.2f} C bus is probably OVERSTATED and replacement timing too early.")
+    models = models or load_models()
+    reference = models.engine == "reference"
+    if reference:
+        if sim.extrapolated:
+            warns.append("Outside the conditions the NREL cells were tested at (see extrapolation_reasons): treat the result as qualitative.")
+        warns.append("The range is the spread between two published LFP models (250 Ah prismatic, 3 Ah cylindrical), cell-to-cell scatter "
+                     f"(degradation scalar std {SCALAR_STD:g}, BLAST-Lite's convention) and an assumed pack penalty of "
+                     f"{s.pack_penalty_min * 100:.0f}-{s.pack_penalty_max * 100:.0f} % earlier end of life. It is not a statistical confidence interval.")
+    else:
+        if sim.extrapolated:
+            warns.append("Inputs are outside the range of the training data (see extrapolation_reasons): bands were widened by an assumed factor.")
+        cmin = models.cyc.valid_c_rate[0]
+        if sim.conditions.c_rate_eff.value < cmin:
+            warns.append(f"Direction of likely bias: the cycling data are high-rate ({cmin:.1f}+ C) and the model has no C-rate effect, "
+                         f"so cycling loss for this {sim.conditions.c_rate_eff.value:.2f} C bus is probably OVERSTATED and replacement timing too early.")
     if not hit.any():
-        warns.append(f"Retention does not reach the threshold within {s.horizon_years} years in any simulated draw.")
+        warns.append(f"Retention does not reach the threshold within {s.horizon_years} years in any simulated {'run' if reference else 'draw'}.")
     elif hit.mean() < 0.9:
-        warns.append(f"Only {hit.mean() * 100:.0f}% of draws reach the threshold within {s.horizon_years} years; upper percentiles are beyond the horizon.")
-    mk = lambda q: (None if (v := _pct(cross, q, horizon)) is None else L(v, "months", ev))
+        warns.append(f"Only {hit.mean() * 100:.0f}% of {'runs' if reference else 'draws'} reach the threshold within {s.horizon_years} years; upper percentiles are beyond the horizon.")
+    lp = dict(zip((10, 50, 90), life_percentiles(sim)))
+    mk = lambda q: (None if not np.isfinite(lp[q]) else L(lp[q], "months", ev))
     return ReplacementResult(
         months_p10=mk(10), months_p50=mk(50), months_p90=mk(90),
         probability_by_month=L(prob.tolist(), "probability", ev, "P(replacement threshold reached by month m)"),

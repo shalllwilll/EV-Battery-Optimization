@@ -12,20 +12,20 @@ export default function Health() {
   const { q, scenario } = useCurrent()
   const [band, setBand] = useState(true), [thr, setThr] = useState(true)
   return (
-    <Page title="How much capacity is left" intro="The line is the median of 2,000 simulated packs. The shaded band holds 8 in 10 of them. Hover to read a year, click to pick it.">
+    <Page title="How much capacity is left" intro="The line is the median across the reference runs. The shaded band runs from the 10th to the 90th percentile: a spread between two published models, not a confidence interval. Hover to read a year, click to pick it.">
       <Async q={q} h={420}>{(p) => {
         const c = curves(p.replacement), xMax = xMaxFor(p), r = repYears(p.replacement)
         const cal = num(p.driver_split.calendar_share) ?? 0
         return (
           <div className="bento">
             <div className="card c8">
-              <div className="hd"><div><h2>Health over time</h2><div className="sub">Median and likely range · {scenario.soc_max_pct}% charge cap</div></div><EvidenceBadge level="derived" /></div>
+              <div className="hd"><div><h2>Health over time</h2><div className="sub">Median and range · {scenario.soc_max_pct}% charge cap</div></div><EvidenceBadge level="derived" /></div>
               <div className="lg">
-                <button aria-pressed={band} onClick={() => setBand(!band)}><i style={{ background: 'rgba(250,204,21,.45)' }} />Likely range</button>
+                <button aria-pressed={band} onClick={() => setBand(!band)}><i style={{ background: 'rgba(250,204,21,.45)' }} />Range</button>
                 <button aria-pressed={thr} onClick={() => setThr(!thr)}><i style={{ background: '#fff' }} />Replacement line</button>
               </div>
               <WithTable chart={<HealthChart {...c} thresholdPct={scenario.threshold * 100} medianYear={r[1]} xMax={xMax} showBand={band} showThreshold={thr} />}
-                head={['Year', 'Likely low %', 'Median %', 'Likely high %']}
+                head={['Year', 'Low (10th pct) %', 'Median %', 'High (90th pct) %']}
                 rows={Array.from({ length: Math.round(xMax * 2) + 1 }, (_, i) => { const m = i * 6; return [m / 12, fmt(c.p10[m]), fmt(c.p50[m]), fmt(c.p90[m])] })} />
             </div>
             <div className="card c4">
@@ -39,7 +39,7 @@ export default function Health() {
                 <div><small>Cell temp</small><b>{fmt(num(p.conditions.effective_temp_c), 0)}<span> °C</span></b></div>
                 <div><small>Charge level</small><b>{fmt(num(p.conditions.calendar_equivalent_soc_pct), 0)}<span> %</span></b></div>
               </div>
-              <p className="note">Charge level is the stress-equivalent level the model uses for ageing, worked out from the charging window. It is an assumption, not a measurement.</p>
+              <p className="note">Charge level is the average state of charge over the year that the ageing models see, worked out from the daily drive, the charging window and idle days. It is an assumption, not a measurement.</p>
             </div>
             <div className="card c12">
               <h2>What the model wants you to know</h2><div className="sub">Warnings returned with this result</div>

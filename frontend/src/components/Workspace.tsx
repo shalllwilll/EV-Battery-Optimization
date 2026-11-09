@@ -28,7 +28,7 @@ export function Page({ title, intro, children, wide }: { title: string; intro: s
             )}
           </div>
           {valid ? children : <ErrorState error={new Error(`Fix ${Object.keys(errors).length} scenario input${Object.keys(errors).length > 1 ? 's' : ''} to run the model: ${Object.keys(errors).join(', ')}.`)} />}
-          <div className="foot"><span>Prior mode · public laboratory data · not yet validated on buses</span></div>
+          <div className="foot"><span>Prior mode · published laboratory cell models · not yet validated on buses</span></div>
         </main>
       </div>
       {!wide && (
