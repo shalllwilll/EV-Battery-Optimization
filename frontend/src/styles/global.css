@@ -400,16 +400,16 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .trk.day{display:flex;flex-direction:column;justify-content:center;gap:6px;height:52px}
 .dbar{position:relative;height:16px;border-radius:99px;background:rgba(255,255,255,.05);overflow:hidden}
 .dbar em{position:absolute;left:6px;top:0;z-index:2;font-style:normal;font-size:10.5px;font-weight:800;line-height:16px;color:var(--volt-ink)}
-.seg{position:absolute;top:0;bottom:0;display:block}
-.seg.drive{background:#3f3f46}.seg.charge{background:var(--volt)}.seg.idle{background:rgba(250,204,21,.22)}
-.seg.hatch{background:repeating-linear-gradient(135deg,#fb923c 0 5px,rgba(251,146,60,.35) 5px 10px)}
+.dseg{position:absolute;top:0;bottom:0;display:block}
+.dseg.drive{background:#3f3f46}.dseg.charge{background:var(--volt)}.dseg.idle{background:rgba(250,204,21,.22)}
+.dseg.hatch{background:repeating-linear-gradient(135deg,#fb923c 0 5px,rgba(251,146,60,.35) 5px 10px)}
 .dhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;border-radius:2px;pointer-events:none;box-shadow:0 0 8px rgba(255,255,255,.6)}
 .lensleg{display:flex;flex-direction:column;align-items:center;gap:6px}
 .lensnote{max-width:340px;margin:0;font-size:11.5px;line-height:1.4;color:var(--t3);text-align:center;text-shadow:0 1px 8px #000}
-.lbl3d.hint{font-weight:600;color:var(--t1);background:rgba(9,9,11,.86)}
+.lbl3d.tip{font-weight:600;color:var(--t1);background:rgba(9,9,11,.86)}
 .lbl3d.warn{color:#fdba74;border-color:rgba(251,146,60,.55)}
 .lbl3d .attn{display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#fb923c;box-shadow:0 0 8px #fb923c}
-@media (max-width:760px){.lens button{padding:6px 12px}.lensnote{display:none}.lbl3d.hint{display:none}}
+@media (max-width:760px){.lens button{padding:6px 12px}.lensnote{display:none}.lbl3d.tip{display:none}}
 .lbl3d .clk{display:block;height:3px;margin-top:4px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden}
 .lbl3d .clk i{display:block;height:100%;background:var(--volt);border-radius:2px}
 .imm-insight{max-width:640px;margin:0;padding:6px 14px;font-size:13px;font-weight:600;color:var(--t1);background:rgba(20,20,23,.78);border:1px solid var(--line2);border-radius:999px;backdrop-filter:blur(14px);text-align:center;pointer-events:none}

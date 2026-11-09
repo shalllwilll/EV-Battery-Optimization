@@ -128,7 +128,7 @@ function Bus({ spec, lengthM, linePct, view, hovered, onHover, onSelect }: { spe
           )}
         </>
       )}
-      {hint && <Html position={[0, 4.6, 0]} center className="lbl3d hint" zIndexRange={[7, 0]}>{hint}</Html>}
+      {hint && <Html position={[0, 4.6, 0]} center className="lbl3d tip" zIndexRange={[7, 0]}>{hint}</Html>}
       {view.layers.dims && <Html position={[0, -0.05, 2.1]} center className="lbl3d" zIndexRange={[4, 0]}>{lengthM} m</Html>}
       {lens === 'range' && sc && <RangeLabels sc={sc} rig={rig} />}
     </group>

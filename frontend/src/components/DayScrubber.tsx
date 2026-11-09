@@ -35,7 +35,7 @@ function Bar({ label, p }: { label: string; p: DayParams }) {
       {segments(p).map((s) => {
         const from = ((s.from % 24) + 24) % 24, w = s.to - s.from
         const wraps = from + w > 24
-        const mk = (left: number, width: number, key: string) => <i key={key} className={`seg ${s.phase}${s.phase === 'charge' && sh.unfinished ? ' hatch' : ''}`} style={{ left: `${(left / 24) * 100}%`, width: `${(width / 24) * 100}%` }} />
+        const mk = (left: number, width: number, key: string) => <i key={key} className={`dseg ${s.phase}${s.phase === 'charge' && sh.unfinished ? ' hatch' : ''}`} style={{ left: `${(left / 24) * 100}%`, width: `${(width / 24) * 100}%` }} />
         return wraps ? [mk(from, 24 - from, 'a'), mk(0, from + w - 24, 'b')] : mk(from, w, 'a')
       })}
     </div>
