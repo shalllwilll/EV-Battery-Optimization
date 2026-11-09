@@ -2,6 +2,9 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Optimise change bar (after v1.0.0)
+- The row of change chips plus the insight sentence at the bottom of Optimise is now one slim line: "Bus B · 5 changes" and the headline sentence. Click it to open the full list above it; hovering a row still highlights that part of Bus B. Escape or a click elsewhere closes it.
+
 ## Analysis pages as instruments (after v1.0.0)
 - Health, Replacement, Range and Cost each lead with one interactive picture and a one-line insight built from the page's own numbers, with a "Try it" button where a lever applies. Frontend only: no API changes.
 - **Cost lab**: cost per km against battery price (10th to 90th percentile band), draggable price marker that sets the scenario price, a target cost per km with the break-even price, "Pack cost per year of life", and a tornado whose bars show the cheaper and dearer case with a "Try the cheaper case" button. Cost per run is pack price over km, so every percentile scales exactly with the battery price; `tests/test_cost_scaling.py` locks that. Threshold and km per day are never extrapolated: they come back from `/predict`.

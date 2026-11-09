@@ -17,6 +17,7 @@ import { DayScrubber } from '../components/DayScrubber'
 import { LensSwitch } from '../components/LensSwitch'
 import { buildSceneParams } from '../lib/sceneParams'
 import { insightLine } from '../lib/insight'
+import { ChangeBar } from '../components/ChangeBar'
 import { applyOverrides, diffLevers, hasChanges, lifeChange, sameLevers, signed, sliderSpecs, stageFor, type LeverKey, type Overrides } from '../lib/busB'
 import { atYear, fmt, inr, num } from '../lib/format'
 import { curves, repYears, xMaxFor } from '../lib/results'
@@ -218,9 +219,8 @@ export default function Optimise() {
       {pa && cA && (
         <div className="imm-bottom">
           {chips.length > 0
-            ? <div className="chg-bar" aria-label="What you changed on Bus B"><span>Bus B changes</span>{chips.map((c) => <b key={c.key} tabIndex={0} onMouseEnter={() => api.hoverLever(c.key)} onMouseLeave={() => api.hoverLever(null)} onFocus={() => api.hoverLever(c.key)} onBlur={() => api.hoverLever(null)}>{c.text}</b>)}</div>
+            ? <ChangeBar chips={chips} insight={insight} onHover={api.hoverLever} />
             : !view.selected && <p className="imm-hint">Click a battery pack for its health · drag to turn · scroll to zoom</p>}
-          {insight && <p className="imm-insight">{insight}</p>}
           <LensSwitch lens={view.lens} api={api} />
           <div className="imm-row">
             {view.lens === 'charge' && buses[0].scene
