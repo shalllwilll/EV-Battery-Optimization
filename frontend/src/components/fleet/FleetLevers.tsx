@@ -9,7 +9,7 @@ import { WithTable } from '../DataTable'
 import { EvidenceBadge } from '../EvidenceBadge'
 
 const CLASSES = 5
-const ROWS = 8
+const ROWS = 5
 const NAME: Record<string, string> = { soc_max_pct: 'Charge cap', charge_start_hour: 'Start time', heat_rise_c: 'Pack heating' }
 const sign = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`
 
@@ -57,7 +57,7 @@ export function FleetLevers({ fleet, ready }: { fleet: Fleet; ready: boolean }) 
           head={['Duty class', 'Buses', 'Change', 'Months gained per bus (median)', 'Rupees a year per bus', 'Rupees a year for the class']}
           rows={ranked.map((r) => [r.className, r.buses, r.text, r.months == null ? '–' : sign(r.months), r.perBus == null ? '–' : rupees(r.perBus), rupees(r.fleet as number)])} />
       )}
-      <p className="note">{allCovered ? `All ${covered.toLocaleString('en-IN')} buses are covered.` : `The ${top.length} largest classes cover ${covered.toLocaleString('en-IN')} of ${fleet.buses.length.toLocaleString('en-IN')} buses; the rest are not measured.`} Each row is that class’s own bus with one change, against today. Pack price spread over its life: undiscounted, first pack only, and rows of the same class do not add up. Not yet validated on buses.</p>
+      <p className="note">{allCovered ? `All ${covered.toLocaleString('en-IN')} buses are covered.` : `The ${top.length} largest classes cover ${covered.toLocaleString('en-IN')} of ${fleet.buses.length.toLocaleString('en-IN')} buses; the rest are not measured.`} Each change is measured alone, so rows of the same class do not add up.</p>
     </section>
   )
 }

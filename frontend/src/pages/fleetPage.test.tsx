@@ -9,6 +9,7 @@ beforeEach(() => localStorage.clear())
 afterEach(() => { vi.unstubAllGlobals(); setToken(null) })
 
 const open = async () => { mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' }) }
+const toClasses = async () => { await userEvent.click(await screen.findByRole('button', { name: 'By duty class' })); return screen.findByRole('region', { name: 'When each duty class reaches the line' }) }
 const gate = () => screen.getByRole('region', { name: /check this before|can’t be added/i })
 const paste = async (text: string) => {
   await userEvent.click(await screen.findByRole('button', { name: /Paste from a spreadsheet/ }))
@@ -36,7 +37,7 @@ describe('Fleet page: ways in and the gate', () => {
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     expect(await screen.findByText('Synthetic, for demonstration')).toBeInTheDocument()
     expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(60)
+    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(5)
     await waitFor(() => expect(localStorage.getItem('ph.fleet.v1')).not.toBeNull())
   })
 
@@ -183,16 +184,19 @@ describe('Fleet page: the forecast blocks', () => {
   it('writes the budget sentence for the next full financial year, from the whole fleet, with the model assumptions stated', async () => {
     await withSample()
     const sec = await screen.findByRole('region', { name: 'Battery budget by financial year' })
-    expect(await within(sec).findByText(/^Budget about ₹.* in FY\d{4}-\d\d/)).toBeInTheDocument()
-    expect(within(sec).getByText(/mixed 50\/50, which is an assumption/)).toBeInTheDocument()
-    expect(within(sec).getByText(/A running total has no band/)).toBeInTheDocument()
+    const tiles = within(await screen.findByRole('group', { name: 'The fleet in four numbers' }))
+    expect(await tiles.findByText(/^Budget for FY\d{4}-\d\d$/)).toBeInTheDocument()
+    expect(tiles.getByText(/^₹[\d.]+ (crore|lakh)/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /About this forecast/ }))
+    expect(screen.getByText(/mixed 50\/50, which is an assumption/)).toBeInTheDocument()
+    expect(screen.getByText(/A running total has no band/)).toBeInTheDocument()
     await userEvent.click(within(sec).getByRole('button', { name: 'Show as table' }))
     expect(within(sec).getByRole('columnheader', { name: 'Cumulative (no band)' })).toBeInTheDocument()
   })
 
   it('asks for the whole fleet first, then each class and depot, all for the same day, and the depot stack adds up to the total', async () => {
     const m = await withSample()
-    const tl = await screen.findByRole('region', { name: 'When each duty class reaches the line' })
+    const tl = await toClasses()
     const rows = async () => (await within(tl).findAllByRole('row')).length
     await waitFor(async () => expect(await rows()).toBeGreaterThan(2))
     await waitFor(() => expect(within(tl).queryByRole('status')).not.toBeInTheDocument())
@@ -203,6 +207,7 @@ describe('Fleet page: the forecast blocks', () => {
     expect(calls.slice(1).every((c) => c.buses.length < 60)).toBe(true)
     const nClasses = within(tl).getAllByRole('row').length - 1     // minus the header
     expect(calls.filter((c) => c.classes.length === 1).length).toBeGreaterThanOrEqual(nClasses)
+    await userEvent.click(screen.getByRole('button', { name: 'By year' }))
     const sec = screen.getByRole('region', { name: 'Battery budget by financial year' })
     await waitFor(() => expect(within(sec).getByRole('list', { name: 'Depots in the stack' }).children.length).toBeGreaterThan(2))
     await userEvent.click(within(sec).getByRole('button', { name: 'Show as table' }))
@@ -222,25 +227,24 @@ describe('Fleet page: the forecast blocks', () => {
     const legend = await within(sec).findByRole('list', { name: 'Depots in the stack' })
     await waitFor(() => expect(within(legend).getByText('Age unknown')).toBeInTheDocument())
     expect(within(legend).getByText('Depot A')).toBeInTheDocument()
-    expect(within(sec).getByText(/1 bus has no in-service month, so it is counted as new/)).toBeInTheDocument()
+    expect(within(sec).getByText(/Hatched: buses with no in-service month, counted as new/)).toBeInTheDocument()
   })
 
   it('shows the class by year grid as a table with one row per class and a header of financial years', async () => {
     await withSample()
-    const tl = await screen.findByRole('region', { name: 'When each duty class reaches the line' })
+    const tl = await toClasses()
     await waitFor(() => expect(within(tl).queryByRole('status')).not.toBeInTheDocument())
     expect(within(tl).getByRole('columnheader', { name: 'Later' })).toBeInTheDocument()
     expect(within(tl).getAllByRole('rowheader').length).toBeGreaterThan(1)
-    expect(within(tl).getByText(/The first column is only the rest of the current financial year/)).toBeInTheDocument()
+    expect(within(tl).getByText(/Only the rest of this financial year/)).toBeInTheDocument()
   })
 
   it('the roster shows months to the line and the year it lands in, and sorting by months puts the nearest first, with unknowns last either way', async () => {
     await withSample()
     const months = () => screen.getAllByRole('row').slice(1).map((r) => within(r).queryAllByRole('cell')[6]?.textContent ?? '').filter((t) => /^\d+$/.test(t)).map(Number)
-    await waitFor(() => expect(months().length).toBeGreaterThan(10))
+    await waitFor(() => expect(months().length).toBeGreaterThan(5))
     const th = screen.getByRole('columnheader', { name: /Months to the line/ })
-    await userEvent.click(within(th).getByRole('button'))
-    expect(th).toHaveAttribute('aria-sort', 'ascending')
+    expect(th).toHaveAttribute('aria-sort', 'ascending')           // nearest to the line first by default
     const asc = months()
     expect(asc).toEqual([...asc].sort((a, b) => a - b))
     await userEvent.click(within(th).getByRole('button'))
@@ -260,9 +264,10 @@ describe('Fleet page: the forecast blocks', () => {
     const first = btns[0], n = Number(first.querySelector('b')!.textContent)
     await userEvent.click(first)
     expect(first).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getAllByRole('checkbox').length).toBe(n + 1)    // one per bus plus select-all
+    expect(screen.getAllByRole('checkbox').length).toBe(Math.min(n, 10) + 1)    // the first ten of the band plus select-all
+    expect(screen.getByText(/^Showing buses/)).toHaveTextContent(new RegExp(`: ${n}\\.`))
     await userEvent.click(first)
-    expect(screen.getAllByRole('checkbox').length).toBe(61)
+    expect(screen.getAllByRole('checkbox').length).toBe(11)
   })
 
   it('groups by depot as collapsed rows with counts that add up to the fleet, and opens a group on request', async () => {
@@ -277,7 +282,7 @@ describe('Fleet page: the forecast blocks', () => {
     expect(heads[0]).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(1)
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Group by' }), '')
-    expect(screen.getAllByRole('checkbox').length).toBe(61)
+    expect(screen.getAllByRole('checkbox').length).toBe(11)
   })
 
   it('ranks where the battery money goes by depot, route or class and says it is a cost, not a margin', async () => {
@@ -302,7 +307,7 @@ describe('Fleet page: the forecast blocks', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     expect(await screen.findByText(/The forecast could not be worked out/)).toBeInTheDocument()
-    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(60)
+    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(5)
     expect(screen.queryByRole('region', { name: 'Battery budget by financial year' })).not.toBeInTheDocument()
   })
 })
@@ -336,9 +341,9 @@ describe('Fleet page: accessibility', () => {
     mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
     await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
-    const tl = await screen.findByRole('region', { name: 'When each duty class reaches the line' })
+    await screen.findByRole('group', { name: 'The fleet in four numbers' })
+    const tl = await toClasses()
     await waitFor(() => expect(within(tl).queryByRole('status')).not.toBeInTheDocument())
-    await screen.findByText(/^Budget about/)
     expect(await scan()).toEqual([])
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Group by' }), 'risk')
     await userEvent.click(screen.getAllByRole('button', { expanded: false }).filter((b) => b.classList.contains('grp-b'))[0])

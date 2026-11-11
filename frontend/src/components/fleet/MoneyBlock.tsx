@@ -34,7 +34,7 @@ export function MoneyBlock({ rows, forecast, stale }: { rows: Row[]; forecast: F
         </ol>
       )}
       {list.length > TOP && <div style={{ marginTop: 10 }}><button className="btn sm" aria-expanded={all} onClick={() => setAll((a) => !a)}>{all ? `Show the top ${TOP}` : `Show all ${list.length}`}</button></div>}
-      <p className="note">A cost, not a margin: the tool does not know what your contract pays per km, so it cannot say which depot or route loses money. Each bus carries its duty class’s figure (a mean of medians, undiscounted, first pack only), and the ranking follows how the buses are grouped. Not yet validated on buses.</p>
+      <p className="note">A cost, not a margin: the contract rate per km is not known. Class figures, undiscounted, first pack only.</p>
     </section>
   )
 }

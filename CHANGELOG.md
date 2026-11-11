@@ -2,6 +2,14 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Fleet page v2: insights first (after v1.0.0)
+- **Four numbers on top:** next full year's budget with its band, buses due in the next 12 months, the biggest year, and buses past the model's median. The two bus counts are buttons that filter the roster.
+- **One "When" card** switches between the budget by financial year (stacked by depot) and the duty class grid, replacing two blocks and their notes.
+- **How soon buses reach the line:** one stacked bar and a clickable legend (the filter) beside it, with the duty classes listed under it. One colour scale for risk across the page.
+- **One "About this forecast" panel** holds the caveats (model mixture, band, undiscounted money, unknown ages, privacy). The cards keep only one-line notes.
+- **Which buses first:** the roster opens on the ten nearest the line, sorted, with "Show all N". The lever ranking shows five rows.
+- Phone: the four numbers scroll sideways, no horizontal page scroll at 375 px.
+
 ## Fleet page redesign (after v1.0.0)
 - **First run:** one card, "Where do you want to start?": *Bring your buses* (a drop zone with Upload, Paste and Add-by-hand tabs) beside two quiet options, the sample fleet and Just one bus.
 - **Loaded fleet:** one primary button (Add buses), an **Export** panel (report, forecast, budget and roster files, with what each holds, and Save fleet file) and a **⋯** panel with Remove fleet behind a confirm. The header is one line; the sample is just "Sample fleet" with its synthetic tag.

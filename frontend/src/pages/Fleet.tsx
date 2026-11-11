@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import { AddBuses, sampleIntake, type Method } from '../components/fleet/AddBuses'
 import { FleetActions } from '../components/fleet/FleetActions'
 import { FleetGate } from '../components/fleet/FleetGate'
+import { AboutForecast } from '../components/fleet/AboutForecast'
+import { AnswerStrip } from '../components/fleet/AnswerStrip'
+import { HealthCard } from '../components/fleet/HealthCard'
+import { WhenCard } from '../components/fleet/WhenCard'
 import { BudgetBlock } from '../components/fleet/BudgetBlock'
 import { FleetLevers } from '../components/fleet/FleetLevers'
 import { MoneyBlock } from '../components/fleet/MoneyBlock'
@@ -19,7 +23,7 @@ import { toFleetRequest } from '../lib/fleet/io'
 import type { Intake } from '../lib/fleet/intake'
 import { serializeFleet } from '../lib/fleet/io'
 import { rosterCsv } from '../lib/fleet/roster'
-import { buildRows } from '../lib/fleet/segments'
+import { buildRows, type Band } from '../lib/fleet/segments'
 import { useFleet } from '../state/FleetContext'
 
 export default function FleetPage() {
@@ -27,6 +31,7 @@ export default function FleetPage() {
   const ctx = useReadContext()
   const blocks = useFleetBlocks(fleet)
   const rows = useMemo(() => (fleet ? buildRows(fleet, blocks.forecast) : []), [fleet, blocks.forecast])
+  const [band, setBand] = useState<Band | null>(null)
   const [method, setMethod] = useState<Method | null>(null)
   const [adding, setAdding] = useState(false)
   const [intake, setIntake] = useState<Intake | null>(null)
@@ -100,16 +105,20 @@ export default function FleetPage() {
         {fleet && blocks.failed && !blocks.forecast && (
           <div className="c12 errbox" role="alert"><b>The forecast could not be worked out.</b><p>The roster still works. Check that the server is running, then change or re-add a bus to try again.</p></div>
         )}
+        {fleet && <AboutForecast />}
+        {fleet && <AnswerStrip series={blocks.series} rows={rows} loading={blocks.main.isPending} onBand={setBand} />}
         {fleet && blocks.series && (
           <>
-            <BudgetBlock series={blocks.series} depots={blocks.depots} unknown={blocks.unknown} moreDepots={blocks.moreDepots} stale={blocks.stale} />
-            <TimelineBlock classes={blocks.classes} labels={blocks.series.labels} done={blocks.classesDone} total={blocks.classes.length} stale={blocks.stale} />
+            <WhenCard stale={blocks.stale}
+              year={<BudgetBlock bare series={blocks.series} depots={blocks.depots} unknown={blocks.unknown} moreDepots={blocks.moreDepots} stale={blocks.stale} />}
+              byClass={<TimelineBlock bare classes={blocks.classes} labels={blocks.series.labels} done={blocks.classesDone} total={blocks.classes.length} stale={blocks.stale} />} />
+            <HealthCard fleet={fleet} rows={rows} band={band} onBand={setBand} loading={blocks.main.isPending} />
             {blocks.forecast && <MoneyBlock rows={rows} forecast={blocks.forecast} stale={blocks.stale} />}
             <FleetLevers fleet={fleet} ready={!blocks.stale && blocks.classesDone === blocks.classes.length} />
           </>
         )}
         {fleet && blocks.main.isPending && !blocks.series && <div className="c12 card" role="status" aria-busy="true"><div className="skel" style={{ height: 120 }} /><p className="note">Working out the forecast…</p></div>}
-        {fleet && <div className="c12"><RosterTable fleet={fleet} rows={rows} forecast={blocks.forecast} series={blocks.series} stale={blocks.stale} loading={blocks.main.isPending || blocks.stale} /></div>}
+        {fleet && <div className="c12"><RosterTable fleet={fleet} rows={rows} forecast={blocks.forecast} series={blocks.series} stale={blocks.stale} loading={blocks.main.isPending || blocks.stale} band={band} onBand={setBand} /></div>}
       </div>
     </Page>
   )

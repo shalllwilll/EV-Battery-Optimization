@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { yearLabel, type Series } from '../../lib/fleet/forecast'
 import { editBuses, type BusPatch } from '../../lib/fleet/roster'
-import { BAND_LABEL, BAND_ORDER, GROUP_LABEL, groupRows, type Band, type GroupBy, type Row } from '../../lib/fleet/segments'
+import { BAND_LABEL, GROUP_LABEL, groupRows, type Band, type GroupBy, type Row } from '../../lib/fleet/segments'
 import { UNASSIGNED, type Bus, type Fleet, type FleetForecast } from '../../lib/fleet/types'
 import { useScenario } from '../../state/ScenarioContext'
 import { useFleet } from '../../state/FleetContext'
@@ -9,6 +9,7 @@ import { toast } from '../Toast'
 import { useOpenBus } from './useOpenBus'
 
 const PAGE = 100
+const FIRST = 10
 const monthLabel = (m?: string) => m ?? ''
 
 /** A value that edits where it sits. Enter or leaving the cell saves, Escape cancels; an invalid value shows its reason and stays open. */
@@ -48,20 +49,19 @@ const flagsOf = (b: Bus, dutySource: string | undefined) => {
   return t
 }
 
-type Props = { fleet: Fleet; rows: Row[]; forecast: FleetForecast | null; series: Series | null; stale: boolean; loading: boolean }
+type Props = { fleet: Fleet; rows: Row[]; forecast: FleetForecast | null; series: Series | null; stale: boolean; loading: boolean; band: Band | null; onBand: (b: Band | null) => void }
 
-export function RosterTable({ fleet, rows: all, forecast, series, stale, loading }: Props) {
+export function RosterTable({ fleet, rows: all, forecast, series, stale, loading, band, onBand }: Props) {
   const { setFleet, groupBy, setGroupBy } = useFleet()
   const { scenario } = useScenario()
   const open = useOpenBus()
   const [q, setQ] = useState('')
-  const [limit, setLimit] = useState(PAGE)
+  const [limit, setLimit] = useState(FIRST)
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [bulk, setBulk] = useState({ depot: '', route: '', month: '', duty: 'keep' })
   const [err, setErr] = useState<string | null>(null)
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>({ key: 'months', dir: 1 })
   const [grouped, setGrouped] = useState(false)
-  const [band, setBand] = useState<Band | null>(null)
   const [openG, setOpenG] = useState<Set<string>>(new Set())
   const [more, setMore] = useState<Record<string, number>>({})
   const now = () => Date.now()
@@ -78,7 +78,6 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
   const batteryOnly = [...cost.values()].some((c) => c.battery)
   const costOf = (r: Row) => cost.get(r.bus.classId)?.v ?? null
 
-  const bandCounts = useMemo(() => { const m = new Map<Band, number>(); for (const r of all) if (r.band) m.set(r.band, (m.get(r.band) ?? 0) + 1); return m }, [all])
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase()
     let out = t ? all.filter((r) => `${r.bus.id} ${r.bus.depot} ${r.bus.route}`.toLowerCase().includes(t)) : all
@@ -165,9 +164,9 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
   const byId = new Map(rows.map((r) => [r.bus.id, r]))
 
   return (
-    <section className="card" aria-labelledby={`${sid}-h`} aria-busy={stale}>
+    <section id="roster" className="card" aria-labelledby={`${sid}-h`} aria-busy={stale}>
       <div className="hd roster-hd">
-        <div><h2 id={`${sid}-h`}>Your buses</h2><div className="sub" style={{ marginBottom: 0 }}>Click a depot, route or month to change it. Select rows to change several at once. Sort “Months to the line” to see which buses come first.</div></div>
+        <div><h2 id={`${sid}-h`}>Which buses first</h2><div className="sub" style={{ marginBottom: 0 }}>Nearest to the line first. Click a depot, route or month to change it.</div></div>
         <div className="roster-tools">
           <div className="lsel"><label htmlFor={`${sid}-g`}>Group by</label>
             <select id={`${sid}-g`} className="sel" value={grouped ? groupBy : ''} onChange={(e) => { const v = e.target.value as GroupBy | ''; if (!v) setGrouped(false); else { setGrouped(true); setGroupBy(v); setOpenG(new Set()) } }}>
@@ -175,15 +174,11 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
               {GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
             </select>
           </div>
-          <div className="inp roster-q"><input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }} placeholder="Find a bus, depot or route" aria-label="Find a bus, depot or route" /></div>
+          <div className="inp roster-q"><input value={q} onChange={(e) => { setQ(e.target.value); setLimit(FIRST) }} placeholder="Find a bus, depot or route" aria-label="Find a bus, depot or route" /></div>
         </div>
       </div>
 
-      {bandCounts.size > 0 && (
-        <div className="chips" role="group" aria-label="Filter by how soon the median pack reaches the line">
-          {BAND_ORDER.filter((b) => bandCounts.has(b)).map((b) => <button key={b} className={`chip${band === b ? ' w' : ''}`} aria-pressed={band === b} onClick={() => { setBand(band === b ? null : b); setLimit(PAGE) }}><i />{BAND_LABEL[b]} <b>{bandCounts.get(b)}</b></button>)}
-        </div>
-      )}
+      {band && <p className="tnote" role="status">Showing buses {BAND_LABEL[band].charAt(0).toLowerCase() + BAND_LABEL[band].slice(1)}: {rows.length}. <button className="lnk" onClick={() => onBand(null)}>Show all {all.length}</button></p>}
 
       {sel.size > 0 && (
         <div className="bulk" role="group" aria-label={`Change ${sel.size} selected buses`}>
@@ -231,8 +226,8 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
           )}
         </table>
       </div>
-      {!grouping && rows.length > shown.length && <div style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setLimit((l) => l + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more ({shown.length} of {rows.length.toLocaleString('en-IN')} shown)</button></div>}
-      <p className="note">Months to the line is the model’s median for a bus of this class and age, given it is still in service; it is about the model’s line, not how the bus is used or what its battery reports. Cost per km is the duty class’s figure. Risk bands and batches are product choices to make a list usable, not operator practice. Not yet validated on buses.</p>
+      {!grouping && rows.length > shown.length && <div style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setLimit((l) => (l <= FIRST ? Math.min(PAGE, rows.length) : l + PAGE))}>{limit <= FIRST ? `Show all ${rows.length.toLocaleString('en-IN')}` : `Show ${Math.min(PAGE, rows.length - shown.length)} more (${shown.length} of ${rows.length.toLocaleString('en-IN')} shown)`}</button></div>}
+      <p className="note">Months to the line is the model’s median for a bus of this class and age, given it is still in service; it is about the model’s line, not how the bus is used or what its battery reports. Cost per km is the class’s figure.</p>
     </section>
   )
 }
