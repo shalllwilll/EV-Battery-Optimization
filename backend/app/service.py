@@ -5,10 +5,12 @@ import hashlib
 import threading
 from collections import OrderedDict
 
-from backend.app.schemas import CompareRequest, CompareResult, DISCLAIMER, DriverSplit, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse
+from backend.app.schemas import (CompareRequest, CompareResult, DISCLAIMER, DriverSplit, FleetRequest, FleetResponse, PredictionResult, PredictRequest,
+                                 RecommendRequest, RecommendResponse)
 from engine.cell.uncertainty import Models, make_draws
 from engine.decide.compare import compare
 from engine.decide.cost import cost_per_km
+from engine.decide.fleet import BusSpec, age_months, fleet_forecast
 from engine.decide.range import monthly_range
 from engine.decide.recommend import recommend
 from engine.decide.replacement import replacement_window, simulate_scenario
@@ -50,6 +52,14 @@ def run_recommend(req: RecommendRequest, models: Models, model_version: str) -> 
     res = recommend(req.scenario, models, n_draws=req.n_draws, seed=req.seed, reserve=req.reserve_fraction)
     warns = [DISCLAIMER, *[w for w in res.warnings if w != DISCLAIMER]]
     return RecommendResponse(**{**res.model_dump(), "warnings": warns}, model_version=model_version)
+
+
+def run_fleet(req: FleetRequest, models: Models, model_version: str) -> FleetResponse:
+    """Classes run once each (the ageing curves are cached by their own key, so classes that differ only in price share a run);
+    the fleet maths then works from per-class crossing times. Raises FleetInputError for a fleet that cannot be forecast."""
+    buses = [BusSpec(b.id, b.class_id, age_months(b.in_service, req.as_of), b.pack_price_inr) for b in req.buses]
+    res = fleet_forecast({c.id: c.scenario for c in req.classes}, buses, models, req.as_of, req.forecast_years)
+    return FleetResponse(**res.model_dump(), model_version=model_version)
 
 
 class LRUCache:

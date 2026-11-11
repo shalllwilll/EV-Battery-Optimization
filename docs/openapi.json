@@ -69,6 +69,183 @@
         "title": "CellConditions",
         "type": "object"
       },
+      "ClassSummary": {
+        "properties": {
+          "battery_cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "electricity_cost_per_km": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extrapolation_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extrapolation Reasons",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "km_per_year": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "months_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n_buses": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "total_cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "n_buses",
+          "months_p10",
+          "months_p50",
+          "months_p90",
+          "km_per_year",
+          "battery_cost_per_km_p50",
+          "electricity_cost_per_km",
+          "total_cost_per_km_p50",
+          "extrapolation_reasons",
+          "warnings"
+        ],
+        "title": "ClassSummary",
+        "type": "object"
+      },
+      "CohortSummary": {
+        "description": "Buses of one duty class and one age. `months_to_line_*` count from today and are conditional on the bus still being in service;\nthey are percentiles of the model's runs, which for a new pack can differ from the Replacement page's headline (that one is the\ncrossing of the percentile curves).",
+        "properties": {
+          "age_months": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chance_due_next_12_months": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "class_id": {
+            "title": "Class Id",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "months_to_line_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_to_line_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months_to_line_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n_buses": {
+            "$ref": "#/components/schemas/Labelled"
+          }
+        },
+        "required": [
+          "class_id",
+          "age_months",
+          "n_buses",
+          "months_to_line_p10",
+          "months_to_line_p50",
+          "months_to_line_p90",
+          "chance_due_next_12_months",
+          "flags"
+        ],
+        "title": "CohortSummary",
+        "type": "object"
+      },
       "CompareRequest": {
         "additionalProperties": false,
         "properties": {
@@ -488,6 +665,314 @@
           "plain"
         ],
         "title": "Feasibility",
+        "type": "object"
+      },
+      "FleetBus": {
+        "additionalProperties": false,
+        "properties": {
+          "class_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Class Id",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "in_service": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "YYYY-MM the pack entered service; omit if unknown (the bus is then counted as new and flagged)",
+            "title": "In Service"
+          },
+          "pack_price_inr": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "this bus's pack price; defaults to the class's pack kWh x price per kWh",
+            "title": "Pack Price Inr"
+          }
+        },
+        "required": [
+          "id",
+          "class_id"
+        ],
+        "title": "FleetBus",
+        "type": "object"
+      },
+      "FleetClass": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "the caller's name for this duty class",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario",
+            "description": "how the buses of this class are driven; its own horizon is replaced by 20 years"
+          }
+        },
+        "required": [
+          "id",
+          "scenario"
+        ],
+        "title": "FleetClass",
+        "type": "object"
+      },
+      "FleetCost": {
+        "properties": {
+          "battery_cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "electricity_cost_per_km": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_cost_per_km_p50": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "battery_cost_per_km_p50",
+          "electricity_cost_per_km",
+          "total_cost_per_km_p50"
+        ],
+        "title": "FleetCost",
+        "type": "object"
+      },
+      "FleetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "description": "forecast from this month; financial years run April to March",
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "buses": {
+            "items": {
+              "$ref": "#/components/schemas/FleetBus"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Buses",
+            "type": "array"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/FleetClass"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Classes",
+            "type": "array"
+          },
+          "forecast_years": {
+            "default": 10,
+            "description": "the oldest bus's age plus this window must fit inside the model's 20-year horizon",
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Forecast Years",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "prior",
+            "description": "Only 'prior' exists in v1; anything else gets a 400",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "classes",
+          "buses"
+        ],
+        "title": "FleetRequest",
+        "type": "object"
+      },
+      "FleetResponse": {
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "beyond_forecast_buses": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "bulk_from_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bulk From Period"
+          },
+          "bulk_to_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bulk To Period"
+          },
+          "buses_expected": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "buses_p10": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "buses_p90": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassSummary"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "cohorts": {
+            "items": {
+              "$ref": "#/components/schemas/CohortSummary"
+            },
+            "title": "Cohorts",
+            "type": "array"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/FleetCost"
+          },
+          "disclaimer": {
+            "default": "Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "mode": {
+            "const": "prior",
+            "default": "prior",
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "model_weights": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "period_edges_months": {
+            "$ref": "#/components/schemas/Labelled"
+          },
+          "period_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Period Labels",
+            "type": "array"
+          },
+          "spend_expected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spend_p10": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spend_p90": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Labelled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "as_of",
+          "period_labels",
+          "period_edges_months",
+          "buses_expected",
+          "buses_p10",
+          "buses_p90",
+          "spend_expected",
+          "spend_p10",
+          "spend_p90",
+          "beyond_forecast_buses",
+          "bulk_from_period",
+          "bulk_to_period",
+          "cost",
+          "classes",
+          "cohorts",
+          "model_weights",
+          "warnings",
+          "model_version"
+        ],
+        "title": "FleetResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -1716,6 +2201,52 @@
         "summary": "Datasets, measured model errors, training coverage and known limitations",
         "tags": [
           "reference"
+        ]
+      }
+    },
+    "/api/v1/fleet": {
+      "post": {
+        "operationId": "fleet_api_v1_fleet_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Forecast a fleet of mixed-age buses in duty classes: replacements and spend by financial year, per-class and per-cohort summaries",
+        "tags": [
+          "predict"
         ]
       }
     },

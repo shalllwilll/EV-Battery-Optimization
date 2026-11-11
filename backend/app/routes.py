@@ -10,8 +10,9 @@ from backend.app.auth import require_user
 from backend.app import reference
 from backend.app.config import get_settings
 from backend.app.errors import ApiError
-from backend.app.schemas import (CompareRequest, CompareResult, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse, ReportEmailRequest,
-                                 ReportRequest, ReportSent, ReportStatus)
+from backend.app.schemas import (CompareRequest, CompareResult, FleetRequest, FleetResponse, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse,
+                                 ReportEmailRequest, ReportRequest, ReportSent, ReportStatus)
+from engine.decide.fleet import FleetInputError
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_user)])
 
@@ -65,6 +66,25 @@ async def recommend(req: RecommendRequest, request: Request, response: Response)
         response.headers["X-Cache"] = "HIT"
         return hit
     result = await run_in_threadpool(service.run_recommend, req, st.models, st.model_version)
+    st.cache.put(key, result)
+    response.headers["X-Cache"] = "MISS"
+    return result
+
+
+@router.post("/fleet", response_model=FleetResponse, tags=["predict"],
+             summary="Forecast a fleet of mixed-age buses in duty classes: replacements and spend by financial year, per-class and per-cohort summaries")
+async def fleet(req: FleetRequest, request: Request, response: Response):
+    _check_mode(req.mode)
+    st = request.app.state
+    key = service.LRUCache.key(req, st.model_version)
+    hit = st.cache.get(key)
+    if hit is not None:
+        response.headers["X-Cache"] = "HIT"
+        return hit
+    try:
+        result = await run_in_threadpool(service.run_fleet, req, st.models, st.model_version)
+    except FleetInputError as e:
+        raise ApiError(422, "fleet_not_forecastable", str(e)) from e
     st.cache.put(key, result)
     response.headers["X-Cache"] = "MISS"
     return result

@@ -1,9 +1,10 @@
 """HTTP contracts. Engine result models are reused as-is so every number keeps its evidence label."""
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from engine.bus.scenario import Scenario
 from engine.bus.translate import CellConditions
@@ -12,6 +13,7 @@ from engine.decide.range import RangeResult
 from engine.decide.replacement import ReplacementResult
 from engine.labels import Labelled
 from engine.decide.compare import Delta
+from engine.decide.fleet import FleetResult
 from engine.decide.recommend import RecommendResult
 
 DISCLAIMER = ("Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs "
@@ -111,3 +113,49 @@ class LoginResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: int = Field(description="seconds")
     username: str
+
+
+MAX_FLEET_CLASSES = 50
+MAX_FLEET_BUSES = 5000
+
+
+class FleetClass(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1, max_length=64, description="the caller's name for this duty class")
+    scenario: Scenario = Field(description="how the buses of this class are driven; its own horizon is replaced by 20 years")
+
+
+class FleetBus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1, max_length=64)
+    class_id: str = Field(min_length=1, max_length=64)
+    in_service: str | None = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM the pack entered service; omit if unknown (the bus is then counted as new and flagged)")
+    pack_price_inr: float | None = Field(default=None, gt=0, le=1e8, description="this bus's pack price; defaults to the class's pack kWh x price per kWh")
+
+
+class FleetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: str = Field(default="prior", description="Only 'prior' exists in v1; anything else gets a 400")
+    classes: list[FleetClass] = Field(min_length=1, max_length=MAX_FLEET_CLASSES)
+    buses: list[FleetBus] = Field(min_length=1, max_length=MAX_FLEET_BUSES)
+    as_of: date = Field(default_factory=date.today, description="forecast from this month; financial years run April to March")
+    forecast_years: int = Field(default=10, ge=1, le=15, description="the oldest bus's age plus this window must fit inside the model's 20-year horizon")
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        ids = [c.id for c in self.classes]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duty class ids must be unique")
+        bus_ids = [b.id for b in self.buses]
+        if len(set(bus_ids)) != len(bus_ids):
+            raise ValueError("bus ids must be unique")
+        unknown = sorted({b.class_id for b in self.buses} - set(ids))
+        if unknown:
+            raise ValueError(f"unknown class_id: {', '.join(unknown[:3])}")
+        return self
+
+
+class FleetResponse(FleetResult):
+    mode: Literal["prior"] = "prior"
+    model_version: str
+    disclaimer: str = DISCLAIMER

@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Forecast a fleet of mixed-age buses in duty classes: replacements and spend by financial year, per-class and per-cohort summaries */
+        post: operations["fleet_api_v1_fleet_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -230,6 +247,41 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** ClassSummary */
+        ClassSummary: {
+            battery_cost_per_km_p50: components["schemas"]["Labelled"] | null;
+            electricity_cost_per_km: components["schemas"]["Labelled"] | null;
+            /** Extrapolation Reasons */
+            extrapolation_reasons: string[];
+            /** Id */
+            id: string;
+            km_per_year: components["schemas"]["Labelled"];
+            months_p10: components["schemas"]["Labelled"] | null;
+            months_p50: components["schemas"]["Labelled"] | null;
+            months_p90: components["schemas"]["Labelled"] | null;
+            n_buses: components["schemas"]["Labelled"];
+            total_cost_per_km_p50: components["schemas"]["Labelled"] | null;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * CohortSummary
+         * @description Buses of one duty class and one age. `months_to_line_*` count from today and are conditional on the bus still being in service;
+         *     they are percentiles of the model's runs, which for a new pack can differ from the Replacement page's headline (that one is the
+         *     crossing of the percentile curves).
+         */
+        CohortSummary: {
+            age_months: components["schemas"]["Labelled"] | null;
+            chance_due_next_12_months: components["schemas"]["Labelled"];
+            /** Class Id */
+            class_id: string;
+            /** Flags */
+            flags: string[];
+            months_to_line_p10: components["schemas"]["Labelled"] | null;
+            months_to_line_p50: components["schemas"]["Labelled"] | null;
+            months_to_line_p90: components["schemas"]["Labelled"] | null;
+            n_buses: components["schemas"]["Labelled"];
+        };
         /** CompareRequest */
         CompareRequest: {
             /**
@@ -365,6 +417,104 @@ export interface components {
             reserve: components["schemas"]["Labelled"];
             /** Rule Applied */
             rule_applied: string;
+        };
+        /** FleetBus */
+        FleetBus: {
+            /** Class Id */
+            class_id: string;
+            /** Id */
+            id: string;
+            /**
+             * In Service
+             * @description YYYY-MM the pack entered service; omit if unknown (the bus is then counted as new and flagged)
+             */
+            in_service?: string | null;
+            /**
+             * Pack Price Inr
+             * @description this bus's pack price; defaults to the class's pack kWh x price per kWh
+             */
+            pack_price_inr?: number | null;
+        };
+        /** FleetClass */
+        FleetClass: {
+            /**
+             * Id
+             * @description the caller's name for this duty class
+             */
+            id: string;
+            /** @description how the buses of this class are driven; its own horizon is replaced by 20 years */
+            scenario: components["schemas"]["Scenario"];
+        };
+        /** FleetCost */
+        FleetCost: {
+            battery_cost_per_km_p50: components["schemas"]["Labelled"] | null;
+            electricity_cost_per_km: components["schemas"]["Labelled"] | null;
+            total_cost_per_km_p50: components["schemas"]["Labelled"] | null;
+        };
+        /** FleetRequest */
+        FleetRequest: {
+            /**
+             * As Of
+             * Format: date
+             * @description forecast from this month; financial years run April to March
+             */
+            as_of?: string;
+            /** Buses */
+            buses: components["schemas"]["FleetBus"][];
+            /** Classes */
+            classes: components["schemas"]["FleetClass"][];
+            /**
+             * Forecast Years
+             * @description the oldest bus's age plus this window must fit inside the model's 20-year horizon
+             * @default 10
+             */
+            forecast_years: number;
+            /**
+             * Mode
+             * @description Only 'prior' exists in v1; anything else gets a 400
+             * @default prior
+             */
+            mode: string;
+        };
+        /** FleetResponse */
+        FleetResponse: {
+            /** As Of */
+            as_of: string;
+            beyond_forecast_buses: components["schemas"]["Labelled"];
+            /** Bulk From Period */
+            bulk_from_period: string | null;
+            /** Bulk To Period */
+            bulk_to_period: string | null;
+            buses_expected: components["schemas"]["Labelled"];
+            buses_p10: components["schemas"]["Labelled"];
+            buses_p90: components["schemas"]["Labelled"];
+            /** Classes */
+            classes: components["schemas"]["ClassSummary"][];
+            /** Cohorts */
+            cohorts: components["schemas"]["CohortSummary"][];
+            cost: components["schemas"]["FleetCost"];
+            /**
+             * Disclaimer
+             * @default Prior mode: capacity curves come from published laboratory-fitted LFP cell models (NREL BLAST-Lite) and scenario inputs are assumptions. Nothing here has been validated on buses.
+             */
+            disclaimer: string;
+            /**
+             * Mode
+             * @default prior
+             * @constant
+             */
+            mode: "prior";
+            /** Model Version */
+            model_version: string;
+            model_weights: components["schemas"]["Labelled"];
+            period_edges_months: components["schemas"]["Labelled"];
+            /** Period Labels */
+            period_labels: string[];
+            spend_expected: components["schemas"]["Labelled"] | null;
+            spend_p10: components["schemas"]["Labelled"] | null;
+            spend_p90: components["schemas"]["Labelled"] | null;
+            /** Warnings */
+            warnings: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -922,6 +1072,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    fleet_api_v1_fleet_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

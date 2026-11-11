@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
         from engine.reference import blast_lfp
         ident["reference"] = hashlib.sha256(json.dumps({k: m.params for k, m in blast_lfp.MODELS.items()}, sort_keys=True).encode()).hexdigest()[:12]
     app.state.model_version = hashlib.sha256(json.dumps(ident, sort_keys=True).encode()).hexdigest()[:12]
-    app.state.cache = service.LRUCache(128)
+    app.state.cache = service.LRUCache(512)
     yield
 
 

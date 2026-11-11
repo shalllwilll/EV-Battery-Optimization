@@ -174,3 +174,8 @@ Not an ageing model: arithmetic on a published tariff. Electricity per km = ener
 - Does not change battery ageing: the charging window that sets the price is the same one that already sets time spent full.
 - Not yet validated on buses.
 
+## Fleet forecast (`POST /api/v1/fleet`)
+- What it does: counts and costs the replacements of a fleet by financial year, from the same 50-run reference ensemble as the single-bus pages. See `engine/decide/fleet.py` (its docstring is the specification) and the CHANGELOG entry.
+- Assumptions, each shown with the result as an assumption or a warning: the two published models are equally likely to be the closer one (50/50); buses age independently inside a model; "still in service" means "not yet at the model's line"; each bus is replaced once (no second pack); money is undiscounted; a bus with no in-service date is counted as new.
+- What is not done: the fleet's own survival is not used to reweight the two models. That would be calibration, and the API runs in prior mode only. Reported (BMS) health is not an input.
+- Known approximation: cohort months-to-line use the runs' own crossing times, which differ from the single-bus headline by about 2 months at the median for a new default bus. Not yet validated on buses.
