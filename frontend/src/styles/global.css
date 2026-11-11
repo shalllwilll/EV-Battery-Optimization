@@ -565,3 +565,24 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .bulk input:focus-visible,.bulk select:focus-visible{border-color:var(--volt);outline:0}
 .bulk select.sel{width:auto;padding-right:32px}.bulk-act{display:flex;gap:8px}
 @media (max-width:640px){.fleet-head{align-items:flex-start}.bulk b{flex:1 1 100%}.bulk label{flex:1 1 140px}.bulk input,.bulk select{width:100%}}
+
+/* Fleet page forecast blocks */
+.headline{margin:14px 0 4px;font-size:clamp(18px,2.2vw,24px);line-height:1.35;font-family:var(--head);font-weight:600;color:var(--text)}
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 0;padding:0;font-size:12.5px;font-weight:600;color:var(--t2)}
+.legend li{display:inline-flex;align-items:center;gap:7px}.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}.legend i.hatch{background:repeating-linear-gradient(45deg,#E4E4E7 0 2px,#27272A 2px 5px)}.legend i.whisk{width:2px;height:14px;border-radius:1px;background:#fff}
+.lsel{display:flex;flex-direction:column;gap:5px;min-width:160px}.lsel label{font-size:12.5px;font-weight:700;color:var(--t3)}
+.ftl td,.ftl thead th{white-space:nowrap}.ftl tbody th{white-space:normal;min-width:150px;max-width:230px;position:sticky;left:0;background:var(--s1);z-index:1}.ftl .ftl-c{text-align:center;min-width:46px;font-variant-numeric:tabular-nums}.ftl tbody th{text-align:left;font-weight:700;color:var(--text)}
+.ftl thead th{text-align:center}.ftl thead th:first-child{text-align:left}
+.mny{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mny li{display:grid;grid-template-columns:minmax(120px,1.2fr) minmax(40px,1fr) minmax(130px,auto);align-items:center;gap:14px;padding:9px 12px;border-radius:var(--r-md);border:1px solid var(--line2);background:var(--s2);font-size:14.5px;color:var(--text)}
+.mny li:not(:has(.mn-b)){grid-template-columns:minmax(140px,1.4fr) minmax(130px,auto)}
+.mn-l{display:flex;flex-direction:column;font-weight:600;min-width:0}.mn-l small,.mn-n small{color:var(--t3);font-weight:500;font-size:12.5px}
+.mn-b{height:8px;border-radius:99px;background:var(--bg);overflow:hidden}.mn-b i{display:block;height:100%;background:var(--volt);border-radius:99px}
+.mn-n{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.chips .chip{cursor:pointer}.chips .chip b{font-variant-numeric:tabular-nums}
+.roster-tools{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.roster .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.roster th[aria-sort]{white-space:nowrap}
+.th-b{font:inherit;color:inherit;text-align:inherit;padding:0;border:0;background:none;cursor:pointer}.th-b:hover{color:var(--text)}
+.roster tbody th[scope=row]{white-space:nowrap}.roster .yr{color:var(--t2);font-size:13.5px}
+.roster tr.rgrp th{text-align:left;padding:0;background:var(--s2);border-top:1px solid var(--line)}.grp-b{width:100%;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;text-align:left;padding:10px 12px;font:inherit;color:var(--text);background:none;border:0;cursor:pointer}
+@media (max-width:640px){.mny li,.mny li:not(:has(.mn-b)){grid-template-columns:1fr;gap:6px}.mn-n{align-items:flex-start;text-align:left}.roster-tools{width:100%}.roster-tools .inp{flex:1 1 160px}}

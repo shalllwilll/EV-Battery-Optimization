@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { yearLabel, type Series } from '../../lib/fleet/forecast'
 import { editBuses, type BusPatch } from '../../lib/fleet/roster'
-import { UNASSIGNED, type Bus, type Fleet } from '../../lib/fleet/types'
+import { BAND_LABEL, BAND_ORDER, GROUP_LABEL, groupRows, type Band, type GroupBy, type Row } from '../../lib/fleet/segments'
+import { UNASSIGNED, type Bus, type Fleet, type FleetForecast } from '../../lib/fleet/types'
 import { useScenario } from '../../state/ScenarioContext'
 import { useFleet } from '../../state/FleetContext'
 import { toast } from '../Toast'
@@ -30,6 +32,11 @@ function EditCell({ value, label, placeholder, onCommit }: { value: string; labe
   )
 }
 
+const FLAG_SHORT: Record<string, string> = { past_median_life: 'past median life', past_all_runs: 'past every model run', one_model_only: 'one model only', outside_lab_range: 'outside lab range' }
+const GROUPS = Object.keys(GROUP_LABEL) as GroupBy[]
+type SortKey = 'bus' | 'months' | 'cost'
+const sortMonths = (r: Row) => (r.band === 'past_median' ? -1 : r.p50)
+
 const flagsOf = (b: Bus, dutySource: string | undefined) => {
   const t: string[] = []
   if (!b.inServiceMonth) t.push('age unknown')
@@ -40,22 +47,55 @@ const flagsOf = (b: Bus, dutySource: string | undefined) => {
   return t
 }
 
-export function RosterTable({ fleet }: { fleet: Fleet }) {
-  const { setFleet } = useFleet()
+type Props = { fleet: Fleet; rows: Row[]; forecast: FleetForecast | null; series: Series | null; stale: boolean; loading: boolean }
+
+export function RosterTable({ fleet, rows: all, forecast, series, stale, loading }: Props) {
+  const { setFleet, groupBy, setGroupBy } = useFleet()
   const { scenario } = useScenario()
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(PAGE)
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [bulk, setBulk] = useState({ depot: '', route: '', month: '', duty: 'keep' })
   const [err, setErr] = useState<string | null>(null)
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
+  const [grouped, setGrouped] = useState(false)
+  const [band, setBand] = useState<Band | null>(null)
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const [more, setMore] = useState<Record<string, number>>({})
   const now = () => Date.now()
   const cls = useMemo(() => new Map(fleet.classes.map((c) => [c.id, c])), [fleet])
+  const cost = useMemo(() => {
+    const m = new Map<string, { v: number; battery: boolean }>()
+    for (const c of forecast?.classes ?? []) {
+      const t = c.total_cost_per_km_p50, b = c.battery_cost_per_km_p50
+      if (t && !Array.isArray(t.value)) m.set(c.id, { v: t.value, battery: false })
+      else if (b && !Array.isArray(b.value)) m.set(c.id, { v: b.value, battery: true })
+    }
+    return m
+  }, [forecast])
+  const batteryOnly = [...cost.values()].some((c) => c.battery)
+  const costOf = (r: Row) => cost.get(r.bus.classId)?.v ?? null
+
+  const bandCounts = useMemo(() => { const m = new Map<Band, number>(); for (const r of all) if (r.band) m.set(r.band, (m.get(r.band) ?? 0) + 1); return m }, [all])
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase()
-    return t ? fleet.buses.filter((b) => `${b.id} ${b.depot} ${b.route}`.toLowerCase().includes(t)) : fleet.buses
-  }, [fleet, q])
+    let out = t ? all.filter((r) => `${r.bus.id} ${r.bus.depot} ${r.bus.route}`.toLowerCase().includes(t)) : all
+    if (band) out = out.filter((r) => r.band === band)
+    if (sort) {
+      const val = (r: Row) => (sort.key === 'bus' ? r.bus.id : sort.key === 'months' ? sortMonths(r) : costOf(r))
+      out = [...out].sort((x, y) => {
+        const a = val(x), b = val(y)
+        if (a == null && b == null) return 0
+        if (a == null) return 1                      // missing values go last in both directions
+        if (b == null) return -1
+        return (typeof a === 'string' ? a.localeCompare(b as string, undefined, { numeric: true }) : (a as number) - (b as number)) * sort.dir
+      })
+    }
+    return out
+  }, [all, q, band, sort, cost]) // eslint-disable-line react-hooks/exhaustive-deps
+  const grouping = grouped ? groupRows(rows, groupBy, forecast?.as_of ?? null) : null
   const shown = rows.slice(0, limit)
-  const allOn = rows.length > 0 && rows.every((b) => sel.has(b.id))
+  const allOn = rows.length > 0 && rows.every((r) => sel.has(r.bus.id))
   const sid = useId()
   // a bus that is no longer in the fleet cannot stay selected
   useEffect(() => { setSel((s) => { const ids = new Set(fleet.buses.map((b) => b.id)); const n = new Set([...s].filter((x) => ids.has(x))); return n.size === s.size ? s : n }) }, [fleet])
@@ -79,13 +119,68 @@ export function RosterTable({ fleet }: { fleet: Fleet }) {
     toast(`Updated ${sel.size} ${sel.size === 1 ? 'bus' : 'buses'}`)
     setErr(null); setSel(new Set()); setBulk({ depot: '', route: '', month: '', duty: 'keep' })
   }
+  const sortBy = (key: SortKey) => setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
+  const aria = (key: SortKey) => (sort?.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none')
+  // a plain function, not a component: a component defined here would be a new type on every render and would drop keyboard focus from the header button after each sort
+  const sortTh = (k: SortKey, text: string, title?: string) => <th scope="col" aria-sort={aria(k)} title={title}><button className="th-b" onClick={() => sortBy(k)}>{text}<span aria-hidden="true">{sort?.key === k ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</span></button></th>
+
+  const monthsCell = (r: Row) => {
+    if (!r.cohort) return loading ? <span className="skel" style={{ display: 'inline-block', width: 40, height: 12 }} /> : <span className="dim">–</span>
+    if (r.band === 'past_median') return <span title="The model’s median pack has already reached the line at this age">past median</span>
+    if (r.p50 == null) return <span className="dim">{r.band === 'unknown' ? '–' : 'beyond 20 y'}</span>
+    return <span title={r.p10 != null && r.p90 != null ? `10th to 90th percentile: ${Math.round(r.p10)} to ${Math.round(r.p90)} months` : r.p10 != null ? `10th percentile: ${Math.round(r.p10)} months` : undefined}>{Math.round(r.p50)}</span>
+  }
+  const rowOf = (r: Row) => {
+    const b = r.bus, c = cls.get(b.classId), k = costOf(r)
+    return (
+      <tr key={b.id} aria-selected={sel.has(b.id)} className={sel.has(b.id) ? 'on' : undefined}>
+        <td className="ck"><input type="checkbox" aria-label={`Select ${b.id}`} checked={sel.has(b.id)} onChange={() => setSel((s) => { const n = new Set(s); if (n.has(b.id)) n.delete(b.id); else n.add(b.id); return n })} /></td>
+        <th scope="row">{b.id}</th>
+        <td><EditCell label={`Depot of ${b.id}`} value={b.depot === UNASSIGNED ? '' : b.depot} placeholder="Unassigned" onCommit={(v) => (v.trim() ? apply([b.id], { depot: v }) : 'Enter a name.')} /></td>
+        <td><EditCell label={`Route of ${b.id}`} value={b.route === UNASSIGNED ? '' : b.route} placeholder="Unassigned" onCommit={(v) => (v.trim() ? apply([b.id], { route: v }) : 'Enter a name.')} /></td>
+        <td>{c ? (c.scenario.archetype === '12m' ? '12 m' : '9 m') : ''}</td>
+        <td><EditCell label={`In-service month of ${b.id}`} value={monthLabel(b.inServiceMonth)} placeholder="Unknown" onCommit={(v) => (v.trim() ? apply([b.id], { inServiceMonth: v }) : 'Enter a month like 2023-07.')} /></td>
+        <td className="cls" title={c ? `Up to about ${c.spreadMonths.toFixed(1)} months apart in battery life within this class` : undefined}>{c?.name ?? ''}</td>
+        <td className="num">{monthsCell(r)}</td>
+        <td className="num yr">{r.band === 'past_median' ? 'now' : yearLabel(series, r.p50).replace(/^FY/, 'FY ')}</td>
+        <td className="num">{k == null ? <span className="dim">–</span> : `₹${k.toFixed(2)}`}</td>
+        <td>{flagsOf(b, b.sources.duty).map((t) => <span key={t} className="tag assumption">{t}</span>)}{r.flags.filter((f) => f !== 'age_unknown').map((f) => <span key={f} className="tag assumption" title={f === 'outside_lab_range' ? 'The class’s conditions are outside what the laboratory cells were tested at' : undefined}>{FLAG_SHORT[f]}</span>)}</td>
+      </tr>
+    )
+  }
+  const COLS = 11
+  const head = (
+    <thead><tr>
+      <th scope="col" className="ck"><input type="checkbox" aria-label={`Select all ${rows.length} matching buses`} checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(rows.map((r) => r.bus.id)))} /></th>
+      {sortTh('bus', 'Bus')}<th scope="col">Depot</th><th scope="col">Route</th><th scope="col">Type</th><th scope="col">In service</th><th scope="col">Duty class</th>
+      {sortTh('months', 'Months to the line', 'Months until the median pack reaches the replacement line, given the bus is still in service. Sort to see which buses come first.')}
+      <th scope="col">Lands in</th>
+      {sortTh('cost', batteryOnly ? 'Battery cost per km' : 'Cost per km', 'A figure for the bus’s duty class, not for the bus')}
+      <th scope="col">Worth knowing</th>
+    </tr></thead>
+  )
+  const byId = new Map(rows.map((r) => [r.bus.id, r]))
 
   return (
-    <section className="card" aria-labelledby={`${sid}-h`}>
+    <section className="card" aria-labelledby={`${sid}-h`} aria-busy={stale}>
       <div className="hd roster-hd">
-        <div><h2 id={`${sid}-h`}>Your buses</h2><div className="sub" style={{ marginBottom: 0 }}>Click a depot, route or month to change it. Select rows to change several at once.</div></div>
-        <div className="inp roster-q"><input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }} placeholder="Find a bus, depot or route" aria-label="Find a bus, depot or route" /></div>
+        <div><h2 id={`${sid}-h`}>Your buses</h2><div className="sub" style={{ marginBottom: 0 }}>Click a depot, route or month to change it. Select rows to change several at once. Sort “Months to the line” to see which buses come first.</div></div>
+        <div className="roster-tools">
+          <div className="lsel"><label htmlFor={`${sid}-g`}>Group by</label>
+            <select id={`${sid}-g`} className="sel" value={grouped ? groupBy : ''} onChange={(e) => { const v = e.target.value as GroupBy | ''; if (!v) setGrouped(false); else { setGrouped(true); setGroupBy(v); setOpen(new Set()) } }}>
+              <option value="">No grouping</option>
+              {GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
+            </select>
+          </div>
+          <div className="inp roster-q"><input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }} placeholder="Find a bus, depot or route" aria-label="Find a bus, depot or route" /></div>
+        </div>
       </div>
+
+      {bandCounts.size > 0 && (
+        <div className="chips" role="group" aria-label="Filter by how soon the median pack reaches the line">
+          {BAND_ORDER.filter((b) => bandCounts.has(b)).map((b) => <button key={b} className={`chip${band === b ? ' w' : ''}`} aria-pressed={band === b} onClick={() => { setBand(band === b ? null : b); setLimit(PAGE) }}><i />{BAND_LABEL[b]} <b>{bandCounts.get(b)}</b></button>)}
+        </div>
+      )}
 
       {sel.size > 0 && (
         <div className="bulk" role="group" aria-label={`Change ${sel.size} selected buses`}>
@@ -105,33 +200,36 @@ export function RosterTable({ fleet }: { fleet: Fleet }) {
         </div>
       )}
 
+      {grouped && grouping?.pending && <p className="tnote" role="status">{GROUP_LABEL[groupBy]} grouping needs the forecast.{loading ? ' It is being worked out.' : ' It is not available right now.'}</p>}
+      {grouped && grouping && !grouping.pending && grouping.overlapping && <p className="tnote">A bus with several flags is listed under each, so these groups add up to more than the fleet.</p>}
+
       <div className="scrollx">
         <table className="tbl roster">
-          <thead><tr>
-            <th scope="col" className="ck"><input type="checkbox" aria-label={`Select all ${rows.length} matching buses`} checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(rows.map((b) => b.id)))} /></th>
-            <th scope="col">Bus</th><th scope="col">Depot</th><th scope="col">Route</th><th scope="col">Type</th><th scope="col">In service</th><th scope="col">Duty class</th><th scope="col">Worth knowing</th>
-          </tr></thead>
-          <tbody>
-            {shown.map((b) => {
-              const c = cls.get(b.classId)
-              return (
-                <tr key={b.id} aria-selected={sel.has(b.id)} className={sel.has(b.id) ? 'on' : undefined}>
-                  <td className="ck"><input type="checkbox" aria-label={`Select ${b.id}`} checked={sel.has(b.id)} onChange={() => setSel((s) => { const n = new Set(s); if (n.has(b.id)) n.delete(b.id); else n.add(b.id); return n })} /></td>
-                  <th scope="row">{b.id}</th>
-                  <td><EditCell label={`Depot of ${b.id}`} value={b.depot === UNASSIGNED ? '' : b.depot} placeholder="Unassigned" onCommit={(v) => (v.trim() ? apply([b.id], { depot: v }) : 'Enter a name.')} /></td>
-                  <td><EditCell label={`Route of ${b.id}`} value={b.route === UNASSIGNED ? '' : b.route} placeholder="Unassigned" onCommit={(v) => (v.trim() ? apply([b.id], { route: v }) : 'Enter a name.')} /></td>
-                  <td>{c ? (c.scenario.archetype === '12m' ? '12 m' : '9 m') : ''}</td>
-                  <td><EditCell label={`In-service month of ${b.id}`} value={monthLabel(b.inServiceMonth)} placeholder="Unknown" onCommit={(v) => (v.trim() ? apply([b.id], { inServiceMonth: v }) : 'Enter a month like 2023-07.')} /></td>
-                  <td className="cls" title={c ? `Up to about ${c.spreadMonths.toFixed(1)} months apart in battery life within this class` : undefined}>{c?.name ?? ''}</td>
-                  <td>{flagsOf(b, b.sources.duty).map((t) => <span key={t} className="tag assumption">{t}</span>)}</td>
-                </tr>
-              )
-            })}
-            {rows.length === 0 && <tr><td colSpan={8} className="dim">No bus matches “{q}”.</td></tr>}
-          </tbody>
+          {head}
+          {grouping && !grouping.pending ? grouping.groups.map((g) => {
+            const on = open.has(g.key), lim = more[g.key] ?? 50
+            const list = on ? g.busIds.map((id) => byId.get(id)).filter((r): r is Row => !!r) : []
+            return (
+              <tbody key={g.key}>
+                <tr className="rgrp"><th scope="rowgroup" colSpan={COLS}>
+                  <button className="grp-b" aria-expanded={on} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n })}>
+                    <span aria-hidden="true">{on ? '▾' : '▸'}</span> <b>{g.label}</b> <span className="dim">{g.n} {g.n === 1 ? 'bus' : 'buses'}{g.due12 != null ? ` · about ${g.due12 < 10 ? g.due12.toFixed(1) : Math.round(g.due12)} reaching the line in the next 12 months` : ''}{g.earliest != null ? ` · earliest median ${Math.round(g.earliest)} months` : ''}</span>
+                  </button>
+                </th></tr>
+                {list.slice(0, lim).map(rowOf)}
+                {on && list.length > lim && <tr><td colSpan={COLS}><button className="btn sm" onClick={() => setMore((m) => ({ ...m, [g.key]: lim + 50 }))}>Show {Math.min(50, list.length - lim)} more ({lim} of {list.length})</button></td></tr>}
+              </tbody>
+            )
+          }) : (
+            <tbody>
+              {shown.map(rowOf)}
+              {rows.length === 0 && <tr><td colSpan={COLS} className="dim">{q.trim() ? `No bus matches “${q}”.` : 'No bus is in this group.'}</td></tr>}
+            </tbody>
+          )}
         </table>
       </div>
-      {rows.length > shown.length && <div style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setLimit((l) => l + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more ({shown.length} of {rows.length.toLocaleString('en-IN')} shown)</button></div>}
+      {!grouping && rows.length > shown.length && <div style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setLimit((l) => l + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more ({shown.length} of {rows.length.toLocaleString('en-IN')} shown)</button></div>}
+      <p className="note">Months to the line is the model’s median for a bus of this class and age, given it is still in service; it is about the model’s line, not how the bus is used or what its battery reports. Cost per km is the duty class’s figure. Risk bands and batches are product choices to make a list usable, not operator practice. Not yet validated on buses.</p>
     </section>
   )
 }

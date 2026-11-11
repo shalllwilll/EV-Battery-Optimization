@@ -118,3 +118,32 @@ def test_the_oldest_bus_the_forecast_takes_matches_the_published_table(client, m
     assert client.post("/api/v1/fleet", json=one(oldest)).status_code == 200
     r = client.post("/api/v1/fleet", json=one(oldest + 1))
     assert r.status_code == 422 and r.json()["error"]["code"] == "fleet_not_forecastable"
+
+
+def _subset(b, keep):
+    """The same request for only the buses `keep` accepts, with only the classes they use (what the Fleet page sends for one class or one depot)."""
+    buses = [x for x in b["buses"] if keep(x)]
+    used = {x["class_id"] for x in buses}
+    return {**b, "buses": buses, "classes": [c for c in b["classes"] if c["id"] in used]}
+
+
+def test_expected_counts_and_spend_add_up_across_subsets_but_the_band_does_not(client):
+    """The Fleet page stacks per-depot spend and lists per-class counts under a whole-fleet total, which is only right because expectations add across
+    independent buses. The 10th and 90th percentiles do not, so the page draws the band on the whole-fleet total only. This test pins both facts to the real engine."""
+    b = body(n=40)
+    depot = {x["id"]: ("north" if i % 3 else "south") for i, x in enumerate(b["buses"])}   # the API has no depots; the page splits the roster itself
+    whole = client.post("/api/v1/fleet", json=b).json()
+    n = len(whole["period_labels"])
+    splits = {"class": ("A", "B", lambda x, g: x["class_id"] == g), "depot": ("north", "south", lambda x, g: depot[x["id"]] == g)}
+    for name, (g1, g2, pick) in splits.items():
+        parts = [client.post("/api/v1/fleet", json=_subset(b, lambda x, g=g: pick(x, g))) for g in (g1, g2)]
+        assert all(p.status_code == 200 for p in parts), name
+        parts = [p.json() for p in parts]
+        for series in ("buses_expected", "spend_expected"):
+            total = [sum(p[series]["value"][i] for p in parts) for i in range(n)]
+            assert total == pytest.approx(whole[series]["value"], rel=1e-9, abs=1e-6), (name, series)
+        assert sum(p["beyond_forecast_buses"]["value"] for p in parts) == pytest.approx(whole["beyond_forecast_buses"]["value"], rel=1e-9, abs=1e-6)
+        assert all(p["period_labels"] == whole["period_labels"] and p["period_edges_months"]["value"] == whole["period_edges_months"]["value"] for p in parts)
+        # percentiles: the whole fleet's 90th percentile is not the sum of the parts' (the parts rarely all land high together)
+        p90_sum = [sum(p["spend_p90"]["value"][i] for p in parts) for i in range(n)]
+        assert any(abs(s - w) > 1 for s, w in zip(p90_sum, whole["spend_p90"]["value"])), name

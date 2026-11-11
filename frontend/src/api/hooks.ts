@@ -4,7 +4,7 @@ import { api, health } from './client'
 import type { CompareResult, EvidenceResponse, PredictionResult, PresetsResponse, RecommendResponse, Scenario, ZonesResponse } from './types'
 import { useDebounced } from '../lib/useDebounced'
 import { toFleetRequest } from '../lib/fleet/io'
-import type { Fleet, FleetForecast } from '../lib/fleet/types'
+import type { Fleet, FleetForecast, FleetRequest } from '../lib/fleet/types'
 
 const key = (o: unknown) => JSON.stringify(o)
 const STATIC = { staleTime: Infinity, retry: 1 } as const
@@ -66,16 +66,35 @@ export function useReportStatus() {
   return useQuery({ queryKey: ['report-status'], queryFn: ({ signal }) => api.get<{ email_enabled: boolean }>('/report/status', signal), staleTime: Infinity, retry: false })
 }
 
-const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+export const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
-/** The whole fleet in one call. Only duty classes and bus ages are sent. (Chunking the classes so the first figures appear early comes with the Fleet page.) */
-export function useFleetForecast(fleet: Fleet | null, delay = 400) {
+/** The whole fleet in one call. Only duty classes and bus ages go to the server. `asOf` is passed in so every call a page makes (the whole fleet, each class, each depot)
+ *  is worked out for the same day and their financial-year columns line up. */
+export function useFleetForecast(fleet: Fleet | null, asOf: string, delay = 400) {
   const f = useDebounced(fleet, delay)
-  const req = useMemo(() => (f ? toFleetRequest(f, localToday()) : null), [f])
+  const req = useMemo(() => (f ? toFleetRequest(f, asOf) : null), [f, asOf])
   const k = useMemo(() => key(req), [req])
   return useQuery({
     queryKey: ['fleet', k],
     queryFn: ({ signal }) => api.post<FleetForecast>('/fleet', req, signal),
     enabled: !!req, placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
+  })
+}
+
+/** Subsets of the fleet (one request each), asked one after another so the figures appear as they are ready ("7 of 11 classes done"). The server works out a class
+ *  in under 0.1 s once its ageing curves are cached, and a single worker gains nothing from parallel calls. Same query keys as `useFleetForecast`, so a subset that
+ *  is the whole fleet (one class, one depot) is a cache hit. Nothing is asked until `enabled`, which a page sets once the whole-fleet answer has arrived. */
+export function useFleetBatch(requests: FleetRequest[], enabled: boolean, delay = 400) {
+  const qc = useQueryClient()
+  const list = useDebounced(key(requests), delay)
+  const arr = (JSON.parse(list) as FleetRequest[]) ?? []
+  return useQueries({
+    queries: arr.map((req, i) => {
+      const prev = i === 0 ? 'success' : qc.getQueryState(['fleet', key(arr[i - 1])])?.status
+      return {
+        queryKey: ['fleet', key(req)], queryFn: ({ signal }: { signal: AbortSignal }) => api.post<FleetForecast>('/fleet', req, signal),
+        enabled: enabled && (prev === 'success' || prev === 'error'), staleTime: Infinity, retry: false,
+      }
+    }),
   })
 }

@@ -16,11 +16,11 @@ import Replacement from './pages/Replacement'
 import Range from './pages/Range'
 import Cost from './pages/Cost'
 import Evidence from './pages/Evidence'
-import Fleet from './pages/Fleet'
 
-// The 3D bundle is large, so those two pages load on demand.
+// The 3D bundle is large, so those two pages load on demand; so does Fleet (the roster, input methods and forecast blocks are only needed there).
 const Overview = lazy(() => import('./pages/Overview'))
 const Optimise = lazy(() => import('./pages/Optimise'))
+const Fleet = lazy(() => import('./pages/Fleet'))
 
 function Protected() {
   const { user, checking } = useAuth()

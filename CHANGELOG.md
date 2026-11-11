@@ -2,6 +2,15 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Fleet forecast blocks (after v1.0.0)
+- The Fleet page now forecasts. **Battery budget by financial year:** one headline sentence for the next full financial year ("Budget about ₹X crore in FY…", "up to ₹Y at the 90th percentile" when the low end is zero), expected pack spend per year stacked by depot with the 10th to 90th percentile on the whole-fleet total, buses of unknown age hatched and kept apart, and a table alternative with a running total (marked as having no band).
+- **When each duty class reaches the line:** a class by financial year grid of expected buses, filled in as each class is worked out ("k of n duty classes done"). It replaces drawing a curve per bus.
+- **Roster:** months to the line (median), the year it lands in, cost per km (the class's figure), flags; sort by any of them ("which buses first" is a click); risk-band chips; **Group by** depot, route, bus type, in-service year, duty class, risk band, replacement batch or flag, as collapsed rows with counts.
+- **Where the battery money goes** (a cost, not a margin) ranks depots, routes, classes or bus types by pack price spread over life, with ₹ per km. **What to do first, in rupees** tries one lever at a time for the five largest classes and ranks them by what they are worth to the whole class.
+- Every call for the page is worked out for the same day. Expected buses and spend add exactly across subsets (pinned by a backend test against the real engine), the percentiles do not, so the band is drawn on the total only. On the real engine the whole fleet takes 1.23 s cold (11 classes, 200 buses) and the per-class and per-depot calls after it about 0.3 s together.
+- The Fleet page is now loaded on demand (the main bundle is back to 92.7 kB gzipped from 137 kB). The account menu lost an invalid `role="menu"`.
+- Tests: 15 for the forecast logic, 11 page tests including accessibility scans, 1 backend test. Not built: reported health beside the model's range (the API returns no retention band per age), lever ranking beyond the five largest classes. See `docs/fleet-and-ui-plan.md`.
+
 ## Fleet page and input methods (after v1.0.0)
 - New **Fleet** page (nav item between Optimise and Evidence). With no fleet loaded every other page behaves exactly as before; nothing here changes a single-bus number.
 - **Ways in, all through one gate:** upload a roster CSV (one row per bus), a duty-log CSV (one row per bus per day; duty is derived per bus with the existing single-bus rules), or a saved fleet file; paste cells copied from a spreadsheet (tab, comma or semicolon); add a batch of buses by hand (1 to 500, id prefix and start number, duty from the bus on screen, an existing class, or entered now); or load the synthetic sample. Roster and log are told apart automatically (a date column with repeating bus ids is a log). Templates can be downloaded.

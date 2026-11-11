@@ -31,7 +31,7 @@ export function TopNav() {
       <div className="umenu">
         <button className="avatar" aria-label={`${(user ?? '?').slice(0, 1).toUpperCase()}, account menu`} aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{(user ?? '?').slice(0, 1).toUpperCase()}</button>
         {menu && (
-          <div className="pop" role="menu">
+          <div className="pop">
             <b>{user}</b><small>Demo account</small>
             <button className="btn sm" style={{ marginTop: 12, width: '100%' }} onClick={logout}>Sign out</button>
           </div>
