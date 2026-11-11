@@ -381,7 +381,9 @@ svg.ch text{font-family:var(--body);font-size:12px;font-weight:600;fill:#B4B4BC}
 
 /* touch, scrolling and numbers */
 button,a,summary,label,input[type=range],select{touch-action:manipulation}
-.drawer,.db,.insp,.pop,.scrollx{overscroll-behavior:contain}
+.drawer,.db,.insp,.pop{overscroll-behavior:contain}
+/* A wide table scrolls sideways only; it must not trap the page's vertical wheel scroll while the pointer is over it */
+.scrollx,.bscroll{overscroll-behavior-x:contain;overscroll-behavior-y:auto}
 .st b,.tbl td,.tbl th,.yrl b,.tiles b,.bsh b{font-variant-numeric:tabular-nums}
 @media (max-width:1179px){.imm-bottom{bottom:calc(8px + env(safe-area-inset-bottom))}.drawer{bottom:calc(8px + env(safe-area-inset-bottom))}.insp{bottom:calc(8px + env(safe-area-inset-bottom))}}
 
