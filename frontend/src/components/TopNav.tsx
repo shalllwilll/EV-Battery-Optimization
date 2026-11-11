@@ -1,11 +1,14 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useThumb } from '../lib/useThumb'
 
+/** Three zones: the fleet, one bus's analysis pages, and the evidence behind them. A thin divider separates the zones. */
 export const ROUTES = [
-  { to: '/', label: 'Overview' }, { to: '/health', label: 'Health' }, { to: '/replacement', label: 'Replacement' },
-  { to: '/range', label: 'Range' }, { to: '/cost', label: 'Cost' }, { to: '/optimise', label: 'Optimise' }, { to: '/fleet', label: 'Fleet' }, { to: '/evidence', label: 'Evidence' },
+  { to: '/fleet', label: 'Fleet', zone: 0 },
+  { to: '/', label: 'Overview', zone: 1 }, { to: '/health', label: 'Health', zone: 1 }, { to: '/replacement', label: 'Replacement', zone: 1 },
+  { to: '/range', label: 'Range', zone: 1 }, { to: '/cost', label: 'Cost', zone: 1 }, { to: '/optimise', label: 'Optimise', zone: 1 },
+  { to: '/evidence', label: 'Evidence', zone: 2 },
 ]
 
 export function TopNav() {
@@ -26,7 +29,12 @@ export function TopNav() {
       </NavLink>
       <nav className="links" ref={box} aria-label="Sections">
         <span className="thumb" style={thumb} aria-hidden="true" />
-        {ROUTES.map((r) => <NavLink key={r.to} to={`${r.to}${search}`} end={r.to === '/'} className={() => (loc.pathname === r.to ? 'active' : '')}>{r.label}</NavLink>)}
+        {ROUTES.map((r, i) => (
+          <Fragment key={r.to}>
+            {i > 0 && ROUTES[i - 1].zone !== r.zone && <span className="zsep" aria-hidden="true" />}
+            <NavLink to={`${r.to}${search}`} end={r.to === '/'} className={() => (loc.pathname === r.to ? 'active' : '')}>{r.label}</NavLink>
+          </Fragment>
+        ))}
       </nav>
       <div className="umenu">
         <button className="avatar" aria-label={`${(user ?? '?').slice(0, 1).toUpperCase()}, account menu`} aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{(user ?? '?').slice(0, 1).toUpperCase()}</button>

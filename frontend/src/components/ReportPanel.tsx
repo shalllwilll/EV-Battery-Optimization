@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { api, ApiClientError, postFile } from '../api/client'
 import { useReportStatus } from '../api/hooks'
 import type { Scenario } from '../api/types'
-import { useFleetSize } from '../lib/useFleetSize'
+import { useScopeSize } from '../state/scope'
 
 type Status = { kind: 'idle' } | { kind: 'busy'; what: 'pdf' | 'email' } | { kind: 'done'; text: string } | { kind: 'error'; text: string }
 const EMAIL = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()"]+$/
@@ -11,7 +11,7 @@ const EMAIL = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()"]+$/
  *  from the two buses' settings, so what is emailed is exactly what is downloaded. Nothing is stored: the address is used for this one send. */
 export function ReportPanel({ a, b, changes, ready }: { a: Scenario; b: Scenario; changes: string[]; ready: boolean }) {
   const uid = useId()
-  const [fleet] = useFleetSize()
+  const [fleet] = useScopeSize()
   const mail = useReportStatus()
   const [to, setTo] = useState('')
   const [st, setSt] = useState<Status>({ kind: 'idle' })

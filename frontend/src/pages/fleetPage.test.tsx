@@ -312,3 +312,83 @@ describe('Fleet page: accessibility', () => {
     expect(await scan()).toEqual([])
   })
 })
+
+describe('Fleet and the analysis pages: one app', () => {
+  const sample = async () => {
+    mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
+    await screen.findByRole('table')
+  }
+  const crumb = () => screen.getByRole('region', { name: 'Fleet scope' })
+
+  it('has no scope bar until a bus is opened, and opening one lands on Health with the breadcrumb', async () => {
+    await sample()
+    expect(screen.queryByRole('region', { name: 'Fleet scope' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole('button', { name: /^Open B-/ })[0])
+    await screen.findByRole('heading', { level: 1, name: 'How much capacity is left' })
+    const c = within(crumb())
+    expect(c.getByRole('link', { name: /Fleet · 60 buses/ })).toBeInTheDocument()
+    expect(within(c.getByRole('navigation', { name: 'Where you are' })).getByText(/Depot A/)).toBeInTheDocument()
+    expect(c.queryByRole('button', { name: /Apply to this duty class/ })).not.toBeInTheDocument()   // nothing changed yet
+  })
+
+  it('the bus switcher moves to the next bus without going back to the roster, and the scope can be left', async () => {
+    await sample()
+    await userEvent.click(screen.getAllByRole('button', { name: /^Open B-/ })[0])
+    await screen.findByRole('heading', { level: 1, name: 'How much capacity is left' })
+    const before = (within(crumb()).getByRole('combobox', { name: 'Bus' }) as HTMLSelectElement).value
+    await userEvent.click(within(crumb()).getByRole('button', { name: 'Next bus' }))
+    expect((within(crumb()).getByRole('combobox', { name: 'Bus' }) as HTMLSelectElement).value).not.toBe(before)
+    expect(screen.getByRole('heading', { level: 1, name: 'How much capacity is left' })).toBeInTheDocument()
+    await userEvent.click(within(crumb()).getByRole('button', { name: 'Leave the fleet' }))
+    expect(screen.queryByRole('region', { name: 'Fleet scope' })).not.toBeInTheDocument()
+  })
+
+  it('a changed scenario can be applied to the duty class: the class takes the change and no bus is lost', async () => {
+    await sample()
+    const stored = () => JSON.parse(localStorage.getItem('ph.fleet.v1') ?? '{}')
+    await userEvent.click(screen.getAllByRole('button', { name: /^Open B-/ })[0])
+    await screen.findByRole('heading', { level: 1, name: 'How much capacity is left' })
+    const fleet0 = stored().fleet ?? stored()
+    const opened = (within(crumb()).getByRole('combobox', { name: 'Bus' }) as HTMLSelectElement).value
+    const cls0 = (fleet0.buses as { id: string; classId: string }[]).find((b) => b.id === opened)!.classId
+    const n = (fleet0.buses as { classId: string }[]).filter((b) => b.classId === cls0).length
+    await userEvent.click(await screen.findByRole('button', { name: /Scenario/ }))
+    const km = await screen.findByRole('textbox', { name: 'Distance per day' })
+    await userEvent.clear(km); await userEvent.type(km, '123')
+    const apply = await within(crumb()).findByRole('button', { name: new RegExp(`Apply to this duty class \\(${n} bus`) })
+    await userEvent.click(apply)
+    await waitFor(() => expect(within(crumb()).queryByRole('button', { name: /Apply to this duty class/ })).not.toBeInTheDocument())
+    const after = stored().fleet ?? stored()
+    const kms = new Set((after.classes as { id: string; scenario: { km_per_day: number } }[]).map((c) => c.scenario.km_per_day))
+    expect(kms.has(123)).toBe(true)
+    expect((after.buses as unknown[]).length).toBe(60)
+  })
+
+  it('the money lines and the fleet plan speak for the duty class of the opened bus, read-only', async () => {
+    await sample()
+    await userEvent.click(screen.getAllByRole('button', { name: /^Open B-/ })[0])
+    await screen.findByRole('heading', { level: 1, name: 'How much capacity is left' })
+    await userEvent.click(screen.getAllByRole('link', { name: 'Replacement' })[0])
+    const box = await screen.findByLabelText('Buses in this duty class')
+    expect(box).toHaveAttribute('readonly')
+    expect(Number((box as HTMLInputElement).value)).toBeGreaterThan(0)
+    expect(Number((box as HTMLInputElement).value)).toBeLessThan(60)
+  })
+
+  it('without a fleet the plan keeps its own editable bus count', async () => {
+    mockApi(); renderApp('/replacement')
+    const box = await screen.findByLabelText('Buses in the fleet')
+    expect(box).not.toHaveAttribute('readonly')
+    expect(screen.queryByRole('region', { name: 'Fleet scope' })).not.toBeInTheDocument()
+  })
+
+  it('has no accessibility violations with the scope bar showing', async () => {
+    await sample()
+    await userEvent.click(screen.getAllByRole('button', { name: /^Open B-/ })[0])
+    await screen.findByRole('heading', { level: 1, name: 'How much capacity is left' })
+    await screen.findByRole('region', { name: 'Fleet scope' })
+    expect(await scan()).toEqual([])
+  })
+})

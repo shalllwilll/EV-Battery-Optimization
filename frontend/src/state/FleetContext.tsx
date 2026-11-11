@@ -28,6 +28,9 @@ export const useFleet = () => {
   return c
 }
 
+/** Like `useFleet`, but null outside a provider: for pieces that are shared with screens that never have a fleet. */
+export const useFleetOptional = () => useContext(C)
+
 export function FleetProvider({ children }: { children: ReactNode }) {
   const [fleet, setFleetState] = useState<Fleet | null>(loadFleet)
   const [prev, setPrev] = useState<{ fleet: Fleet | null } | null>(null)

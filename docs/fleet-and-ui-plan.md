@@ -1,6 +1,6 @@
 # Fleet handling and UI uplift — plan
 
-Status: phases 0–4 merged to main (phase 0 is `docs/fleet-research.md`); phase 5 built (branch `fleet-page-forecast`); phases 6–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4), then the research findings (§1, §8).
+Status: phases 0–4 merged to main (phase 0 is `docs/fleet-research.md`); phase 5 merged; phase 6 built (branch `fleet-integration`); phase 7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4), then the research findings (§1, §8).
 
 Everything below keeps the project's standing rules: real free data only, every output labelled
 "not yet validated on buses", vendor data only calibrates, BMS state of health is never ground truth.
@@ -591,6 +591,15 @@ before anyone can feed data into them.
 - **Honest wording** on every block: the figures are about the model's line (80 % of a new pack), not how the buses are driven or what their health reports say; the two published models are mixed 50/50 by assumption; not yet validated on buses.
 - **Found on the way.** The page was in the main bundle (137 kB gzipped); it is now lazy-loaded and the main bundle is 92.7 kB again, under the 100 kB the build comment promises. The account menu had `role="menu"` without menu items (an axe failure when opened); the role is removed. Two new class names collided with existing ones (`.tl` and `.grp`); renamed.
 - **Deviations / not built.** (1) `reported_soh_pct` is still not shown beside the model's range and there is no "worth a physical check" flag: the fleet response carries months to the line, not a retention band at each age, so it cannot be compared without a new field on the API. (2) The lever ranking covers only the five largest classes. (3) Batches (depot × bus type × risk band) are a Group by option, not a separate block. (4) The budget chart is hard to read at 375 px (the chart scales; its table is the phone-width reading); the roster and other blocks scroll or stack. (5) Cost per km is a class figure repeated for every bus of the class.
+
+**As built in phase 6 (integration).** `state/scope.ts`, `components/ScopeBar.tsx`, `components/fleet/useOpenBus.ts`; 6 page tests including an accessibility scan.
+
+- **Open a bus.** Each roster row has an "Open" button: the bus's duty class becomes the scenario on screen, any "try a change" is cleared (it belonged to the last bus), the bus becomes the scope, and the app goes to Health.
+- **Scope bar** under the nav on every page except Fleet, only while a bus is opened: "Fleet · 60 buses › B-104 · Depot A · Route 3 · in service Jul 2023", previous/next and (up to 300 buses) a select as the bus switcher, and "Leave the fleet". With no fleet or no opened bus nothing changes anywhere.
+- **Apply to this duty class (N buses).** Shown when the scenario on screen, with any what-if on top, differs from the class's own scenario, whether the change came from a slider or from the Scenario panel. It sets that duty on every bus of the class through the same `editBuses` the roster uses (so the same validation and re-classing); each bus keeps its depot, route and month. It is one fleet change, so the Fleet page's undo strip covers it. Until applied, a change is a what-if only.
+- **Fleet-aware counts.** With a bus opened, the money lines (Try a change, Optimise, the report) and the Replacement page's plan speak for the buses in that duty class; the plan's count box is read-only and says so. With no opened bus the editable remembered count is unchanged.
+- **Navigation zones.** Fleet | Overview, Health, Replacement, Range, Cost, Optimise | Evidence, with dividers. At 1024 px all eight links fit, so no menu was needed.
+- **Not built.** The scope bar does not show the fleet-level change after applying (the toast points to the Fleet page); no "/" command palette; "From the bus on screen" stays the Add-buses form's default source; the Cost page's own cost line is not fleet-scaled beyond the shared money lines.
 
 ## 9. Deliberately out of scope
 

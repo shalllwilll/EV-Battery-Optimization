@@ -6,6 +6,7 @@ import { UNASSIGNED, type Bus, type Fleet, type FleetForecast } from '../../lib/
 import { useScenario } from '../../state/ScenarioContext'
 import { useFleet } from '../../state/FleetContext'
 import { toast } from '../Toast'
+import { useOpenBus } from './useOpenBus'
 
 const PAGE = 100
 const monthLabel = (m?: string) => m ?? ''
@@ -52,6 +53,7 @@ type Props = { fleet: Fleet; rows: Row[]; forecast: FleetForecast | null; series
 export function RosterTable({ fleet, rows: all, forecast, series, stale, loading }: Props) {
   const { setFleet, groupBy, setGroupBy } = useFleet()
   const { scenario } = useScenario()
+  const open = useOpenBus()
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(PAGE)
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -60,7 +62,7 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
   const [grouped, setGrouped] = useState(false)
   const [band, setBand] = useState<Band | null>(null)
-  const [open, setOpen] = useState<Set<string>>(new Set())
+  const [openG, setOpenG] = useState<Set<string>>(new Set())
   const [more, setMore] = useState<Record<string, number>>({})
   const now = () => Date.now()
   const cls = useMemo(() => new Map(fleet.classes.map((c) => [c.id, c])), [fleet])
@@ -145,10 +147,11 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
         <td className="num yr">{r.band === 'past_median' ? 'now' : yearLabel(series, r.p50).replace(/^FY/, 'FY ')}</td>
         <td className="num">{k == null ? <span className="dim">–</span> : `₹${k.toFixed(2)}`}</td>
         <td>{flagsOf(b, b.sources.duty).map((t) => <span key={t} className="tag assumption">{t}</span>)}{r.flags.filter((f) => f !== 'age_unknown').map((f) => <span key={f} className="tag assumption" title={f === 'outside_lab_range' ? 'The class’s conditions are outside what the laboratory cells were tested at' : undefined}>{FLAG_SHORT[f]}</span>)}</td>
+        <td><button className="btn sm" aria-label={`Open ${b.id} in the analysis pages`} onClick={() => open(b.id, `/health${window.location.search}`)}>Open</button></td>
       </tr>
     )
   }
-  const COLS = 11
+  const COLS = 12
   const head = (
     <thead><tr>
       <th scope="col" className="ck"><input type="checkbox" aria-label={`Select all ${rows.length} matching buses`} checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(rows.map((r) => r.bus.id)))} /></th>
@@ -156,7 +159,7 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
       {sortTh('months', 'Months to the line', 'Months until the median pack reaches the replacement line, given the bus is still in service. Sort to see which buses come first.')}
       <th scope="col">Lands in</th>
       {sortTh('cost', batteryOnly ? 'Battery cost per km' : 'Cost per km', 'A figure for the bus’s duty class, not for the bus')}
-      <th scope="col">Worth knowing</th>
+      <th scope="col">Worth knowing</th><th scope="col"><span className="sr">Open in the analysis pages</span></th>
     </tr></thead>
   )
   const byId = new Map(rows.map((r) => [r.bus.id, r]))
@@ -167,7 +170,7 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
         <div><h2 id={`${sid}-h`}>Your buses</h2><div className="sub" style={{ marginBottom: 0 }}>Click a depot, route or month to change it. Select rows to change several at once. Sort “Months to the line” to see which buses come first.</div></div>
         <div className="roster-tools">
           <div className="lsel"><label htmlFor={`${sid}-g`}>Group by</label>
-            <select id={`${sid}-g`} className="sel" value={grouped ? groupBy : ''} onChange={(e) => { const v = e.target.value as GroupBy | ''; if (!v) setGrouped(false); else { setGrouped(true); setGroupBy(v); setOpen(new Set()) } }}>
+            <select id={`${sid}-g`} className="sel" value={grouped ? groupBy : ''} onChange={(e) => { const v = e.target.value as GroupBy | ''; if (!v) setGrouped(false); else { setGrouped(true); setGroupBy(v); setOpenG(new Set()) } }}>
               <option value="">No grouping</option>
               {GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
             </select>
@@ -207,12 +210,12 @@ export function RosterTable({ fleet, rows: all, forecast, series, stale, loading
         <table className="tbl roster">
           {head}
           {grouping && !grouping.pending ? grouping.groups.map((g) => {
-            const on = open.has(g.key), lim = more[g.key] ?? 50
+            const on = openG.has(g.key), lim = more[g.key] ?? 50
             const list = on ? g.busIds.map((id) => byId.get(id)).filter((r): r is Row => !!r) : []
             return (
               <tbody key={g.key}>
                 <tr className="rgrp"><th scope="rowgroup" colSpan={COLS}>
-                  <button className="grp-b" aria-expanded={on} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n })}>
+                  <button className="grp-b" aria-expanded={on} onClick={() => setOpenG((o) => { const n = new Set(o); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n })}>
                     <span aria-hidden="true">{on ? '▾' : '▸'}</span> <b>{g.label}</b> <span className="dim">{g.n} {g.n === 1 ? 'bus' : 'buses'}{g.due12 != null ? ` · about ${g.due12 < 10 ? g.due12.toFixed(1) : Math.round(g.due12)} reaching the line in the next 12 months` : ''}{g.earliest != null ? ` · earliest median ${Math.round(g.earliest)} months` : ''}</span>
                   </button>
                 </th></tr>

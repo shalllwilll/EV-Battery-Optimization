@@ -3,7 +3,7 @@ import { WithTable } from '../DataTable'
 import { annualSchedule, bulkWindow, cumulativeSpend, provision } from '../../lib/planner'
 import { fmt } from '../../lib/format'
 import { rupees } from '../../lib/money'
-import { useFleetSize } from '../../lib/useFleetSize'
+import { useScopeSize } from '../../state/scope'
 import { useYear } from '../../state/YearContext'
 import { G, Grid, Tip, X, XAxis, Y, type Box } from './geometry'
 
@@ -12,7 +12,7 @@ const lakh = rupees
 
 /** The same distribution applied to a fleet: how many buses reach the line each year, and what first packs would cost. */
 export function FleetPlan({ cdf, packCostInr, xMax }: { cdf: number[]; packCostInr: number | null; xMax: number }) {
-  const [fleet, setFleet] = useFleetSize()
+  const [fleet, setFleet, fromFleet] = useScopeSize()
   const { year, setYear } = useYear()
   const [hov, setHov] = useState<number | null>(null)
   const { bars, after } = annualSchedule(cdf, fleet)
@@ -30,7 +30,7 @@ export function FleetPlan({ cdf, packCostInr, xMax }: { cdf: number[]; packCostI
   return (
     <>
       <div className="fleet-in">
-        <label>Buses in the fleet<input type="number" min={1} max={5000} value={fleet} onChange={(e) => setFleet(+e.target.value)} /></label>
+        <label>{fromFleet ? 'Buses in this duty class' : 'Buses in the fleet'}<input type="number" min={1} max={5000} value={fleet} readOnly={fromFleet} onChange={(e) => setFleet(+e.target.value)} /></label>
         <div className="fleet-k"><small>By year {year.toFixed(1)}</small><b>{fmt(doneBy)}<span> replaced</span></b></div>
         {cum && <div className="fleet-k"><small>First packs by then</small><b>{lakh(cum[yi] ?? 0)}</b></div>}
         <div className="fleet-k"><small>Still going after {xMax >= (cdf.length - 1) / 12 ? 'the forecast' : `year ${Math.ceil(xMax)}`}</small><b>{fmt(after)}<span> buses</span></b></div>
@@ -63,7 +63,7 @@ export function FleetPlan({ cdf, packCostInr, xMax }: { cdf: number[]; packCostI
         }
         head={['Year', 'Expected buses', '10th pct', '90th pct', ...(cum ? ['Spend that year', 'Spend 10th pct', 'Spend 90th pct', 'First packs so far'] : [])]}
         rows={shown.map((s) => { const v = prov[s.year - 1]; return [s.year, s.expected.toFixed(1), v.low, v.high, ...(cum ? [spend(s.expected)!, spend(v.low)!, spend(v.high)!, lakh(cum[s.year - 1])] : [])] })} />
-      <p className="note">Assumes buses spread out like the model's runs, they age independently, each is replaced once, and money is not discounted. The whiskers show how far the count of a fleet this size could land from the average (10th to 90th percentile), on top of the model's own spread. Fleet size is remembered in this browser only.</p>
+      <p className="note">Assumes buses spread out like the model's runs, they age independently, each is replaced once, and money is not discounted. The whiskers show how far the count of a fleet this size could land from the average (10th to 90th percentile), on top of the model's own spread. {fromFleet ? 'The bus count is the duty class of the bus opened from your fleet.' : 'Fleet size is remembered in this browser only.'}</p>
     </>
   )
 }

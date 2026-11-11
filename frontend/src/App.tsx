@@ -4,6 +4,7 @@ import { useAuth } from './auth/AuthContext'
 import { Skeleton } from './components/Async'
 import { Toaster } from './components/Toast'
 import { TopNav } from './components/TopNav'
+import { ScopeBar } from './components/ScopeBar'
 import { usePresets } from './api/hooks'
 import { ErrorState } from './components/Async'
 import { ScenarioProvider } from './state/ScenarioContext'
@@ -36,6 +37,7 @@ function Protected() {
         <WhatIfProvider>
           <FleetProvider>
             <TopNav />
+            <ScopeBar />
             <Suspense fallback={<div className="page"><Skeleton h={560} /></div>}><Outlet /></Suspense>
             <Toaster />
           </FleetProvider>

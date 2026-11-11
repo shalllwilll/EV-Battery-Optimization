@@ -19,7 +19,7 @@ import { LensSwitch } from '../components/LensSwitch'
 import { buildSceneParams } from '../lib/sceneParams'
 import { insightLine } from '../lib/insight'
 import { lifeValue, valueLine } from '../lib/money'
-import { useFleetSize } from '../lib/useFleetSize'
+import { useScopeSize } from '../state/scope'
 import { ChangeBar } from '../components/ChangeBar'
 import { applyOverrides, diffLevers, hasChanges, lifeChange, sameLevers, signed, sliderSpecs, stageFor, type LeverKey, type Overrides } from '../lib/busB'
 import { atYear, fmt, inr, num } from '../lib/format'
@@ -62,7 +62,7 @@ export default function Optimise() {
   const bOk = valid && Object.keys(validateScenario(busB)).length === 0
   const run = changed && bOk
 
-  const [fleet] = useFleetSize()
+  const [fleet] = useScopeSize()
   const predA = usePredict(valid ? scenario : null)
   const predB = usePredict(run ? busB : null)
   const cmp = useCompare(run ? scenario : null, run ? busB : null)

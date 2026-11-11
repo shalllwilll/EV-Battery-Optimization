@@ -2,6 +2,13 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Fleet and the analysis pages as one app (after v1.0.0)
+- Each roster row has **Open**: that bus's duty class loads into Health, Replacement, Range, Cost and Optimise, and a **scope bar** under the nav shows "Fleet · N buses › B-104 · Depot A · Route · in service month" with previous/next and a bus switcher.
+- A change made on any page stays a what-if until you choose **Apply to this duty class (N buses)**, which sets the duty of every bus in that class (depot, route and month untouched) as one undoable fleet change.
+- With a bus opened, the rupee lines and the Replacement plan speak for the buses in its duty class instead of a typed number. With no fleet or no opened bus the app behaves exactly as before.
+- Navigation is grouped Fleet | the six bus pages | Evidence.
+- Tests: 6 page tests (284 frontend in all). Not built: a fleet-level before/after on applying, a command palette. See `docs/fleet-and-ui-plan.md`.
+
 ## Fleet forecast blocks (after v1.0.0)
 - The Fleet page now forecasts. **Battery budget by financial year:** one headline sentence for the next full financial year ("Budget about ₹X crore in FY…", "up to ₹Y at the 90th percentile" when the low end is zero), expected pack spend per year stacked by depot with the 10th to 90th percentile on the whole-fleet total, buses of unknown age hatched and kept apart, and a table alternative with a running total (marked as having no band).
 - **When each duty class reaches the line:** a class by financial year grid of expected buses, filled in as each class is worked out ("k of n duty classes done"). It replaces drawing a curve per bus.

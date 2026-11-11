@@ -586,3 +586,11 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .roster tbody th[scope=row]{white-space:nowrap}.roster .yr{color:var(--t2);font-size:13.5px}
 .roster tr.rgrp th{text-align:left;padding:0;background:var(--s2);border-top:1px solid var(--line)}.grp-b{width:100%;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;text-align:left;padding:10px 12px;font:inherit;color:var(--text);background:none;border:0;cursor:pointer}
 @media (max-width:640px){.mny li,.mny li:not(:has(.mn-b)){grid-template-columns:1fr;gap:6px}.mn-n{align-items:flex-start;text-align:left}.roster-tools{width:100%}.roster-tools .inp{flex:1 1 160px}}
+
+/* Phase 6: nav zones and the fleet scope bar */
+.nav .links .zsep{align-self:center;width:1px;height:18px;background:var(--line);margin:0 2px;flex:none}
+.scope{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap;max-width:1320px;margin:84px auto 0;width:calc(100% - clamp(32px,4.8vw,64px));padding:9px 18px;border:1px solid var(--line2);border-radius:var(--r-md);background:rgba(20,20,23,.78);font-size:13.5px;color:var(--t2);position:relative;z-index:2}
+.scope-l,.scope-r,.scope-sw{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.scope-l a{color:var(--volt);font-weight:700}.scope-l b{color:var(--text)}
+.scope-sw{flex-wrap:nowrap}.scope-sw .sel{max-width:190px;min-width:0}
+@media (max-width:640px){.scope{margin:76px auto 0;padding:8px 12px}.scope-r{width:100%}}
+.scope+.page{padding-top:16px}

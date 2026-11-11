@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { PredictionResult } from '../api/types'
-import { useFleetSize } from '../lib/useFleetSize'
+import { useScopeSize } from '../state/scope'
 import { lifeValue, valueLine } from '../lib/money'
 import { num } from '../lib/format'
 import { lifeDelta, whatIfSpecs, type WKey } from '../lib/whatif'
@@ -15,7 +15,7 @@ export function WhatIfBar({ keys, base, note, result }: { keys: WKey[]; base: Pr
   const { over, set, reset, changed, predB } = useWhatIf()
   const specs = whatIfSpecs(scenario).filter((s) => keys.includes(s.key))
   const delta = changed && predB.data ? lifeDelta(base.replacement, predB.data.replacement) : null
-  const [fleet] = useFleetSize()
+  const [fleet, , fromFleet] = useScopeSize()
   // money only when the price is the same on both sides, so the change is life alone; first pack only, undiscounted
   const packA = num(base.cost.battery_cost), packB = predB.data ? num(predB.data.cost.battery_cost) : null
   const money = delta && packA != null && packB != null && Math.abs(packA - packB) < 1 ? valueLine(lifeValue(packA, num(base.replacement.months_p50), num(predB.data!.replacement.months_p50)), fleet) : null
@@ -25,7 +25,7 @@ export function WhatIfBar({ keys, base, note, result }: { keys: WKey[]; base: Pr
       <header>
         <b>Try a change</b>
         <span className="wi-state" aria-live="polite">
-          {!changed ? 'Move a slider to see a ghost of your bus with that change' : busy ? 'Working it out…' : delta ? <>Battery life <strong>{delta.headline}</strong> <em>{delta.range}</em>{money && <span className="wi-sub" title="The pack price spread over its life, undiscounted, first pack only. Fleet size is set on the Replacement page.">{money}</span>}</> : 'Median life is beyond the forecast with this change, so the difference cannot be measured'}
+          {!changed ? 'Move a slider to see a ghost of your bus with that change' : busy ? 'Working it out…' : delta ? <>Battery life <strong>{delta.headline}</strong> <em>{delta.range}</em>{money && <span className="wi-sub" title={`The pack price spread over its life, undiscounted, first pack only. ${fromFleet ? 'Buses are the duty class of the bus opened from your fleet.' : 'Fleet size is set on the Replacement page.'}`}>{money}</span>}</> : 'Median life is beyond the forecast with this change, so the difference cannot be measured'}
         </span>
         {changed && !busy && predB.data && result && <span className="wi-res">{result(predB.data)}</span>}
         {changed && <button className="btn sm" onClick={reset}>Reset</button>}
