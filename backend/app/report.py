@@ -292,7 +292,7 @@ def _page(c: canvas.Canvas, doc) -> None:
         c.setFillColor(blend(VOLT, BG, a)); c.circle(W - 14 * mm, H - 4 * mm, (74 - i * 13) * mm, stroke=0, fill=1)
     renderPDF.draw(V.brand_mark(17), c, MARGIN, H - 15.5 * mm)
     c.setFont("LX-SB", 10.5); c.setFillColor(TEXT); c.drawString(MARGIN + 23, H - 12.4 * mm, "Pack Horizon")
-    c.setFont("MR", 8); c.setFillColor(T3); c.drawRightString(W - MARGIN, H - 12.3 * mm, "E-bus battery lifecycle · Bus comparison report")
+    c.setFont("MR", 8); c.setFillColor(T3); c.drawRightString(W - MARGIN, H - 12.3 * mm, getattr(doc, "header_title", "E-bus battery lifecycle · Bus comparison report"))
     c.setStrokeColor(LINE2); c.setLineWidth(0.6); c.line(MARGIN, H - 18.5 * mm, W - MARGIN, H - 18.5 * mm)
     c.restoreState()
 

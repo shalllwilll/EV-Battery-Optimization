@@ -64,7 +64,7 @@ export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { se
       <WithTable
         chart={
           <>
-            <svg className="ch" viewBox={`0 0 ${H.w} ${H.h}`} role="img" aria-label={`${inr ? 'Expected pack spend' : 'Expected buses reaching the line'} in each of the next ${n} financial years. ${head.text}`}>
+            <div className="bscroll"><svg className="ch" viewBox={`0 0 ${H.w} ${H.h}`} role="img" aria-label={`${inr ? 'Expected pack spend' : 'Expected buses reaching the line'} in each of the next ${n} financial years. ${head.text}`}>
               <defs><pattern id={`${id}-hatch`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#27272A" /><rect width="2.5" height="6" fill="#E4E4E7" /></pattern></defs>
               <Grid b={b} ticks={[0, top / 2, top]} lo={0} hi={top} fmt={fmtV} />
               {series.labels.map((l, i) => {
@@ -80,7 +80,7 @@ export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { se
                 )
               })}
               {hov != null && <Tip b={b} x={X(b, hov + 0.5)} y={Y(b, total[hov], 0, top)} lines={[[label(hov)], [`${fmtV(total[hov])} expected`, '#FACC15'], [`${fmtV(lo[hov])} to ${fmtV(hi[hov])}`, '#D4D4D8']]} />}
-            </svg>
+            </svg></div>
             <ul className="legend" aria-label="Depots in the stack">
               {names.map((nm, k) => <li key={nm}><i className={isUnknown(k) ? 'hatch' : undefined} style={isUnknown(k) ? undefined : { background: col(k) }} />{nm}</li>)}
               <li><i className="whisk" />10th to 90th percentile of the whole fleet</li>

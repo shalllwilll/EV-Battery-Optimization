@@ -1,6 +1,6 @@
 # Data attribution
 
-Every dataset is real, public and free to download. None is redistributed in this repository (`data/` is git-ignored); only small derived model files and summary numbers are committed. Nothing synthetic is used. The app's ageing models are NREL's (see below); the HUST, Naumann and Stanford rows describe our own laboratory fit, which is kept in the code but no longer shown. Licences are those stated by each source at download time; check the source before reusing a dataset.
+Every dataset is real, public and free to download. None is redistributed in this repository (`data/` is git-ignored); only small derived model files and summary numbers are committed. The one synthetic thing is the Fleet page's **sample fleet** (60 invented buses across 3 depots, generated in `frontend/src/lib/fleet/sample.ts`): it exists only to show the page working, is labelled "Synthetic, for demonstration" wherever it appears, and is never used to fit or check a model. No model figure rests on it. The app's ageing models are NREL's (see below); the HUST, Naumann and Stanford rows describe our own laboratory fit, which is kept in the code but no longer shown. Licences are those stated by each source at download time; check the source before reusing a dataset.
 
 | Dataset | Used for | Source | Licence |
 |---|---|---|---|

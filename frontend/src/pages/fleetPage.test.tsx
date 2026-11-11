@@ -22,14 +22,15 @@ const ROSTER = ['bus_id,in_service,depot,route,bus_type,km_per_day', 'B-1,2023-0
 describe('Fleet page: ways in and the gate', () => {
   it('starts empty with every way in listed, and the app still works without a fleet', async () => {
     await open()
-    expect(screen.getByRole('heading', { name: 'Start your fleet' })).toBeInTheDocument()
-    for (const n of [/Upload a file/, /Paste from a spreadsheet/, /Add buses by hand/, /Try the sample fleet/]) expect(await screen.findByRole('button', { name: n })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Where do you want to start?' })).toBeInTheDocument()
+    for (const n of [/Upload a file/, /Paste from a spreadsheet/, /Add buses by hand/, /Load the sample fleet/, /Import a CSV/]) expect(await screen.findByRole('button', { name: n })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Just one bus/ })).toHaveAttribute('href', expect.stringContaining('/health'))
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
   it('the sample fleet goes through the gate, is labelled synthetic, and only then joins', async () => {
     await open()
-    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
     expect(within(gate()).getByText(/60 buses in \d+ duty classes/)).toBeInTheDocument()
     expect(localStorage.getItem('ph.fleet.v1')).toBeNull()
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
@@ -87,7 +88,7 @@ describe('Fleet page: ways in and the gate', () => {
     await userEvent.click(g.getByRole('button', { name: 'Create fleet' }))
     expect(await screen.findByRole('rowheader', { name: 'B-103' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(await screen.findByRole('heading', { name: 'Start your fleet' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Where do you want to start?' })).toBeInTheDocument()
   })
 })
 
@@ -140,7 +141,7 @@ describe('Fleet page: the roster', () => {
 describe('Fleet page: the forecast blocks', () => {
   const withSample = async () => {
     const m = mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     await screen.findByRole('table')
     return m
@@ -266,7 +267,7 @@ describe('Fleet page: the forecast blocks', () => {
   it('a failed forecast leaves the roster working and says so', async () => {
     mockApi({ '/fleet': () => ({ status: 500, body: { error: { code: 'x', message: 'down', fields: [] } } }) })
     renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     expect(await screen.findByText(/The forecast could not be worked out/)).toBeInTheDocument()
     expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(60)
@@ -301,7 +302,7 @@ describe('Fleet page: accessibility', () => {
 
   it('has no violations with the forecast blocks, a group open, and the lever block loaded', async () => {
     mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     const tl = await screen.findByRole('region', { name: 'When each duty class reaches the line' })
     await waitFor(() => expect(within(tl).queryByRole('status')).not.toBeInTheDocument())
@@ -316,7 +317,7 @@ describe('Fleet page: accessibility', () => {
 describe('Fleet and the analysis pages: one app', () => {
   const sample = async () => {
     mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     await screen.findByRole('table')
   }

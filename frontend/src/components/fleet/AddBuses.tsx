@@ -11,7 +11,10 @@ import type { Fleet, Source } from '../../lib/fleet/types'
 
 export type Method = 'upload' | 'paste' | 'form'
 
+
 const empty = (label: string, detail: string, extra: Partial<Intake>): Intake => ({ label, detail, source: 'entered', drafts: [], rejected: [], header: [], notes: [], ignoredColumns: [], ...extra })
+
+export const sampleIntake = (ctx: Context): Intake => empty('Sample fleet', 'Synthetic, for demonstration: 60 buses, 3 depots', { fleet: sampleFleet(ctx.presets, new Date(ctx.nowMs)), name: 'Sample fleet' })
 
 /** The doors into the fleet. Each one ends in the same call, onIntake, which opens the gate; none of them changes the fleet itself. */
 export function AddBuses({ ctx, fleet, method, onMethod, onIntake }: { ctx: Context | null; fleet: Fleet | null; method: Method | null; onMethod: (m: Method | null) => void; onIntake: (i: Intake) => void }) {
@@ -28,11 +31,6 @@ export function AddBuses({ ctx, fleet, method, onMethod, onIntake }: { ctx: Cont
             <b>{m.t}</b><span>{m.d}</span>
           </button>
         ))}
-        {!fleet && ctx && (
-          <button className="meth-b" onClick={() => onIntake(empty('Sample fleet', 'Synthetic, for demonstration: 60 buses, 3 depots', { fleet: sampleFleet(ctx.presets, new Date(ctx.nowMs)), name: 'Sample fleet' }))}>
-            <b>Try the sample fleet</b><span>60 synthetic buses across 3 depots, to see the page working. Labelled as synthetic everywhere.</span>
-          </button>
-        )}
       </div>
       {method === 'upload' && <UploadPanel ctx={ctx} onIntake={onIntake} />}
       {method === 'paste' && <PastePanel ctx={ctx} onIntake={onIntake} />}

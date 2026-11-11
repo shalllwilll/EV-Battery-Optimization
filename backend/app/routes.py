@@ -5,12 +5,12 @@ import re
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from backend.app import mailer, report, service
+from backend.app import fleet_report, mailer, report, service
 from backend.app.auth import require_user
 from backend.app import reference
 from backend.app.config import get_settings
 from backend.app.errors import ApiError
-from backend.app.schemas import (CompareRequest, CompareResult, FleetRequest, FleetResponse, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse,
+from backend.app.schemas import (CompareRequest, CompareResult, FleetReportRequest, FleetRequest, FleetResponse, PredictionResult, PredictRequest, RecommendRequest, RecommendResponse,
                                  ReportEmailRequest, ReportRequest, ReportSent, ReportStatus)
 from engine.decide.fleet import FleetInputError
 
@@ -131,6 +131,24 @@ async def _build_report(request: Request, req: ReportRequest) -> tuple[bytes, li
         st.cache.put(key, cmp)
     pdf = await run_in_threadpool(report.build_pdf, pa, pb, cmp, req.fleet_size)
     return pdf, [re.sub(r"</?b>", "", t) for t in report.headline(pa, pb, cmp.deltas[0])]
+
+
+@router.post("/report/fleet-pdf", tags=["report"], summary="The fleet forecast as a PDF",
+             responses={200: {"content": {"application/pdf": {}}, "description": "the fleet PDF report"}})
+async def report_fleet_pdf(req: FleetReportRequest, request: Request):
+    _check_mode(req.mode)
+    st = request.app.state
+    base = FleetRequest(**req.model_dump(exclude={"name"}))
+    key = service.LRUCache.key(base, st.model_version)
+    result = st.cache.get(key)
+    if result is None:
+        try:
+            result = await run_in_threadpool(service.run_fleet, base, st.models, st.model_version)
+        except FleetInputError as e:
+            raise ApiError(422, "fleet_not_forecastable", str(e)) from e
+        st.cache.put(key, result)
+    pdf = await run_in_threadpool(fleet_report.build_fleet_pdf, result, len(req.buses), req.name)
+    return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{fleet_report.filename()}"', "Cache-Control": "no-store"})
 
 
 @router.get("/report/status", response_model=ReportStatus, tags=["report"], summary="Whether report email is set up on this server")

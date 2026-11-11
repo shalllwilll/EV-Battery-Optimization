@@ -20,9 +20,9 @@ export function TimelineBlock({ classes, labels, done, total, stale }: { classes
           <tbody>
             {t.rows.map((r) => (
               <tr key={r.id}>
-                <th scope="row">{r.name}</th><td>{r.n}</td>
-                {r.cells.map((v, i) => <td key={labels[i]} className="ftl-c" style={{ background: v < 0.05 || t.max <= 0 ? undefined : `rgba(250,204,21,${(0.08 + 0.37 * (v / t.max)).toFixed(2)})` }}>{v < 0.05 ? <span className="dim">·</span> : v.toFixed(1)}</td>)}
-                <td className="ftl-c">{r.beyond < 0.05 ? <span className="dim">·</span> : r.beyond.toFixed(1)}</td>
+                <th scope="row">{r.name}</th><td data-label="Buses">{r.n}</td>
+                {r.cells.map((v, i) => <td key={labels[i]} data-label={labels[i]} className="ftl-c" style={{ background: v < 0.05 || t.max <= 0 ? undefined : `rgba(250,204,21,${(0.08 + 0.37 * (v / t.max)).toFixed(2)})` }}>{v < 0.05 ? <span className="dim">·</span> : v.toFixed(1)}</td>)}
+                <td data-label="Later" className="ftl-c">{r.beyond < 0.05 ? <span className="dim">·</span> : r.beyond.toFixed(1)}</td>
               </tr>
             ))}
             {pending.map((c) => <tr key={c.id}><th scope="row">{c.name}</th><td>{c.buses}</td><td colSpan={labels.length + 1}>{c.failed ? <span className="dim">Could not be worked out</span> : <span className="skel" style={{ display: 'block', height: 14 }} />}</td></tr>)}

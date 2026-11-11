@@ -155,6 +155,11 @@ class FleetRequest(BaseModel):
         return self
 
 
+class FleetReportRequest(FleetRequest):
+    """The same body as /fleet, plus an optional name for the cover. The server forecasts the fleet itself; depots and routes never reach it, so they are not in the document."""
+    name: str | None = Field(default=None, max_length=80, description="shown on the cover")
+
+
 class FleetResponse(FleetResult):
     mode: Literal["prior"] = "prior"
     model_version: str

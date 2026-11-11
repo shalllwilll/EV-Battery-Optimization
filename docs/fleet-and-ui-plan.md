@@ -1,6 +1,6 @@
 # Fleet handling and UI uplift — plan
 
-Status: phases 0–4 merged to main (phase 0 is `docs/fleet-research.md`); phase 5 merged; phase 6 built (branch `fleet-integration`); phase 7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4), then the research findings (§1, §8).
+Status: phases 0–4 merged to main (phase 0 is `docs/fleet-research.md`); phase 5 merged; phase 6 merged; phase 7 built (branch `fleet-production-finish`). Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4), then the research findings (§1, §8).
 
 Everything below keeps the project's standing rules: real free data only, every output labelled
 "not yet validated on buses", vendor data only calibrates, BMS state of health is never ground truth.
@@ -610,3 +610,5 @@ before anyone can feed data into them.
 - Route-level simulation (gradient, passenger load, stop spacing). We have no free data for it.
 - Discounting, NPV and second packs. Still deliberately absent, as in the single-bus cost page.
 - Any claim of validation. Every fleet number carries "not yet validated on buses", same as today.
+
+**As built in phase 7 (production finish).** `POST /api/v1/report/fleet-pdf` (`backend/app/fleet_report.py`, reusing `report.py` and the `/fleet` cache): budget by financial year with a running total marked as having no band, duty classes, cohorts (capped at 40 rows) and an Assumptions and limits page. In the browser: Fleet report (PDF), Forecast CSV and Budget CSV (`lib/fleet/exports.ts`, formula-safe), and a first-run card with three doors (Load the sample fleet, Import a CSV, Just one bus). At 375 px the budget chart keeps a 560 px width and scrolls sideways and the class by year grid becomes one card per class. Not built, by choice: a sticky y axis on the scrolling chart, roster cards (the roster scrolls sideways), a command palette. Tests: 3 exporter tests, 6 backend fleet-PDF assertions in `tests/test_api_fleet.py`, first-run page test.

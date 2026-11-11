@@ -147,3 +147,38 @@ def test_expected_counts_and_spend_add_up_across_subsets_but_the_band_does_not(c
         # percentiles: the whole fleet's 90th percentile is not the sum of the parts' (the parts rarely all land high together)
         p90_sum = [sum(p["spend_p90"]["value"][i] for p in parts) for i in range(n)]
         assert any(abs(s - w) > 1 for s, w in zip(p90_sum, whole["spend_p90"]["value"])), name
+
+
+def test_fleet_pdf_downloads_says_what_it_leaves_out_and_reuses_the_forecast(client):
+    from backend.app import fleet_report
+    b = body(n=30)
+    client.post("/api/v1/fleet", json=b)                                   # warms the forecast cache
+    r = client.post("/api/v1/report/fleet-pdf", json={**b, "name": "Test <fleet> & co"})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content[:5] == b"%PDF-"
+    assert "pack-horizon-fleet-forecast-" in r.headers["content-disposition"] and r.headers["cache-control"] == "no-store"
+    assert len(r.content) > 5000
+    from datetime import datetime, timezone
+    from backend.app import service
+    from backend.app.schemas import FleetRequest
+    res = service.run_fleet(FleetRequest(**b), client.app.state.models, client.app.state.model_version)
+    text = " ".join(_plain(x) for x in fleet_report.fleet_story(res, 30, "Test <fleet> & co", datetime.now(timezone.utc)))
+    for must in ("Budget about", "Budget by financial year", "Duty classes", "Assumptions and limits", "not yet validated on buses", "50/50", "Depots, routes and reported battery health stay in your browser"):
+        assert must.lower() in text.lower(), must
+    assert "Test <fleet> & co" in text
+    assert fleet_report.filename().startswith("pack-horizon-fleet-forecast-")
+
+
+def test_fleet_pdf_rejects_what_the_forecast_rejects_and_a_long_name(client):
+    b = body(n=3)
+    b["buses"][0]["in_service"] = "2005-01"
+    assert client.post("/api/v1/report/fleet-pdf", json=b).status_code == 422
+    assert client.post("/api/v1/report/fleet-pdf", json={**body(n=3), "name": "x" * 81}).status_code == 422
+    assert client.post("/api/v1/report/fleet-pdf", json={**body(n=3), "mode": "calibrated"}).status_code == 400
+
+
+def _plain(flow) -> str:
+    """All the text in a flowable, including table cells."""
+    if hasattr(flow, "getPlainText"):
+        return flow.getPlainText()
+    cells = getattr(flow, "_cellvalues", None)
+    return " ".join(_plain(c) for row in cells for c in row) if cells else ""

@@ -780,6 +780,69 @@
         "title": "FleetCost",
         "type": "object"
       },
+      "FleetReportRequest": {
+        "additionalProperties": false,
+        "description": "The same body as /fleet, plus an optional name for the cover. The server forecasts the fleet itself; depots and routes never reach it, so they are not in the document.",
+        "properties": {
+          "as_of": {
+            "description": "forecast from this month; financial years run April to March",
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "buses": {
+            "items": {
+              "$ref": "#/components/schemas/FleetBus"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Buses",
+            "type": "array"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/FleetClass"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Classes",
+            "type": "array"
+          },
+          "forecast_years": {
+            "default": 10,
+            "description": "the oldest bus's age plus this window must fit inside the model's 20-year horizon",
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Forecast Years",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "prior",
+            "description": "Only 'prior' exists in v1; anything else gets a 400",
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "shown on the cover",
+            "title": "Name"
+          }
+        },
+        "required": [
+          "classes",
+          "buses"
+        ],
+        "title": "FleetReportRequest",
+        "type": "object"
+      },
       "FleetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2426,6 +2489,51 @@
           }
         ],
         "summary": "Email the comparison report to one address",
+        "tags": [
+          "report"
+        ]
+      }
+    },
+    "/api/v1/report/fleet-pdf": {
+      "post": {
+        "operationId": "report_fleet_pdf_api_v1_report_fleet_pdf_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/pdf": {}
+            },
+            "description": "the fleet PDF report"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The fleet forecast as a PDF",
         "tags": [
           "report"
         ]

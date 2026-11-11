@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report/fleet-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The fleet forecast as a PDF */
+        post: operations["report_fleet_pdf_api_v1_report_fleet_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/report/pdf": {
         parameters: {
             query?: never;
@@ -450,6 +467,39 @@ export interface components {
             battery_cost_per_km_p50: components["schemas"]["Labelled"] | null;
             electricity_cost_per_km: components["schemas"]["Labelled"] | null;
             total_cost_per_km_p50: components["schemas"]["Labelled"] | null;
+        };
+        /**
+         * FleetReportRequest
+         * @description The same body as /fleet, plus an optional name for the cover. The server forecasts the fleet itself; depots and routes never reach it, so they are not in the document.
+         */
+        FleetReportRequest: {
+            /**
+             * As Of
+             * Format: date
+             * @description forecast from this month; financial years run April to March
+             */
+            as_of?: string;
+            /** Buses */
+            buses: components["schemas"]["FleetBus"][];
+            /** Classes */
+            classes: components["schemas"]["FleetClass"][];
+            /**
+             * Forecast Years
+             * @description the oldest bus's age plus this window must fit inside the model's 20-year horizon
+             * @default 10
+             */
+            forecast_years: number;
+            /**
+             * Mode
+             * @description Only 'prior' exists in v1; anything else gets a 400
+             * @default prior
+             */
+            mode: string;
+            /**
+             * Name
+             * @description shown on the cover
+             */
+            name?: string | null;
         };
         /** FleetRequest */
         FleetRequest: {
@@ -1235,6 +1285,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportSent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_fleet_pdf_api_v1_report_fleet_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetReportRequest"];
+            };
+        };
+        responses: {
+            /** @description the fleet PDF report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */

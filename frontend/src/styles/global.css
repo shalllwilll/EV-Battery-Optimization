@@ -594,3 +594,16 @@ button,a,summary,label,input[type=range],select{touch-action:manipulation}
 .scope-sw{flex-wrap:nowrap}.scope-sw .sel{max-width:190px;min-width:0}
 @media (max-width:640px){.scope{margin:76px auto 0;padding:8px 12px}.scope-r{width:100%}}
 .scope+.page{padding-top:16px}
+.doors .meth-b{text-decoration:none}.doors .meth-b:disabled{opacity:.55;cursor:default}
+/* Fleet at phone width: the budget chart keeps a readable width and scrolls sideways; the class-by-year grid becomes one card per class with a labelled line per year */
+.bscroll{overflow-x:auto;max-width:100%}
+@media (max-width:640px){
+  .bscroll svg.ch{min-width:560px}
+  .ftl,.ftl tbody,.ftl tr,.ftl th,.ftl td{display:block}.ftl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .ftl tr{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px}
+  .ftl tbody th[scope=row]{font-size:15px;padding:0 0 6px;border:0}
+  .ftl td{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border:0;background:none!important;text-align:right}
+  .ftl td[data-label]::before{content:attr(data-label);color:var(--t2);font-size:13px;text-align:left}
+  .ftl td[colspan]{display:block}
+  .fh-r .btn{flex:1 1 140px}
+}

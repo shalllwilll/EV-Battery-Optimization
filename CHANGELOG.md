@@ -2,6 +2,13 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Fleet production finish (after v1.0.0)
+- **Fleet report (PDF):** cover headline, battery budget by financial year, duty classes, cohorts and an Assumptions and limits page that says the figures are age-conditioned, the two models are mixed 50/50, and none of it is validated on buses yet. Depots, routes and reported health are not in it.
+- **Forecast CSV** (one row per bus) and **Budget CSV** (per financial year, running total with no band), both safe to open in a spreadsheet.
+- **First run:** an empty Fleet page offers three doors: Load the sample fleet, Import a CSV, Just one bus.
+- **Phone width:** the budget chart scrolls sideways at a readable size and the class by year grid becomes a card per class. No horizontal page scroll at 375 px.
+- Docs: model-card limits, and the sample fleet is now named in `docs/data-attribution.md` as the one synthetic item.
+
 ## Fleet and the analysis pages as one app (after v1.0.0)
 - Each roster row has **Open**: that bus's duty class loads into Health, Replacement, Range, Cost and Optimise, and a **scope bar** under the nav shows "Fleet · N buses › B-104 · Depot A · Route · in service month" with previous/next and a bus switcher.
 - A change made on any page stays a what-if until you choose **Apply to this duty class (N buses)**, which sets the duty of every bus in that class (depot, route and month untouched) as one undoable fleet change.
