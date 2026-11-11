@@ -1,6 +1,6 @@
 # Fleet handling and UI uplift — plan
 
-Status: phases 1–2 merged to main; phase 3 built (branch `fleet-data-layer`); phases 0 and 4–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4).
+Status: phases 1–3 merged to main; phase 0 (research pass) written up in `docs/fleet-research.md`; phases 4–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4), then the research findings (§1, §8).
 
 Everything below keeps the project's standing rules: real free data only, every output labelled
 "not yet validated on buses", vendor data only calibrates, BMS state of health is never ground truth.
@@ -24,6 +24,13 @@ ages. The three questions a depot general manager actually has are:
 3. **Which route or depot is eating packs faster than the rest, and why?**
 
 None of these can be answered by one bus times N.
+
+**Research check (phase 0, `docs/fleet-research.md`).** The user is a *fleet operator or transport undertaking*, not a city
+department: under a Gross Cost Contract the operator carries pack replacement and the city pays a rate per km, while under
+outright purchase the undertaking carries it once the OEM battery warranty (5 years in the 2019 model RfP) ends. Questions 1
+and 2 hold for both. Question 3 does not hold as worded, because "loses money" needs a contract rate that the tool does not
+have and that I could not verify; the tool can rank routes and depots by cost per km and by pack spend. The PM-eBus Sewa
+guideline text itself could not be read (HTTP 403), so contract terms after 2019 are unverified.
 
 ---
 
@@ -522,7 +529,7 @@ new controls (the app is at 0 axe violations and should stay there).
 
 | Phase | What | Why here |
 |---|---|---|
-| **0** | **Sourced research pass** (pending your go-ahead). Public tender and contract structures, transport-undertaking reports, India e-bus studies. Each candidate feature gets a source or is marked "assumption". Decides which of the three manager questions are real and who the stakeholder is (§1). | The fleet page's content and the CSV columns rest on it. Phases 1–2 do not, so it can run alongside them. |
+| **0** | **Sourced research pass — done** (`docs/fleet-research.md`). Two primary documents read (WRI 2024, Shakti 2019 model tenders), the rest tagged by how much was verified. Open decisions for you: add an optional, user-entered contract rate per km (turns cost per km into a margin); add an optional "past 5-year battery warranty" flag. Risk-band cuts, batch rule and CSV columns stay labelled assumptions. | The fleet page's content and the CSV columns rest on it. |
 | **1** | `engine/decide/fleet.py`: age conditioning per model, per-model CDFs, Poisson-binomial convolution over class × cohort, km-weighted cost. Pure Python. A one-class, age-zero fleet reproduces today's `FleetPlan` numbers exactly. | Everything else depends on the maths being right, and it is testable with no UI. |
 | **2** | `POST /api/v1/fleet`: dedupe by ageing key, serial runs, cache 128 → 512, OpenAPI regen, backend tests. | Gives the frontend something real. |
 | **3** | **Fleet data layer, no input UI yet.** `FleetContext`, storage, types with source tags; the grouping engine in pure TypeScript (classes with measured tolerances, segments, risk bands, batches, flags); the sample-fleet generator. Invariants in §2.4 enforced by tests. | Categorisation is the smart feature and the riskiest logic, so it is built and tested before any screen depends on it. |
