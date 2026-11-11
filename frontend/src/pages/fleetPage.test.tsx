@@ -148,6 +148,19 @@ describe('Fleet page: the forecast blocks', () => {
   }
   const fleetCalls = (m: ReturnType<typeof mockApi>) => m.calls.filter((c) => c.path === '/fleet').map((c) => c.body as { as_of: string; forecast_years: number; classes: { id: string }[]; buses: { id: string }[] })
 
+  it('offers the report and both CSVs once there is a forecast, and a CSV click downloads a file named for the fleet', async () => {
+    await withSample()
+    const pdf = await screen.findByRole('button', { name: 'Fleet report (PDF)' })
+    await waitFor(() => expect(pdf).toBeEnabled())
+    const names: string[] = []
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
+    await userEvent.click(screen.getByRole('button', { name: 'Forecast CSV' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Budget CSV' }))
+    click.mockRestore()
+    expect(names).toEqual(['sample-fleet-synthetic-for-demonstration-forecast.csv', 'sample-fleet-synthetic-for-demonstration-budget.csv'])
+  })
+
   it('writes the budget sentence for the next full financial year, from the whole fleet, with the model assumptions stated', async () => {
     await withSample()
     const sec = await screen.findByRole('region', { name: 'Battery budget by financial year' })
