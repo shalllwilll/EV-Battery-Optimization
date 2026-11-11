@@ -16,6 +16,7 @@ import Replacement from './pages/Replacement'
 import Range from './pages/Range'
 import Cost from './pages/Cost'
 import Evidence from './pages/Evidence'
+import Fleet from './pages/Fleet'
 
 // The 3D bundle is large, so those two pages load on demand.
 const Overview = lazy(() => import('./pages/Overview'))
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="range" element={<Range />} />
         <Route path="cost" element={<Cost />} />
         <Route path="optimise" element={<Optimise />} />
+        <Route path="fleet" element={<Fleet />} />
         <Route path="evidence" element={<Evidence />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

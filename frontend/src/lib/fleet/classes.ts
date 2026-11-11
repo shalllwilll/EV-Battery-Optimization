@@ -71,7 +71,7 @@ export function classify(drafts: DraftBus[], source: Source = 'entered'): Classi
     for (const [k, ms] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1))) {
       const centre = centreOf(ms.map((m) => m.scenario))
       const id = `C-${hash(k)}`
-      classes.push({ id, name: nameOf(centre.archetype, centre, ms.map((m) => m.route || UNASSIGNED)), scenario: centre, source, spreadMonths: Math.ceil(1000 * Math.max(...ms.map((m) => spreadBound(m.scenario, centre)))) / 1000 })
+      classes.push({ id, name: nameOf(centre.archetype, centre, ms.map((m) => m.route || UNASSIGNED)), scenario: centre, source, spreadMonths: Math.ceil(1000 * Math.max(...ms.map((m) => spreadBound(m.scenario, centre) + (m.carryMonths ?? 0)))) / 1000 })
       for (const m of ms) {
         buses.push({
           id: m.id, depot: m.depot?.trim() || UNASSIGNED, route: m.route?.trim() || UNASSIGNED, inServiceMonth: m.inServiceMonth, classId: id,

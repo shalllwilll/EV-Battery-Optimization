@@ -20,7 +20,7 @@ const ROUTES = [
   { depot: 'Depot C', route: 'Route 5', type: '9m', n: 8, km: 25, start: -1 },
 ] as const
 
-export function sampleFleet(presets: ArchetypePreset[], now: Date = new Date()): Fleet {
+export function sampleFleet(presets: Pick<ArchetypePreset, 'id' | 'scenario'>[], now: Date = new Date()): Fleet {
   const rand = rng(2026)
   const nowIdx = now.getFullYear() * 12 + now.getMonth()
   const drafts: DraftBus[] = []

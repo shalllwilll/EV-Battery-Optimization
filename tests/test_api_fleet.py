@@ -98,3 +98,23 @@ def test_five_thousand_buses_fit_the_body_limit_and_the_time_budget(client):
 
 def test_openapi_lists_the_endpoint(client):
     assert "/api/v1/fleet" in client.get("/openapi.json").json()["paths"]
+
+
+# The oldest bus the forecast can take, in months, by the month of `as_of` (10-year forecast). The front end keeps the same table
+# (frontend/src/lib/fleet/roster.test.ts) so its Fleet page rejects exactly what this endpoint would 422 on.
+MAX_AGE_BY_MONTH = {1: 117, 2: 118, 3: 119, 4: 120, 5: 109, 6: 110, 7: 111, 8: 112, 9: 113, 10: 114, 11: 115, 12: 116}
+
+
+def _months_ago(as_of_year, as_of_month, n):
+    idx = as_of_year * 12 + as_of_month - 1 - n
+    return f"{idx // 12}-{idx % 12 + 1:02d}"
+
+
+@pytest.mark.parametrize("month", sorted(MAX_AGE_BY_MONTH))
+def test_the_oldest_bus_the_forecast_takes_matches_the_published_table(client, month):
+    oldest = MAX_AGE_BY_MONTH[month]
+    one = lambda age: {"as_of": f"2026-{month:02d}-11", "forecast_years": 10, "classes": [{"id": "A", "scenario": SCEN}],
+                       "buses": [{"id": "B-1", "class_id": "A", "in_service": _months_ago(2026, month, age)}]}
+    assert client.post("/api/v1/fleet", json=one(oldest)).status_code == 200
+    r = client.post("/api/v1/fleet", json=one(oldest + 1))
+    assert r.status_code == 422 and r.json()["error"]["code"] == "fleet_not_forecastable"

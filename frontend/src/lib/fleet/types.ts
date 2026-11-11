@@ -56,4 +56,8 @@ export type DraftBus = {
   packPriceInr?: number
   reportedSohPct?: number
   sources?: Bus['sources']
+  /** The scenario fields this input actually stated (a roster's columns, a log's derived values). Undefined means the whole scenario is stated, as in the Add buses form. For a bus already in the fleet, only stated fields change; everything else keeps the value it has. */
+  stated?: Partial<Scenario>
+  /** Months of spread already carried from a class this bus was in before (a re-class after an edit or a merge), added to the new class's spread so it is never understated. */
+  carryMonths?: number
 }

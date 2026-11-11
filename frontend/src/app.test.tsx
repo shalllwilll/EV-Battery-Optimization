@@ -47,7 +47,7 @@ describe('pages', () => {
   it('lists every section in the floating nav', async () => {
     mockApi(); renderApp('/health')
     const nav = await screen.findByRole('navigation', { name: 'Sections' })
-    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Overview', 'Health', 'Replacement', 'Range', 'Cost', 'Optimise', 'Evidence'])
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Overview', 'Health', 'Replacement', 'Range', 'Cost', 'Optimise', 'Fleet', 'Evidence'])
   })
   it('shows the replacement range, never a single date (T5.3-3)', async () => {
     mockApi(); renderApp('/replacement')

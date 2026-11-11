@@ -5,7 +5,7 @@ import { useThumb } from '../lib/useThumb'
 
 export const ROUTES = [
   { to: '/', label: 'Overview' }, { to: '/health', label: 'Health' }, { to: '/replacement', label: 'Replacement' },
-  { to: '/range', label: 'Range' }, { to: '/cost', label: 'Cost' }, { to: '/optimise', label: 'Optimise' }, { to: '/evidence', label: 'Evidence' },
+  { to: '/range', label: 'Range' }, { to: '/cost', label: 'Cost' }, { to: '/optimise', label: 'Optimise' }, { to: '/fleet', label: 'Fleet' }, { to: '/evidence', label: 'Evidence' },
 ]
 
 export function TopNav() {
