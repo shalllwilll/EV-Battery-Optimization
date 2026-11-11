@@ -1,0 +1,514 @@
+# Fleet handling and UI uplift — plan
+
+Status: phases 1–2 built (branch `fleet-engine`); phases 0 and 3–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4).
+
+Everything below keeps the project's standing rules: real free data only, every output labelled
+"not yet validated on buses", vendor data only calibrates, BMS state of health is never ground truth.
+No invented numbers; a sample fleet is labelled synthetic.
+
+---
+
+## 1. Where the product stands today
+
+The tool models **one bus**. Fleet appears in exactly one place: `FleetPlan.tsx`, where the operator
+types a fleet size and the single-bus crossing distribution is scaled to N identical, independent,
+brand-new buses (`lib/planner.ts`). That is honest arithmetic but it is not a fleet, because it
+assumes every bus is the same age, on the same route, in the same depot, bought on the same day.
+
+A real city operator has none of that. A city fleet is mixed: more than one bus length, several
+depots, routes of different lengths, and packs bought across several tenders and so of different
+ages. The three questions a depot general manager actually has are:
+
+1. **How much do I put in next year's budget, and the year after?**
+2. **Which buses do I act on first?**
+3. **Which route or depot is eating packs faster than the rest, and why?**
+
+None of these can be answered by one bus times N.
+
+---
+
+## 2. The data model
+
+### 2.1 Bus, duty class, fleet
+
+```ts
+type Source = 'log' | 'entered' | 'inherited' | 'assumed' | 'sample'   // where a field's value came from
+type Bus = {
+  id: string              // "B-104", the operator's own fleet number
+  depot: string           // "Depot A", or "Unassigned"
+  route: string           // "Route 3", or "Unassigned"
+  inServiceMonth?: string // "2023-07"; missing = age unknown, flagged
+  classId: string         // which duty class this bus runs
+  packPriceInr?: number   // if this pack's price is known
+  reportedSohPct?: number // display only, never used by the model
+  sources: Partial<Record<'duty' | 'age' | 'price' | 'depot' | 'route', Source>>
+}
+type DutyClass = { id: string; name: string; scenario: Scenario; source: Source }
+type Fleet = { id: string; name: string; classes: DutyClass[]; buses: Bus[]; createdAt: string }
+// Segments (risk band, batch, flags, group-by views) are NOT stored: derived from Fleet + results.
+```
+
+**The duty class is the load-bearing idea.** A `Scenario` is a description of how a bus is driven,
+not of a bus. Twenty buses on the same route with the same charging habit share one scenario, so
+they share one model run. The fleet's compute cost is the number of **distinct duty classes**, not
+the number of buses. A 300-bus fleet in a real depot has maybe 8 to 20 duty classes.
+
+This is what makes the whole feature affordable, and it also matches how the operator's data
+actually arrives: route sheets and depot rosters, not 300 individual configurations.
+
+### 2.2 Input methods
+
+**Principle: every method produces the same thing, a list of draft buses, and goes through one gate:
+draft → validate → group → preview → commit.** Nothing enters the fleet until the user confirms the
+preview, and the last commit can be undone. One gate means one set of rules, one error format and one
+place to test, however many doors there are.
+
+| # | Method | For whom | What it is |
+|---|---|---|---|
+| 1 | **Sample fleet** | A judge, a first look | A generated synthetic fleet (60 buses, 3 depots, 5 duty classes, in-service dates spread over 2021–2026) built from the archetype presets, in the spirit of `make_sample_duty_csv.py`. Labelled "Sample fleet — synthetic, for demonstration". One click. |
+| 2 | **Roster CSV** | An operator with a fleet register | One row per bus: `bus_id`, `in_service` (YYYY-MM), `depot`, `route`, `bus_type`, and optionally the duty fields (`km_per_day`, `charge_start`, `departure`, `soc_max_pct`, `soc_min_pct`, `kwh_per_km`, `charge_power_kw`), `pack_price_inr`, `reported_soh_pct`. |
+| 3 | **Duty-log CSV** | An operator with telematics or charging logs | One row per bus per day, the existing duty-log columns plus `bus_id`, `depot`, `route`, `in_service`. Duty is derived per bus by the existing `deriveFromCsv` rules (average km, circular-mean charge start, median cap, 5th-percentile arrival level). |
+| 4 | **Paste from a spreadsheet** | Someone with an Excel sheet and no export step | A text box that takes a copied range (tab or comma separated, header row) and runs the same parser as 2 and 3. |
+| 5 | **Add buses form** | A small fleet, or adding one purchase tender's worth | A *batch* builder, not a one-at-a-time form: count (1–500), id prefix and start number ("B-" from 201), depot, route, bus type, in-service month, and duty taken from **the bus on screen**, **an existing class**, or **entered now**. Forty identical buses is one form fill; one bus is count 1. Duplicate ids are caught before commit. |
+| 6 | **Edit in the roster** | Anyone, after the first load | Cells edit in place. Select rows and "Set depot / route / in-service / duty for N buses". A duty change re-classes the bus and re-runs only the classes it touched. |
+| 7 | **From the bus on screen** | Someone who has been using the single-bus tool | "Add this scenario to a fleet as a duty class", then give it a bus count, depot and in-service month. |
+| 8 | **Fleet file (JSON)** | Sharing with a colleague, or a backup | Export and import the whole fleet, ids and classes included. |
+
+Methods 2 and 3 are told apart automatically (a `date` column with repeating `bus_id` is a log, one row
+per `bus_id` is a roster). Each has a downloadable template. The shape of the file is shown back to the
+user in the preview, never guessed silently.
+
+**What happens when data is missing.** The rule is the project's: say what was assumed, never fill a
+gap silently, and never reject a whole file for one bad row.
+
+| Missing | What happens | Shown as |
+|---|---|---|
+| `in_service` | The bus is counted as new today, which pushes its replacement later than it may be. It is kept out of the "past median life" flag and drawn **hatched and separate** in the budget chart so it cannot pass as known. | "Age unknown" flag and a count in the preview |
+| Duty fields | Inherited from the other buses on the same route (median), else from the bus on screen. | Source tag "inherited" or "assumed" |
+| `bus_type` | Taken from the scenario on screen. | "assumed" |
+| `depot`, `route` | Grouped as "Unassigned". | Group label |
+| `pack_price_inr` | The scenario's battery price. | "assumed" |
+| A row that fails validation | Rejected with its row number and the reason, using the same `validateScenario` bounds as the single-bus form. Good rows still import. | "Download rejected rows" |
+
+Every field of every bus carries a **source tag**: *from log* (derived from the file), *entered*,
+*inherited*, *assumed* or *sample*. This is the same idea as the evidence badges already used on the
+scenario form, applied to data origin.
+
+**`reported_soh_pct` is display-only.** If a roster carries a BMS or operator-reported health, it is
+shown beside the model's prediction for that bus's age as "Reported — not used by the model", and flagged
+when it falls outside the model's own 10th–90th range ("worth a physical check"). It never feeds a
+forecast and never overrides one. BMS state of health stays "not ground truth" exactly as the project
+already says; this only gives the operator a place to see the two side by side.
+
+**Limits.** 5000 buses and 50 duty classes per fleet (matching the API cap, §4.2). Duty logs up to 200 000
+rows / 20 MB (a year of daily logs for 300 buses is about 110 000 rows, against `MAX_ROWS` 5000 today),
+parsed in a web worker so the page does not freeze.
+
+**Privacy is unchanged.** Raw logs are parsed in the browser and never leave it. Only derived duty-class
+scenarios and bus ages go to the API. The fleet is stored in the browser (guarded, like `useFleetSize`)
+and shared by JSON file. The URL carries the fleet id, grouping and selected bus, not the fleet.
+
+### 2.3 Categorising buses: two kinds, kept apart
+
+The categorisation you suggested is the right instinct, and it needs two different things that must not
+be confused.
+
+**Kind A — duty classes. Compute grouping, mostly invisible.** Buses whose ageing-relevant inputs agree
+within a tolerance share one model run. Starting tolerances (km/day 10, charge start 0.5 h, charge cap 5
+points, minimum charge 5 points, kWh/km 0.05) are **guesses until measured**. Phase 3 measures how much
+battery life actually moves across each tolerance and fixes them from that, not from taste. Rules that
+keep this honest:
+
+- The class scenario is the **median of its members**, not the rounded value.
+- The preview shows the **widest gap between a class and its worst member**, in months of life.
+- A class whose worst member differs from the centre by more than a set number of months is split.
+- The user can merge or split classes in the preview.
+
+**Kind B — segments. Analysis grouping, the part the operator sees.** These are *views*, pure functions
+of the roster and the results, **never stored**. Editing a bus therefore cannot leave a stale category
+behind. One "Group by" control on the roster and Fleet page offers:
+
+| Group by | Known from | Available |
+|---|---|---|
+| Depot, route, bus type, in-service year, duty class | The roster | Instantly |
+| **Risk band** | Model result, conditional on age | As each class finishes |
+| **Replacement batch** | Model result, conditional on age | As each class finishes |
+| **Flags** | Roster and model result | As each class finishes |
+
+- **Risk band.** By median months to the replacement line, given the bus's age: *past the model's median
+  life* · *within 12 months* · *12–24* · *24–36* · *later* · *beyond the forecast*. Cut-offs are readable
+  defaults, adjustable, and not taken from any source. This answers "which buses are close to the line".
+- **Replacement batch.** Your "pair them together" idea. Within a depot and bus type, buses whose median
+  crossing falls in the same **financial-year half** form a batch. Each batch reports its bus count,
+  window, and a spend range convolved over its members (§3.3). The result reads as a purchase unit:
+  *"Batch: Depot A, 12 m, FY2028-29 H1, N buses, ₹X to ₹Y"*. A bus whose 10th-percentile crossing falls
+  before its batch window is marked, since that bus could be due earlier.
+- **Same-route groups.** Buses on one route share demand, so the lever ranking (§5.2d) runs per route and
+  reads as a decision that applies to the whole route.
+- **Flags.** *Age unknown*; *past median life*; *outside the lab data range* (the engine already returns
+  `extrapolation_reasons`); *reported health outside the model's range*; *one model only* (the
+  divide-by-zero guard in §3.1).
+
+**Why rules and not a clustering algorithm.** Clustering two or three variables adds nothing over
+bucketing, and it makes groups that cannot say why a bus is in them and can change between runs. Every
+group above states its rule. The machine learning in this project is in the statistics (conditioning,
+the model mixture, the convolution), not in the grouping, and a group that cannot be explained to a
+depot manager is not useful to one.
+
+**A group only appears if it has an action attached.** A batch leads to a tender or a depot slot, a
+route to a shared charging decision, a flag to "go and look". Groups with no action are not shown. The
+default view is grouped by depot, with the risk-band counts as a row of chips above it ("6 within 12
+months"), so the page opens with an answer, not a control panel.
+
+### 2.4 Integration rules: so no existing workflow breaks
+
+1. **Additive.** With no fleet loaded the app behaves exactly as today and every existing test passes
+   untouched. A fleet adds; it removes nothing.
+2. **One source of truth.** `FleetContext` holds only the roster (buses and classes). Segments, risk
+   bands, batches and totals are derived by pure, memoised functions.
+3. **One gate for all input methods** (draft → validate → preview → commit), with the same
+   `validateScenario` bounds the single-bus form uses, and one undo.
+4. **Stable bus ids.** Re-importing matches on id: the preview says *"12 new, 230 updated, 6 not in the
+   file (kept)"*. It never silently deletes, and the selected bus survives a re-import.
+5. **Targeted recompute.** An edit invalidates only the class chunks whose ageing key changed. A price,
+   tariff or threshold edit runs zero model calls.
+6. **Selection is the bridge to the existing pages.** Selecting a bus calls `ScenarioContext.replace`.
+   Edits on those pages stay what-ifs until the user chooses "Apply to this class (N buses)" (§6).
+7. **Progressive and honest.** A result-derived grouping shows *"7 of 11 classes done"* and is disabled
+   until its inputs exist. A partial band is never labelled final.
+8. **Errors never block.** Bad rows are rejected with reasons; good rows proceed.
+9. **Storage.** A bus row is roughly 120 bytes, so 5000 buses is about 600 kB — an estimate, to be
+   measured. If a fleet exceeds the browser's quota the app falls back to IndexedDB and always offers
+   export.
+10. **Invariants that tests enforce.** (a) Every method round-trips: export then import equals the
+    original. (b) **Grouping never changes totals**: the segments of any grouping sum to the fleet total.
+    (c) A one-bus, age-zero fleet reproduces the single-bus pages exactly. (d) Tolerance merging moves
+    no class's life by more than the stated number of months.
+
+---
+
+## 3. The engine and statistics work
+
+Three changes, in order of how much correctness they buy.
+
+### 3.1 Bus age — conditional survival (the correctness gap)
+
+The engine forecasts a **new** pack. A bus in service since July 2023 is 40 months old today, and we
+already know it has not been replaced. So its chance of crossing the line in a future year is
+conditional on having survived to now:
+
+```
+P(crosses in calendar year y | alive today) = ( F(a + m_y) − F(a + m_{y−1}) ) / ( 1 − F(a) )
+```
+
+where `F` is the group's cumulative crossing curve (`probability_by_month`, already returned) and
+`a` is the bus's age in months. Without this divisor every number in the fleet view is wrong for any
+fleet that is not brand new, and a fleet that is brand new does not need this tool.
+
+**The assumption this hides, which must be stated on screen and in the limits list:** conditioning
+on survival treats *"still in service"* as *"not yet at the replacement line"*. Operators routinely
+keep running packs below 80 %. So the conditioning is a statement about the model's line, not about
+the operator's actual replacement behaviour, and it will be worded that way.
+
+Three guards:
+- `a + forecast window` must fit inside the run's horizon; `horizon_years ≤ 20`, so a 2019 bus asked
+  about 2040 is refused with a clear message rather than silently clipped. Simplest fix: run every
+  fleet class at horizon 20, so age plus window always fits and the `_curves` cache key is the same
+  for every fleet.
+- **Divide-by-zero.** Conditioning is done per model (§3.2), and each model has only 25 runs, so its
+  `F_m` moves in steps of 0.04. A bus older than every run of one model gives `1 − F_m(a) = 0` and
+  the conditional is undefined. Guard: flag that bus, and use the other model's conditional alone
+  for it, saying so in the flag.
+- If `F(a) > 0.5` the bus is already past the model's median life. That is a finding, not an error:
+  the bus gets a "model says this pack is already past its median life — check its actual health"
+  flag. This is exactly the place where the project's "BMS SOH is not ground truth, but the operator
+  should go look" stance earns its keep.
+
+Age also turns the x axis from **bus years** into **financial years**, which is what a budget is
+written in. That single change is most of the business value of the whole feature.
+
+### 3.2 Correlated vs independent spread (the honest-statistics change)
+
+The 50-run ensemble is 2 published NREL models × 5 degradation scalars × 5 pack penalties.
+`FleetPlan` today treats all 50 as if each bus drew independently from the pool. That is wrong in a
+way that **makes the budget band look narrower than it is**:
+
+- *Which of the two NREL models is closer to the truth* is a single fact about LFP chemistry. It is
+  shared by every bus in the fleet. It does not average out.
+- *Pack penalty* (weakest-cell scatter) and, arguably, the degradation scalar do vary bus to bus.
+
+So the defensible fleet answer is a **mixture over the two models, with independent per-bus draws
+inside each model**:
+
+```
+P(k replacements in year y) = ½ · P_model1(k) + ½ · P_model2(k)
+```
+
+Each term is computed with independent buses; the mixture carries the shared model risk. The result
+is a budget band that is bimodal or simply wider — and that is the truth, not a defect.
+
+**The ½ weights stay fixed, and that is a deliberate choice.** Strictly, the fact that a fleet of
+old buses is still running is evidence about which model is right, and the weights should become
+`w_m ∝ ½ · ∏_b (1 − F_m(a_b))`. That is Bayesian updating from fleet data — it is calibration, the
+API runs in prior mode only, and §9 puts calibration out of scope. So:
+
+- Survival conditioning (§3.1) is applied **per model**, inside each term.
+- The mixture weights stay at ½ each and are labelled an **assumption**, with the same evidence
+  badge every other assumption in the app carries.
+- Posterior reweighting of the two models from the fleet's own survival is named as the first step
+  of the phase-8 calibration work, where it belongs.
+
+Saying this out loud is better than quietly doing either one.
+
+`RefCurves` already carries `model_of_row`, so splitting the CDF by model is a few lines in
+`engine/decide/replacement.py`. The API gains `probability_by_month_by_model: {lfp250: [...],
+lfpsony: [...]}` alongside the existing pooled curve. Nothing existing breaks.
+
+**This is the strongest statistics story in the project.** It is a real, named modelling decision
+with a visible consequence, and it is the kind of thing a judging panel asks about.
+
+### 3.3 Poisson-binomial convolution (fleet counts)
+
+With several duty classes the number of buses replaced in a year is no longer one Binomial. It is a
+sum of independent Binomial(n_g, q_g,y) over groups — a Poisson-binomial.
+
+**The group here is duty class × in-service cohort, not duty class.** Two buses on the same route
+bought three years apart have the same curve but different ages, so different q_y; they cannot share
+a Binomial. Cohorts are in-service dates bucketed by financial year (quarter if a fleet needs it).
+To be clear about the two different units:
+
+- **The model runs once per duty class.** Age never enters `simulate._key`, so cohorts are free.
+- **The convolution runs over class × cohort cells.** A 20-class fleet spanning 6 financial years is
+  at most 120 cells, and most are empty.
+
+Exact and cheap by convolution: a DP over cells, O(cells · N) per year — microseconds for a 300-bus
+fleet over 15 years. Then mix the two models' distributions with weight ½ each.
+
+This extends `binomialQuantile` in `lib/planner.ts` rather than replacing it, and keeps the single-bus
+page's existing numbers identical.
+
+Money follows the same path: the cost distribution per year is the count distribution scaled by each
+group's pack price (groups with different pack sizes get a weighted convolution on rupees).
+
+One trap to avoid: a band on **cumulative** spend is not the sum of the yearly 10th and 90th
+percentiles. If cumulative spend ever gets a band, convolve the yearly distributions; otherwise show
+the cumulative line with no band and say so.
+
+**Fleet cost per km is weighted by kilometres, not averaged.** A class running 240 km/day counts for
+more than one running 140 km/day. Same for the electricity figure, which now varies by class
+(different routes, possibly different tariffs).
+
+**As built in phases 1–2 (deviations from the text above).**
+- The convolution unit is **class × exact age in months × price**, not class × financial-year cohort. It is more accurate and the number of cells is bounded by the number of buses; the model still runs once per class.
+- Spend is exact over distinct pack prices (rounded to ₹1000, at most 8 levels); the cumulative line has no band, as planned.
+- The response carries `cohorts` (class × age), not per-bus rows, so 5000 buses stay compact; the front end maps a bus to its cohort by class and age.
+- Verified against an independent Monte Carlo, not only by unit tests (see the CHANGELOG entry). Measured: 0.077 s per class; 5000 buses well under a second once classes are cached.
+- Cohort months-to-line differ from the Replacement page's headline by about 2 months at the median for a new default bus (row-wise percentile versus crossing of the percentile curves); the field note says so.
+
+---
+
+## 4. Compute and the API
+
+### 4.1 Measured cost
+
+Timed today on this machine: **0.077 s per distinct duty class**, and a repeat of the same class is
+0.001 s (the `_curves` LRU cache, 256 entries, keyed on the ageing-relevant fields only). Cost is
+linear in distinct classes. So:
+
+- 20 duty classes ≈ 1.5 s serial.
+- 100 distinct buses with no grouping ≈ 8 s. This is why duty classes exist.
+
+**Threads do not help — measured, not assumed.** Eight distinct classes took 0.658 s serially and
+1.24 s through a 4-thread pool, a 0.53× *slow-down*: `run_model` steps month by month in Python and
+holds the GIL, so threading only adds contention. The endpoint therefore runs classes **serially**
+inside one `run_in_threadpool` call, and the browser gets its early answer from largest-first
+chunking (§4.3), not from server-side parallelism. A process pool is the only real parallelism
+available and is not worth its cost at 1.5 s.
+
+Price, tariff and threshold changes are **free** — they do not enter the `_curves` key, so a whole
+fleet can be re-priced with no model runs at all.
+
+### 4.2 New endpoint
+
+```
+POST /api/v1/fleet
+  { classes: [{ id, scenario }], buses: [{ id, classId, ageMonths, packPriceInr? }], horizonYears }
+→ { perClass: [{ id, monthsP10/P50/P90, cdfByModel, costPerKm, rangeAtReplacement, warnings }],
+    fleet:    { byFinancialYear: [{ year, expected, p10, p90, spendExpected, spendP10, spendP90 }],
+                weightedCostPerKm, bulkWindow, flags: [...] },
+    modelVersion, warnings }
+```
+
+Design notes:
+- The endpoint **dedupes by `simulate._key`** before running anything, so two classes that differ
+  only in price are one run.
+- It reuses `run_prediction` and the existing `LRUCache` — the `_predict_cached` pattern the report
+  already uses. **Raise `LRUCache(128)` to 512**, otherwise a 20-class fleet plus normal page traffic
+  will thrash it.
+- It returns **per-class summaries, not curves**, except the two model CDFs the fleet maths needs.
+  A 20-class response is tens of kB.
+- Drill-down builds the **same `PredictRequest`** the fleet call used, so opening a bus in the Health
+  page is a cache hit and renders instantly.
+- Request size: the body limit is 1 MB (`EV_MAX_BODY_BYTES`). Classes + bus rows for 300 buses is
+  roughly 40 kB. Cap the request at 50 classes and 5000 buses with a clear 422.
+- `limits.py` is a body-size middleware only — there is **no rate limiter**, so parallel chunked
+  requests from the browser are safe.
+
+Putting the aggregation in `engine/decide/fleet.py` (pure, unit-tested) rather than in the frontend
+means the **PDF report and the screen share one source of truth**, exactly as the single-bus report
+does today.
+
+### 4.3 "Streaming" without streaming
+
+No SSE, no websockets. Chunk the classes and fire them through `useQueries` (the `useLeverSweep`
+pattern already in `api/hooks.ts`):
+
+- Chunk 1 is the 5 largest classes by bus count → the headline budget figure appears in well under a
+  second, marked *"5 of 11 classes"*.
+- Remaining chunks fill in behind it; the numbers tighten and the "of 11" counter closes.
+- Each chunk is its own cache key, so re-opening the fleet is instant and changing one class
+  re-runs only that chunk.
+- A progress line, never a spinner over the whole page: *"Running 11 duty classes — 7 done."*
+
+---
+
+## 5. What the operator sees
+
+### 5.1 One new page, not a second app
+
+The six existing pages are each about one bus and they are good. Duplicating them per bus would
+double the surface and halve the quality. So:
+
+**Fleet is a roster page; the existing pages are the drill-down.** The fleet page is the only place
+that shows N > 1. Selecting a bus there calls `ScenarioContext.replace` and the rest of the app
+becomes that bus — the pages do not change at all, they just have a name above them.
+
+Everywhere else, the fleet shows up as **one line, not a section**:
+- Cost: *"Fleet weighted cost: ₹18.40 per km across 248 buses."*
+- Replacement: the existing `FleetPlan` becomes fleet-aware when a fleet is loaded, and keeps its
+  current "N identical buses" behaviour when one is not.
+
+### 5.2 The Fleet page, four blocks
+
+All example copy below uses synthetic names, and every figure in it is a **placeholder** showing the
+shape of the sentence, not a model output.
+
+**a. Budget by financial year** — the headline. A bar per financial year with the Poisson-binomial
+10th-to-90th band, stacked by depot. One sentence above it:
+
+> Budget about **₹X crore in FY2029-30** (₹X to ₹Y crore, 10th to 90th percentile).
+> Most of the fleet, 80 %, reaches the line between FY2028-29 and FY2031-32 — a bulk tender in
+> that window. Not yet validated on buses.
+
+The band is visibly wider than today's because of §3.2, and a footnote says why in one line.
+
+**b. Replacement timeline** — rows are duty classes (not buses), columns are financial years, each
+cell's fill is the expected count. Twenty rows reads fine; 300 would not, which is the whole point
+of classes. Hovering a cell gives the bus ids. This replaces any temptation to draw 300 retention
+curves on one chart.
+
+**c. The roster table** — sortable, virtualised, with the "Group by" control from §2.3 (depot, route, class, risk band, batch, flags). Columns: bus id,
+depot, route, in service, age, months to the line (p50), the year it lands in, cost per km, and a
+flag column. Sort by "months to the line" and the answer to *"which buses do I act on first"* is the
+top of the table. Keeps the existing `WithTable` pattern and its accessible markup.
+
+**d. Where the fleet loses money** — the existing `LeverRank` run per class and ranked by
+**fleet rupees**, not months:
+
+> Moving the night charge at Depot A from 22:00 to 01:00 on Route 3 (34 buses) is worth about
+> ₹N lakh a year across those buses. Not yet validated on buses.
+
+This is the single most valuable output in the plan, because it is the only one that tells the
+operator to *do* something, with a number attached, at fleet scale.
+
+### 5.3 Clutter control
+
+- One page, four blocks, each answering one of the three GM questions (plus the roster).
+- Detail behind the existing "Show as table" toggle, not on screen by default.
+- No per-bus charts. Classes aggregate; buses are rows.
+- Fleet state is one context (`FleetContext`) with one selected bus; nothing else in the app grows a
+  new control.
+
+---
+
+## 6. State: what happens when you edit a bus
+
+Decide this explicitly or it will drift.
+
+- Selecting a bus on the Fleet page loads its duty class into the scenario. The pagehead's Scenario
+  button becomes the bus's identity: **B-104 · Depot A · Route 3 · in service Jul 2023**.
+- Moving a slider on Health or Cost is a **what-if**, exactly as today. The fleet is not touched.
+- A what-if gains one extra action: **"Apply to this duty class (34 buses)"**, which updates the
+  class, re-runs just that chunk, and shows the fleet-level change.
+- Leaving the fleet and using the app as a single-bus tool still works unchanged. The fleet is
+  additive; nothing existing is removed.
+
+---
+
+## 7. UI uplift to production grade
+
+The design direction (Obsidian Volt, Lexend + Manrope, floating glass nav, fit-to-screen charts) is
+good and stays. What is missing is production **precision**, and most of it is exposed by adding the
+fleet.
+
+**Navigation.** Eight links will overflow the pill nav at laptop width. Regroup into three zones:
+`Fleet | This bus (Overview · Health · Replacement · Range · Cost · Optimise) | Evidence`, with a
+scope breadcrumb under the nav: **Fleet · 248 buses › B-104 · Depot A**. The breadcrumb is also the
+bus switcher, so you can move to the next bus without going back to the roster.
+
+**First run.** The app currently opens straight into a default 12 m bus. A proper empty state with
+three doors — *Load the sample fleet* · *Import a CSV* · *Just one bus* — is both better onboarding
+and a one-click demo path for a judging panel.
+
+**Tables.** The roster is the first table in the app that needs real table behaviour: sticky header,
+virtualised rows, sort, filter, column alignment on numbers, and a keyboard-navigable row focus.
+Build it once as a proper component and retrofit `DataTable` onto it, rather than having two kinds
+of table.
+
+**States.** Audit every panel for the four states: loading (skeleton, not spinner), empty, error with
+a retry, and partial ("7 of 11 classes"). Partial is new and the fleet needs it everywhere.
+
+**Export.** A fleet PDF (budget table by financial year, the roster, the assumptions and limits page)
+and a fleet CSV. The PDF reuses `report.py`; the limits page must state the age-conditioning, the
+model mixture and the "not yet validated on buses" line.
+
+**Density and scale.** One spacing and type scale audited across pages — the Cost and Replacement
+pages drifted slightly during the recent additions. Numbers already use tabular figures; make that
+universal, including in the new table.
+
+**375 px.** The fleet page must work on a phone: the budget chart scrolls horizontally with a sticky
+y axis, the timeline becomes a per-year list, the roster becomes cards. Check it, because the depot
+manager will open this on a phone.
+
+**Keyboard and motion.** A `/` command palette for "go to bus B-104" once there are hundreds of
+buses; honour `prefers-reduced-motion` on the new chart transitions; keep focus-visible rings on the
+new controls (the app is at 0 axe violations and should stay there).
+
+---
+
+## 8. Order of work
+
+| Phase | What | Why here |
+|---|---|---|
+| **0** | **Sourced research pass** (pending your go-ahead). Public tender and contract structures, transport-undertaking reports, India e-bus studies. Each candidate feature gets a source or is marked "assumption". Decides which of the three manager questions are real and who the stakeholder is (§1). | The fleet page's content and the CSV columns rest on it. Phases 1–2 do not, so it can run alongside them. |
+| **1** | `engine/decide/fleet.py`: age conditioning per model, per-model CDFs, Poisson-binomial convolution over class × cohort, km-weighted cost. Pure Python. A one-class, age-zero fleet reproduces today's `FleetPlan` numbers exactly. | Everything else depends on the maths being right, and it is testable with no UI. |
+| **2** | `POST /api/v1/fleet`: dedupe by ageing key, serial runs, cache 128 → 512, OpenAPI regen, backend tests. | Gives the frontend something real. |
+| **3** | **Fleet data layer, no input UI yet.** `FleetContext`, storage, types with source tags; the grouping engine in pure TypeScript (classes with measured tolerances, segments, risk bands, batches, flags); the sample-fleet generator. Invariants in §2.4 enforced by tests. | Categorisation is the smart feature and the riskiest logic, so it is built and tested before any screen depends on it. |
+| **4** | **Input methods.** Import preview and the single gate; roster and duty-log CSV with templates; paste; the Add-buses form; inline and bulk edit; from-the-bus-on-screen; JSON export and import; missing-data rules; rejected-rows download; undo. | Data in, all through one gate. |
+| **5** | **Fleet page.** Budget by financial year, class × year timeline, roster with Group by, batches, lever ranking in fleet rupees, chunked loading. | The payoff, and what gets demonstrated. |
+| **6** | **Integration.** Drill-down through bus selection, breadcrumb, nav regrouping, "Apply to this class", fleet-aware `FleetPlan` and Cost line. | Makes it one app, not two. |
+| **7** | **Production finish.** Fleet PDF and CSV export, 375 px pass, states audit (loading, empty, error, partial), first-run empty state, docs (CHANGELOG, model-card limits, synthetic-data attribution). | Showcase quality. |
+
+Phases 1–2 are the defensible engineering and can be merged with no UI change, so they are a safe first
+commit. Phase 3 before 4 is deliberate: the grouping rules and their invariants are settled and tested
+before anyone can feed data into them.
+
+## 9. Deliberately out of scope
+
+- Per-bus BMS health readings and calibration from fleet data. The API is prior-only and calibrated
+  mode is not wired in; this is the natural phase 8 but it is a project of its own.
+- Charger counts, depot scheduling optimisation and grid-peak constraints. The model has no charger
+  queue.
+- Route-level simulation (gradient, passenger load, stop spacing). We have no free data for it.
+- Discounting, NPV and second packs. Still deliberately absent, as in the single-bus cost page.
+- Any claim of validation. Every fleet number carries "not yet validated on buses", same as today.
