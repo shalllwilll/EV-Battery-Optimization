@@ -1,6 +1,6 @@
 # Fleet handling and UI uplift — plan
 
-Status: phases 1–2 built (branch `fleet-engine`); phases 0 and 3–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4).
+Status: phases 1–2 merged to main; phase 3 built (branch `fleet-data-layer`); phases 0 and 4–7 not started. Written 11 November 2026; revised the same day to add input methods, categorisation and integration rules (§2.2–2.4).
 
 Everything below keeps the project's standing rules: real free data only, every output labelled
 "not yet validated on buses", vendor data only calibrates, BMS state of health is never ground truth.
@@ -114,15 +114,39 @@ The categorisation you suggested is the right instinct, and it needs two differe
 be confused.
 
 **Kind A — duty classes. Compute grouping, mostly invisible.** Buses whose ageing-relevant inputs agree
-within a tolerance share one model run. Starting tolerances (km/day 10, charge start 0.5 h, charge cap 5
-points, minimum charge 5 points, kWh/km 0.05) are **guesses until measured**. Phase 3 measures how much
-battery life actually moves across each tolerance and fixes them from that, not from taste. Rules that
-keep this honest:
+within a tolerance share one model run, and every other scenario field must match exactly. The tolerances
+are **measured, not chosen** (`scripts/measure_fleet_tolerance.py`, results in
+`frontend/src/lib/fleetTolerance.json`): for each duty input, the largest change in battery life per unit of
+that input over 43 base buses (the eight presets plus 35 random buses across realistic duty), and the class
+step is set so one step moves life by at most 1 month in the worst case measured. Worst-case slopes, in
+months of life per unit (the worse of the 10th and 50th percentile), and the step that follows:
 
-- The class scenario is the **median of its members**, not the rounded value.
-- The preview shows the **widest gap between a class and its worst member**, in months of life.
-- A class whose worst member differs from the centre by more than a set number of months is split.
-- The user can merge or split classes in the preview.
+| Input | Worst slope | Typical | Class step |
+|---|---|---|---|
+| km per day | 1.45 | 0.36 | 0.5 km |
+| kWh per km | 297 | 46 | 0.002 |
+| operating days per year | 0.56 | 0.17 | 1 day |
+| charge cap (% SOC) | 4.8 | 1.5 | 0.2 points |
+| minimum charge (% SOC) | 2.7 | 0 | 0.2 points |
+| charge start (h) | 2.8 | 1.3 | 0.2 h |
+| departure (h) | 3.1 | 1.7 | 0.2 h |
+| charger power (kW) | 0.13 | 0.02 | 5 kW |
+| pack heat rise (°C) | 11.3 | 6.6 | 0.05 °C |
+
+The first guesses in this plan (10 km a day, 5 points of charge cap) were far too coarse: one 10 km step can
+move life by up to 14 months. The model is sensitive to duty, so real logs, whose averages are continuous,
+will often produce more than 50 classes. When they do, the step is widened 2×, 4×, 8× and **the widening is
+reported**; past 8× the import is refused with a reason.
+
+Rules that keep this honest:
+
+- The class scenario is the **median of its members**, or the nearest real member when the medians do not
+  form a valid scenario together.
+- Each class stores a **spread**: an upper bound (sum of |difference| × worst slope) on how far apart in
+  life any member and the class can be. It is conservative, and it is checked against the engine
+  (`tests/test_fleet_tolerance.py`: 24 random buses inside one class, the largest real/bound ratio was 0.71).
+- The stored slopes are re-checked against the engine at the preset buses, so they cannot go stale silently.
+- The user can merge or split classes in the preview (phase 4).
 
 **Kind B — segments. Analysis grouping, the part the operator sees.** These are *views*, pure functions
 of the roster and the results, **never stored**. Editing a bus therefore cannot leave a stale category
@@ -136,8 +160,9 @@ behind. One "Group by" control on the roster and Fleet page offers:
 | **Flags** | Roster and model result | As each class finishes |
 
 - **Risk band.** By median months to the replacement line, given the bus's age: *past the model's median
-  life* · *within 12 months* · *12–24* · *24–36* · *later* · *beyond the forecast*. Cut-offs are readable
-  defaults, adjustable, and not taken from any source. This answers "which buses are close to the line".
+  life* · *within 12 months* · *1 to 3 years* · *3 to 5 years* · *more than 5 years* · *beyond the 20-year
+  horizon* · *age unknown*. Cut-offs (12, 36, 60 months) are readable defaults for a pack that lasts about 12
+  years in the model, adjustable, and not taken from any source. This answers "which buses are close to the line".
 - **Replacement batch.** Your "pair them together" idea. Within a depot and bus type, buses whose median
   crossing falls in the same **financial-year half** form a batch. Each batch reports its bus count,
   window, and a spend range convolved over its members (§3.3). The result reads as a purchase unit:
@@ -502,6 +527,27 @@ new controls (the app is at 0 axe violations and should stay there).
 Phases 1–2 are the defensible engineering and can be merged with no UI change, so they are a safe first
 commit. Phase 3 before 4 is deliberate: the grouping rules and their invariants are settled and tested
 before anyone can feed data into them.
+
+**As built in phase 3 (data layer, no input screens).** Code in `frontend/src/lib/fleet/` and
+`frontend/src/state/FleetContext.tsx`; 33 new tests (30 in the front end, 3 in `tests/test_fleet_tolerance.py`).
+
+- `classes.ts` builds duty classes from draft buses with the measured tolerances above; `segments.ts` holds
+  the groupings, risk bands, batches and flags as pure functions; `io.ts` is the strict fleet-file parser and
+  the API request builder; `sample.ts` is the synthetic fleet; `storage.ts` and `FleetContext` hold the roster.
+- **Storage.** The fleet is kept in this browser's local storage, validated on load like an imported file. If
+  it is over about 3.5 MB or storage is blocked it keeps working in memory and reports `too_big` or `blocked`
+  so the screen can offer an export. **Deviation:** no IndexedDB fallback was built; the plan's estimate of
+  about 600 kB for 5000 buses leaves room, and an export is the safety net.
+- **Sample fleet:** 60 buses, 5 routes, 3 depots, 5 classes, in service 6 to 107 months ago (deliberately wide so the
+  grouping has something to show). Against the real engine it forecasts as a healthy fleet: 56 buses more than 5 years
+  from the line and 4 between 3 and 5 years at the 50th percentile. That is the model's answer, not something tuned.
+- **Risk bands** were re-cut from 12/24/36 to 12/36/60 months after the first run showed that a ≤9-year-old fleet
+  with a ~12-year median life would put almost every bus in "more than 36 months".
+- **Not built yet:** the "reported health outside the model's range" flag. The `/fleet` response carries no
+  retention-by-age, so it needs an API addition; `reportedSohPct` is stored and exported but nothing reads it.
+- Invariants enforced by tests: every method round-trips; every grouping except flags is a partition whose
+  sizes and "due in 12 months" sum to the fleet totals; a one-bus fleet keeps its scenario exactly; a class
+  spread bounds every member; a real engine response is found for every bus.
 
 ## 9. Deliberately out of scope
 

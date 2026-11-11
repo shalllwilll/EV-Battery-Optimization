@@ -9,6 +9,7 @@ import { ErrorState } from './components/Async'
 import { ScenarioProvider } from './state/ScenarioContext'
 import { YearProvider } from './state/YearContext'
 import { WhatIfProvider } from './state/WhatIfContext'
+import { FleetProvider } from './state/FleetContext'
 import Login from './pages/Login'
 import Health from './pages/Health'
 import Replacement from './pages/Replacement'
@@ -32,9 +33,11 @@ function Protected() {
     <ScenarioProvider presets={presets.data.presets}>
       <YearProvider>
         <WhatIfProvider>
-          <TopNav />
-          <Suspense fallback={<div className="page"><Skeleton h={560} /></div>}><Outlet /></Suspense>
-          <Toaster />
+          <FleetProvider>
+            <TopNav />
+            <Suspense fallback={<div className="page"><Skeleton h={560} /></div>}><Outlet /></Suspense>
+            <Toaster />
+          </FleetProvider>
         </WhatIfProvider>
       </YearProvider>
     </ScenarioProvider>

@@ -2,6 +2,8 @@ import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstac
 import { api, health } from './client'
 import type { CompareResult, EvidenceResponse, PredictionResult, PresetsResponse, RecommendResponse, Scenario, ZonesResponse } from './types'
 import { useDebounced } from '../lib/useDebounced'
+import { toFleetRequest } from '../lib/fleet/io'
+import type { Fleet, FleetForecast } from '../lib/fleet/types'
 
 const key = (o: unknown) => JSON.stringify(o)
 const STATIC = { staleTime: Infinity, retry: 1 } as const
@@ -61,4 +63,17 @@ export function useLeverSweep(variants: Scenario[], enabled: boolean, delay = 60
 /** Whether this server can send the report by email (it needs mail credentials in its environment). */
 export function useReportStatus() {
   return useQuery({ queryKey: ['report-status'], queryFn: ({ signal }) => api.get<{ email_enabled: boolean }>('/report/status', signal), staleTime: Infinity, retry: false })
+}
+
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+
+/** The whole fleet in one call. Only duty classes and bus ages are sent. (Chunking the classes so the first figures appear early comes with the Fleet page.) */
+export function useFleetForecast(fleet: Fleet | null, delay = 400) {
+  const f = useDebounced(fleet, delay)
+  const req = f ? toFleetRequest(f, localToday()) : null
+  return useQuery({
+    queryKey: ['fleet', key(req)],
+    queryFn: ({ signal }) => api.post<FleetForecast>('/fleet', req, signal),
+    enabled: !!req, placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
+  })
 }
