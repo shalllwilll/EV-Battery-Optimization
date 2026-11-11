@@ -105,7 +105,6 @@ export default function FleetPage() {
         {fleet && blocks.failed && !blocks.forecast && (
           <div className="c12 errbox" role="alert"><b>The forecast could not be worked out.</b><p>The roster still works. Check that the server is running, then change or re-add a bus to try again.</p></div>
         )}
-        {fleet && <AboutForecast />}
         {fleet && <AnswerStrip series={blocks.series} rows={rows} loading={blocks.main.isPending} onBand={setBand} />}
         {fleet && blocks.series && (
           <>
@@ -119,6 +118,7 @@ export default function FleetPage() {
         )}
         {fleet && blocks.main.isPending && !blocks.series && <div className="c12 card" role="status" aria-busy="true"><div className="skel" style={{ height: 120 }} /><p className="note">Working out the forecast…</p></div>}
         {fleet && <div className="c12"><RosterTable fleet={fleet} rows={rows} forecast={blocks.forecast} series={blocks.series} stale={blocks.stale} loading={blocks.main.isPending || blocks.stale} band={band} onBand={setBand} /></div>}
+        {fleet && <AboutForecast />}
       </div>
     </Page>
   )

@@ -1,12 +1,22 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+
+export const OPEN_ABOUT = 'ph:about'
+/** Opens the About panel from anywhere on the page and brings it into view. */
+export const openAbout = () => window.dispatchEvent(new Event(OPEN_ABOUT))
 
 /** The one place the caveats live. The cards say only what changes how to read them. */
 export function AboutForecast() {
   const [open, setOpen] = useState(false)
   const id = useId()
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = () => { setOpen(true); setTimeout(() => box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50) }
+    window.addEventListener(OPEN_ABOUT, h)
+    return () => window.removeEventListener(OPEN_ABOUT, h)
+  }, [])
   return (
-    <div className="c12 about">
-      <button className="chip w" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}><i />Prior mode · not yet validated on buses · {open ? 'Hide' : 'About this forecast'}</button>
+    <div className="c12 about" ref={box}>
+      <button className="chip w" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}><i />{open ? 'Hide' : 'About this forecast'} · prior mode, not yet validated on buses</button>
       {open && (
         <ul id={id} className="about-p">
           <li>The ageing curves are two published LFP models mixed 50/50, which is an assumption. It is the main reason the band is wide: each model puts the whole fleet on its own curve, so the spread comes mostly from the models disagreeing.</li>
