@@ -32,7 +32,7 @@ export type DutyClass = {
   name: string
   scenario: Scenario
   source: Source
-  /** Largest gap in battery life, in months, between any bus in this class and the class's own scenario (an upper bound from measured sensitivities). */
+  /** Largest gap in battery life, in months, between any bus in this class and the class's own scenario (an estimate from measured sensitivities, checked against the engine on sampled buses). */
   spreadMonths: number
 }
 

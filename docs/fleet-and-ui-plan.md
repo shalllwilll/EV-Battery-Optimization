@@ -113,11 +113,14 @@ and shared by JSON file. The URL carries the fleet id, grouping and selected bus
 The categorisation you suggested is the right instinct, and it needs two different things that must not
 be confused.
 
-**Kind A — duty classes. Compute grouping, mostly invisible.** Buses whose ageing-relevant inputs agree
-within a tolerance share one model run, and every other scenario field must match exactly. The tolerances
+**Kind A — duty classes. Compute grouping, mostly invisible.** Buses whose ageing-relevant inputs fall in the
+same grid cell share one model run, and every other scenario field must match exactly. (A grid, not a
+distance: two buses a hair apart can fall either side of a cell edge and become two classes. Forecasts stay
+correct; there are just more classes.) The tolerances
 are **measured, not chosen** (`scripts/measure_fleet_tolerance.py`, results in
 `frontend/src/lib/fleetTolerance.json`): for each duty input, the largest change in battery life per unit of
-that input over 43 base buses (the eight presets plus 35 random buses across realistic duty), and the class
+that input over 43 base buses (all eight presets, plus 35 of 40 random buses across realistic duty; 5 random buses were
+dropped because their life is beyond the 20-year horizon, which would understate a slope), and the class
 step is set so one step moves life by at most 1 month in the worst case measured. Worst-case slopes, in
 months of life per unit (the worse of the 10th and 50th percentile), and the step that follows:
 
@@ -142,9 +145,11 @@ Rules that keep this honest:
 
 - The class scenario is the **median of its members**, or the nearest real member when the medians do not
   form a valid scenario together.
-- Each class stores a **spread**: an upper bound (sum of |difference| × worst slope) on how far apart in
-  life any member and the class can be. It is conservative, and it is checked against the engine
-  (`tests/test_fleet_tolerance.py`: 24 random buses inside one class, the largest real/bound ratio was 0.71).
+- Each class stores a **spread**: an estimate (sum of |difference| × worst slope) of how far apart in life any
+  member and the class can be. It assumes every difference pushes the same way and is checked against the engine
+  on sampled buses at 1× and at 8× the class step (`tests/test_fleet_tolerance.py`): the real change never
+  exceeded it. The largest real/bound ratio was 0.97 at 1× (little headroom, so read it as an estimate, not a
+  guarantee) and 0.31 at 8×.
 - The stored slopes are re-checked against the engine at the preset buses, so they cannot go stale silently.
 - The user can merge or split classes in the preview (phase 4).
 
@@ -163,11 +168,13 @@ behind. One "Group by" control on the roster and Fleet page offers:
   life* · *within 12 months* · *1 to 3 years* · *3 to 5 years* · *more than 5 years* · *beyond the 20-year
   horizon* · *age unknown*. Cut-offs (12, 36, 60 months) are readable defaults for a pack that lasts about 12
   years in the model, adjustable, and not taken from any source. This answers "which buses are close to the line".
-- **Replacement batch.** Your "pair them together" idea. Within a depot and bus type, buses whose median
-  crossing falls in the same **financial-year half** form a batch. Each batch reports its bus count,
-  window, and a spend range convolved over its members (§3.3). The result reads as a purchase unit:
-  *"Batch: Depot A, 12 m, FY2028-29 H1, N buses, ₹X to ₹Y"*. A bus whose 10th-percentile crossing falls
-  before its batch window is marked, since that bus could be due earlier.
+- **Replacement batch.** Your "pair them together" idea: the buses of one **depot and one bus type that sit in the
+  same risk band**, a purchase unit of buses at a similar distance from the line (*"Depot A · 12 m · 1 to 3
+  years: 3 buses"*). Spend and its range for a batch come from running the same endpoint on just its buses.
+  **Design change found while building phase 3:** the first rule here was "same financial-year half of the median
+  crossing". On the sample fleet it gave 39 batches for 60 buses, and every bus's 10th-percentile crossing fell
+  before its own window, because the model's spread for one bus is years wide (about 8 to 17 years for the
+  default 12 m bus) and a half-year window is false precision. Bands are the resolution the model can support.
 - **Same-route groups.** Buses on one route share demand, so the lever ranking (§5.2d) runs per route and
   reads as a decision that applies to the whole route.
 - **Flags.** *Age unknown*; *past median life*; *outside the lab data range* (the engine already returns
@@ -539,10 +546,13 @@ before anyone can feed data into them.
   so the screen can offer an export. **Deviation:** no IndexedDB fallback was built; the plan's estimate of
   about 600 kB for 5000 buses leaves room, and an export is the safety net.
 - **Sample fleet:** 60 buses, 5 routes, 3 depots, 5 classes, in service 6 to 107 months ago (deliberately wide so the
-  grouping has something to show). Against the real engine it forecasts as a healthy fleet: 56 buses more than 5 years
-  from the line and 4 between 3 and 5 years at the 50th percentile. That is the model's answer, not something tuned.
+  grouping has something to show). Counted with the real code on a real engine response: **4 buses in 1 to 3 years,
+  10 in 3 to 5 years, 46 in more than 5 years** (median months to the line), forming 10 batches of 24, 9, 9, 4, 3, 3, 3,
+  3, 1 and 1 buses. That is the model's answer, not something tuned.
 - **Risk bands** were re-cut from 12/24/36 to 12/36/60 months after the first run showed that a ≤9-year-old fleet
-  with a ~12-year median life would put almost every bus in "more than 36 months".
+  with a ~12-year median life would put every bus in "more than 36 months".
+- Also fixed on review: the scenario's `horizon_years` no longer splits classes (the server overrides it to 20), and the
+  fleet request is memoised in `useFleetForecast`.
 - **Not built yet:** the "reported health outside the model's range" flag. The `/fleet` response carries no
   retention-by-age, so it needs an API addition; `reportedSohPct` is stored and exported but nothing reads it.
 - Invariants enforced by tests: every method round-trips; every grouping except flags is a partition whose

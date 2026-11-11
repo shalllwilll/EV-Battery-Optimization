@@ -3,7 +3,9 @@ import { validateScenario } from '../scenario'
 import tol from '../fleetTolerance.json'
 import { MAX_CLASSES, UNASSIGNED, type Bus, type DraftBus, type DutyClass, type Source } from './types'
 
-/** Duty inputs that may differ a little between two buses of one class. Everything else on a scenario must match exactly. */
+/** Duty inputs that may differ a little between two buses of one class: they are put on a grid, and buses in the same grid cell share a class. (A grid, not a
+ *  distance: two buses a hair apart can fall either side of a cell edge and end up in different classes. Forecasts stay right; there are just more classes.)
+ *  Everything else on a scenario must match exactly. */
 export const DUTY_FIELDS = Object.keys(tol.step) as (keyof typeof tol.step)[]
 const STEP = tol.step as Record<string, number>
 const SLOPE = tol.slope_months_per_unit as Record<string, number>
@@ -20,14 +22,15 @@ function hash(s: string): string {
   return h.toString(36).padStart(7, '0').slice(0, 6)
 }
 
-/** Everything that is not a duty input, in a fixed order, so equal scenarios give equal text. */
+/** Everything that is not a duty input, in a fixed order, so equal scenarios give equal text. The horizon is left out: the server runs every class at 20 years. */
 function exactPart(s: Scenario): string {
   const o = s as unknown as Record<string, unknown>
-  return JSON.stringify(Object.keys(o).filter((k) => !(k in STEP)).sort().map((k) => [k, o[k]]))
+  return JSON.stringify(Object.keys(o).filter((k) => !(k in STEP) && k !== 'horizon_years').sort().map((k) => [k, o[k]]))
 }
 const bucket = (s: Scenario, mult: number) => DUTY_FIELDS.map((f) => Math.round(num(s, f) / (STEP[f] * mult)))
 
-/** Upper bound on how far apart in life two buses can be: sum of |difference| x worst measured slope. Conservative (it assumes every difference pushes the same way). */
+/** Estimate of how far apart in life two buses can be: sum of |difference| x worst measured slope. It assumes every difference pushes the same way, and tests/test_fleet_tolerance.py
+ *  checks it against the engine on sampled buses at 1x and 8x the class step (at 1x the largest real/bound ratio was 0.97, so there is little headroom there). */
 export function spreadBound(a: Scenario, b: Scenario): number {
   return DUTY_FIELDS.reduce((m, f) => m + Math.abs(num(a, f) - num(b, f)) * SLOPE[f], 0)
 }

@@ -57,6 +57,10 @@ describe('duty classes', () => {
     expect(k.spreadMonths).toBeLessThanOrEqual(DUTY_FIELDS.length * TOLERANCE.budget_months)
   })
 
+  it('does not split buses over the horizon, which the server overrides to 20 years', () => {
+    expect(classify([draft(1, { horizon_years: 15 }), draft(2, { horizon_years: 20 })]).classes).toHaveLength(1)
+  })
+
   it('keeps one id for the same duty on every import', () => {
     const a = classify([draft(1), draft(2)]).classes[0].id
     const b = classify([draft(9), draft(8), draft(7)]).classes[0].id
@@ -185,11 +189,18 @@ describe('segments, on a real engine response', () => {
     }
   })
 
-  it('batches are depot, bus type and a financial-year half, and leave unknown-age buses out', () => {
-    const batched = rows.map((r) => ({ r, b: batchOf(r, asOf) })).filter((x) => x.b)
+  it('batches are depot, bus type and risk band, and leave unknown-age buses out', () => {
+    const batched = rows.map((r) => ({ r, b: batchOf(r) })).filter((x) => x.b)
     expect(batched.length).toBeGreaterThan(0)
-    for (const { r, b } of batched) { expect(b!.window).toMatch(/^FY\d{4}-\d{2} H[12]$/); expect(b!.depot).toBe(r.bus.depot); expect(r.band).not.toBe('unknown') }
+    for (const { r, b } of batched) { expect(b!.depot).toBe(r.bus.depot); expect(b!.band).toBe(r.band); expect(r.band).not.toBe('unknown') }
     expect(groupRows(rows, 'batch', asOf).groups.some((g) => g.label === 'Not in a batch')).toBe(true)
+  })
+
+  it('batches are not one bus each on a fleet of the sample’s shape: a depot and type in one band is a unit of several', () => {
+    const f = sampleFleet(P, NOW)
+    const sizes = groupRows(buildRows(f, fakeForecast(f)), 'batch', '2026-11-11').groups.filter((g) => g.label !== 'Not in a batch').map((g) => g.n)
+    expect(Math.max(...sizes)).toBeGreaterThanOrEqual(5)
+    expect(sizes.length).toBeLessThan(f.buses.length / 3)
   })
 
   it('structure-only groupings work with no forecast; the others wait for it', () => {
@@ -206,3 +217,17 @@ describe('segments, on a real engine response', () => {
     expect(new Set(req.buses.map((b) => b.class_id))).toEqual(new Set(req.classes.map((c) => c.id)))
   })
 })
+
+/** A stand-in response with the real shape: months to the line shrink with age, so the sample fleet spreads over several bands. */
+function fakeForecast(f: Fleet): FleetForecast {
+  const lab = (v: number, unit = 'months') => ({ value: v, unit, evidence_level: 'derived' as const, validated_on_buses: false as const, note: '' })
+  const seen = new Map<string, FleetForecast['cohorts'][number]>()
+  for (const b of f.buses) {
+    const age = ageOf(b, '2026-11-11')!
+    const k = `${b.classId}|${age}`
+    if (seen.has(k)) { const c = seen.get(k)!; c.n_buses = lab((c.n_buses.value as number) + 1, 'buses'); continue }
+    const left = Math.max(2, 144 - age)
+    seen.set(k, { class_id: b.classId, age_months: lab(age), n_buses: lab(1, 'buses'), months_to_line_p10: lab(left * 0.6), months_to_line_p50: lab(left), months_to_line_p90: lab(left * 1.4), chance_due_next_12_months: lab(left < 12 ? 0.6 : 0.02, 'fraction'), flags: [] })
+  }
+  return { as_of: '2026-11-11', cohorts: [...seen.values()], classes: f.classes.map((c) => ({ id: c.id, extrapolation_reasons: [] })) } as unknown as FleetForecast
+}

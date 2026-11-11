@@ -47,11 +47,12 @@ def life(s: Scenario, models) -> np.ndarray | None:
 ZONES = ["hot_dry", "hot_humid", "composite", "cool"]
 
 
-def base_points(rng: np.random.Generator) -> list[Scenario]:
-    """The eight preset buses (bus type x zone), so the slopes cover the defaults for sure, then random buses across realistic duty."""
+def base_points(rng: np.random.Generator) -> tuple[list[Scenario], int]:
+    """The eight preset buses (bus type x zone), so the slopes cover the defaults for sure, then N_BASE random buses across realistic duty."""
     out: list[Scenario] = [Scenario.from_preset(a, zone=z) for a in ("12m", "9m") for z in ZONES]
+    n_presets = len(out)
     zones = ZONES
-    while len(out) < N_BASE + 8:
+    while len(out) < N_BASE + n_presets:
         arch = "12m" if len(out) % 2 == 0 else "9m"
         mx = float(rng.choice([80, 85, 90, 95, 100]))
         try:
@@ -63,18 +64,20 @@ def base_points(rng: np.random.Generator) -> list[Scenario]:
         except ValueError:
             continue
         out.append(s)
-    return out
+    return out, n_presets
 
 
 def measure(models) -> dict:
     rng = np.random.default_rng(SEED)
     slopes: dict[str, list[float]] = {f: [] for f in FIELDS}
-    used = 0
-    for base in base_points(rng):
+    used = used_presets = 0
+    points, n_presets = base_points(rng)
+    for i, base in enumerate(points):
         l0 = life(base, models)
         if l0 is None:
             continue
         used += 1
+        used_presets += i < n_presets
         for f, (probe, _) in FIELDS.items():
             for sign in (1, -1):
                 try:
@@ -85,7 +88,8 @@ def measure(models) -> dict:
                 if l1 is not None:
                     slopes[f].append(float(np.max(np.abs(l1 - l0)) / probe))        # months per unit, worse of the 10th and 50th percentile
     return {"slopes": {f: max(v) if v else 0.0 for f, v in slopes.items()}, "typical": {f: float(np.median(v)) if v else 0.0 for f, v in slopes.items()},
-            "samples": {f: len(v) for f, v in slopes.items()}, "base_points_used": used}
+            "samples": {f: len(v) for f, v in slopes.items()}, "base_points_used": used, "presets_used": used_presets, "presets_total": n_presets,
+            "random_used": used - used_presets, "random_total": N_BASE}
 
 
 def step_for(slope: float, cap: float) -> float:
@@ -100,14 +104,15 @@ def main():
     m = measure(models)
     steps = {f: step_for(m["slopes"][f], FIELDS[f][1]) for f in FIELDS}
     out = {"generated_by": "scripts/measure_fleet_tolerance.py", "seed": SEED, "budget_months": BUDGET_MONTHS, "horizon_years": 20,
-           "metric": "worse of the 10th and 50th percentile life, months per unit of the input", "base_points_used": m["base_points_used"],
+           "metric": "worse of the 10th and 50th percentile life, months per unit of the input", "base_points": {"presets_used": m["presets_used"], "presets_total": m["presets_total"], "random_used": m["random_used"], "random_total": m["random_total"],
+                           "dropped": "a base point whose 10th or 50th percentile life is beyond the 20-year horizon is dropped, since its slope would be understated"},
            "slope_months_per_unit": {f: round(v, 4) for f, v in m["slopes"].items()}, "typical_months_per_unit": {f: round(v, 4) for f, v in m["typical"].items()},
            "step": {f: float(f"{v:.6g}") for f, v in steps.items()}}
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend/src/lib/fleetTolerance.json")
     with open(path, "w") as fh:
         json.dump(out, fh, indent=2)
         fh.write("\n")
-    print(f"base points used: {m['base_points_used']} of {N_BASE}")
+    print(f"base points used: {m['presets_used']} of {m['presets_total']} presets and {m['random_used']} of {m['random_total']} random buses")
     print(f"{'input':26s}{'worst slope':>14s}{'typical':>10s}{'step':>9s}{'worst months per step':>24s}")
     for f in FIELDS:
         print(f"{f:26s}{m['slopes'][f]:14.3f}{m['typical'][f]:10.3f}{steps[f]:9g}{m['slopes'][f] * steps[f]:24.2f}")

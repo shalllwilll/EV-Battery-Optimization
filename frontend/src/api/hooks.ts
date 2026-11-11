@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, health } from './client'
 import type { CompareResult, EvidenceResponse, PredictionResult, PresetsResponse, RecommendResponse, Scenario, ZonesResponse } from './types'
@@ -70,9 +71,10 @@ const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${St
 /** The whole fleet in one call. Only duty classes and bus ages are sent. (Chunking the classes so the first figures appear early comes with the Fleet page.) */
 export function useFleetForecast(fleet: Fleet | null, delay = 400) {
   const f = useDebounced(fleet, delay)
-  const req = f ? toFleetRequest(f, localToday()) : null
+  const req = useMemo(() => (f ? toFleetRequest(f, localToday()) : null), [f])
+  const k = useMemo(() => key(req), [req])
   return useQuery({
-    queryKey: ['fleet', key(req)],
+    queryKey: ['fleet', k],
     queryFn: ({ signal }) => api.post<FleetForecast>('/fleet', req, signal),
     enabled: !!req, placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
   })

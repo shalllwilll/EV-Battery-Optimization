@@ -73,22 +73,16 @@ export function buildRows(fleet: Fleet, forecast: FleetForecast | null): Row[] {
 }
 
 // ---------------------------------------------------------------- replacement batches
-export type BatchInfo = { key: string; depot: string; type: string; window: string; sortKey: number; startIdx: number }
+export type BatchInfo = { key: string; depot: string; type: string; band: Band; sortKey: number }
 
-/** Financial year and half (April to September is H1, October to March H2) in which the bus's median crossing falls. */
-export function batchOf(r: Row, asOf: string): BatchInfo | null {
-  if (r.p50 == null || r.band === 'unknown' || r.band === 'beyond') return null
-  const idx = monthIndex(asOf.slice(0, 7)) + Math.round(r.p50)
-  const year = Math.floor(idx / 12), m = idx % 12
-  const fy = m >= 3 ? year : year - 1
-  const h1 = m >= 3 && m <= 8
-  const window = `FY${fy}-${String((fy + 1) % 100).padStart(2, '0')} ${h1 ? 'H1' : 'H2'}`
+/** A batch is the buses of one depot and one bus type that sit in the same risk band: a purchase unit of buses at a similar distance from the line.
+ *  Buses of unknown age, or beyond the 20-year horizon, are not in a batch.
+ *  Why a band and not a half-year window around each bus's median crossing: the model's own spread for one bus is years wide (about 8 to 17 years for the default
+ *  12 m bus), so half-year windows split a 60-bus fleet into 39 batches of one or two buses, and every bus's 10th percentile fell before its own window. */
+export function batchOf(r: Row): BatchInfo | null {
+  if (!r.band || r.band === 'unknown' || r.band === 'beyond') return null
   const type = r.cls.scenario.archetype
-  return { key: `${r.bus.depot}|${type}|${window}`, depot: r.bus.depot, type, window, sortKey: fy * 2 + (h1 ? 0 : 1), startIdx: fy * 12 + (h1 ? 3 : 9) }
-}
-/** A bus whose 10th-percentile crossing falls before its batch's window could be due earlier than the batch. */
-export function earlierThanWindow(r: Row, b: BatchInfo, asOf: string): boolean {
-  return r.p10 != null && monthIndex(asOf.slice(0, 7)) + Math.floor(r.p10) < b.startIdx
+  return { key: `${r.bus.depot}|${type}|${r.band}`, depot: r.bus.depot, type, band: r.band, sortKey: BAND_ORDER.indexOf(r.band) }
 }
 
 // ---------------------------------------------------------------- grouping
@@ -106,14 +100,12 @@ export type Group = {
   due12: number | null
   /** Earliest median months to the line among them. */
   earliest: number | null
-  /** Batches only: how many could be due before the window opens. */
-  earlier?: number
 }
 export type Grouped = { groups: Group[]; overlapping: boolean; pending: boolean }
 
 const typeLabel = (t: string) => (t === '12m' ? '12 m' : t === '9m' ? '9 m' : t)
 
-function bucketOf(r: Row, by: GroupBy, asOf: string): { key: string; label: string; order: number }[] {
+function bucketOf(r: Row, by: GroupBy): { key: string; label: string; order: number }[] {
   switch (by) {
     case 'depot': return [{ key: r.bus.depot, label: r.bus.depot, order: 0 }]
     case 'route': return [{ key: r.bus.route, label: r.bus.route, order: 0 }]
@@ -121,7 +113,7 @@ function bucketOf(r: Row, by: GroupBy, asOf: string): { key: string; label: stri
     case 'class': return [{ key: r.cls.id, label: r.cls.name, order: 0 }]
     case 'cohort': { const y = r.bus.inServiceMonth?.slice(0, 4); return [y ? { key: y, label: `In service ${y}`, order: Number(y) } : { key: 'unknown', label: 'Age unknown', order: 1e9 }] }
     case 'risk': { const b = r.band; return b ? [{ key: b, label: BAND_LABEL[b], order: BAND_ORDER.indexOf(b) }] : [] }
-    case 'batch': { const b = batchOf(r, asOf); return [b ? { key: b.key, label: `${b.depot} · ${typeLabel(b.type)} · ${b.window}`, order: b.sortKey } : { key: 'none', label: 'Not in a batch', order: 1e9 }] }
+    case 'batch': { const b = batchOf(r); return [b ? { key: b.key, label: `${b.depot} · ${typeLabel(b.type)} · ${BAND_LABEL[b.band]}`, order: b.sortKey } : { key: 'none', label: 'Not in a batch', order: 1e9 }] }
     case 'flags': return r.flags.length ? r.flags.map((f) => ({ key: f, label: FLAG_LABEL[f], order: FLAGS.indexOf(f) })) : [{ key: 'none', label: 'No flags', order: 1e9 }]
   }
 }
@@ -131,14 +123,13 @@ function bucketOf(r: Row, by: GroupBy, asOf: string): { key: string; label: stri
 export function groupRows(rows: Row[], by: GroupBy, asOf: string | null): Grouped {
   if (NEEDS_FORECAST.includes(by) && (!asOf || rows.some((r) => !r.cohort))) return { groups: [], overlapping: by === 'flags', pending: true }
   const map = new Map<string, { label: string; order: number; rows: Row[] }>()
-  for (const r of rows) for (const b of bucketOf(r, by, asOf ?? '')) (map.get(b.key) ?? map.set(b.key, { label: b.label, order: b.order, rows: [] }).get(b.key)!).rows.push(r)
+  for (const r of rows) for (const b of bucketOf(r, by)) (map.get(b.key) ?? map.set(b.key, { label: b.label, order: b.order, rows: [] }).get(b.key)!).rows.push(r)
   const ordered = [...map.entries()].map(([key, g]) => {
     const withC = g.rows.filter((r) => r.due12 != null), p50s = g.rows.map((r) => r.p50).filter((v): v is number => v != null)
-    const info = by === 'batch' && asOf ? g.rows.map((r) => ({ r, b: batchOf(r, asOf) })).filter((x): x is { r: Row; b: BatchInfo } => x.b != null) : []
     return { key, label: g.label, busIds: g.rows.map((r) => r.bus.id), n: g.rows.length, due12: withC.length ? withC.reduce((s, r) => s + (r.due12 ?? 0), 0) : null,
-      earliest: p50s.length ? Math.min(...p50s) : null, order: g.order, ...(by === 'batch' ? { earlier: info.filter((x) => earlierThanWindow(x.r, x.b, asOf!)).length } : {}) }
+      earliest: p50s.length ? Math.min(...p50s) : null, order: g.order }
   }).sort((a, b) => (a.order - b.order) || (b.n - a.n) || (a.label < b.label ? -1 : 1))
-  const groups: Group[] = ordered.map((g) => ({ key: g.key, label: g.label, busIds: g.busIds, n: g.n, due12: g.due12, earliest: g.earliest, ...(g.earlier != null ? { earlier: g.earlier } : {}) }))
+  const groups: Group[] = ordered.map((g) => ({ key: g.key, label: g.label, busIds: g.busIds, n: g.n, due12: g.due12, earliest: g.earliest }))
   return { groups, overlapping: by === 'flags', pending: false }
 }
 

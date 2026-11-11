@@ -52,18 +52,19 @@ def test_stored_slopes_still_cover_the_engine_at_the_preset_buses(tool, models):
                         assert np.max(np.abs(l1 - l0)) / probe <= TOL["slope_months_per_unit"][f] * 1.001 + 1e-9, (arch, zone, f)
 
 
-def test_buses_inside_one_class_stay_inside_the_stated_bound(tool, models):
-    """Draw buses whose every duty input is within one step of a centre bus. Their real change in life must not exceed
-    sum(|difference| x slope), the bound the front end shows as the class's spread."""
-    rng = np.random.default_rng(7)
+@pytest.mark.parametrize("mult", [1, 8])
+def test_buses_inside_one_class_stay_inside_the_stated_bound(tool, models, mult):
+    """Draw buses whose every duty input is within `mult` steps of a centre bus (1x is the tight class, 8x the widest the app will use when a fleet needs
+    more than 50 classes). Their real change in life must not exceed sum(|difference| x slope), the bound the front end shows as the class's spread."""
+    rng = np.random.default_rng(7 + mult)
     checked, worst_ratio = 0, 0.0
-    for arch, zone in (("12m", "hot_dry"), ("9m", "composite"), ("12m", "hot_humid")):
+    for arch, zone in (("12m", "hot_dry"), ("9m", "composite"), ("12m", "hot_humid"), ("9m", "hot_dry")):
         centre = Scenario.from_preset(arch, zone=zone)
         l0 = tool.life(centre, models)
         if l0 is None:
             continue
-        for _ in range(14):
-            diffs = {f: float(rng.uniform(-1, 1)) * TOL["step"][f] for f in TOL["step"]}
+        for _ in range(12):
+            diffs = {f: float(rng.uniform(-1, 1)) * TOL["step"][f] * mult for f in TOL["step"]}
             try:
                 s = Scenario(**{**centre.model_dump(), **{f: getattr(centre, f) + d for f, d in diffs.items()}})
             except ValueError:
@@ -73,7 +74,7 @@ def test_buses_inside_one_class_stay_inside_the_stated_bound(tool, models):
                 continue
             bound = sum(abs(d) * TOL["slope_months_per_unit"][f] for f, d in diffs.items())
             actual = float(np.max(np.abs(l1 - l0)))
-            assert actual <= bound + 1e-6, (arch, zone, actual, bound)
+            assert actual <= bound + 1e-6, (mult, arch, zone, actual, bound)
             worst_ratio, checked = max(worst_ratio, actual / bound if bound else 0), checked + 1
     assert checked >= 20
-    print(f"checked {checked} buses, largest actual/bound = {worst_ratio:.2f}")
+    print(f"{mult}x: checked {checked} buses, largest actual/bound = {worst_ratio:.2f}")

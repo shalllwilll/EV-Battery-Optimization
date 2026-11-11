@@ -4,7 +4,13 @@
   "budget_months": 1.0,
   "horizon_years": 20,
   "metric": "worse of the 10th and 50th percentile life, months per unit of the input",
-  "base_points_used": 43,
+  "base_points": {
+    "presets_used": 8,
+    "presets_total": 8,
+    "random_used": 35,
+    "random_total": 40,
+    "dropped": "a base point whose 10th or 50th percentile life is beyond the 20-year horizon is dropped, since its slope would be understated"
+  },
   "slope_months_per_unit": {
     "km_per_day": 1.4538,
     "kwh_per_km": 297.0765,
