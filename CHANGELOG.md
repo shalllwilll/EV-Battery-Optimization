@@ -2,6 +2,11 @@
 
 Each entry is a git tag (`git show cp-x.y`). Numbers quoted here are the ones in `engine/artifacts/metrics.json` and `docs/model-card.md`.
 
+## Fleet page redesign (after v1.0.0)
+- **First run:** one card, "Where do you want to start?": *Bring your buses* (a drop zone with Upload, Paste and Add-by-hand tabs) beside two quiet options, the sample fleet and Just one bus.
+- **Loaded fleet:** one primary button (Add buses), an **Export** panel (report, forecast, budget and roster files, with what each holds, and Save fleet file) and a **⋯** panel with Remove fleet behind a confirm. The header is one line; the sample is just "Sample fleet" with its synthetic tag.
+- Budget chart axis ticks are shorter (₹2.5 cr) so they fit; this also fixes labels being clipped.
+
 ## Fleet production finish (after v1.0.0)
 - **Fleet report (PDF):** cover headline, battery budget by financial year, duty classes, cohorts and an Assumptions and limits page that says the figures are age-conditioned, the two models are mixed 50/50, and none of it is validated on buses yet. Depots, routes and reported health are not in it.
 - **Forecast CSV** (one row per bus) and **Budget CSV** (per financial year, running total with no band), both safe to open in a spreadsheet.

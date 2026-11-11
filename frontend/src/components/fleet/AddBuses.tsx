@@ -18,23 +18,20 @@ export const sampleIntake = (ctx: Context): Intake => empty('Sample fleet', 'Syn
 
 /** The doors into the fleet. Each one ends in the same call, onIntake, which opens the gate; none of them changes the fleet itself. */
 export function AddBuses({ ctx, fleet, method, onMethod, onIntake }: { ctx: Context | null; fleet: Fleet | null; method: Method | null; onMethod: (m: Method | null) => void; onIntake: (i: Intake) => void }) {
-  const methods: { id: Method; t: string; d: string }[] = [
-    { id: 'upload', t: 'Upload a file', d: 'A roster CSV (one row per bus), a duty-log CSV, or a saved fleet file.' },
-    { id: 'paste', t: 'Paste from a spreadsheet', d: 'Copy the cells in Excel or Sheets, including the header row.' },
-    { id: 'form', t: 'Add buses by hand', d: 'A batch of identical buses: count, ids, depot, route, duty.' },
+  const methods: { id: Method; t: string }[] = [
+    { id: 'upload', t: 'Upload a file' },
+    { id: 'paste', t: 'Paste from a spreadsheet' },
+    { id: 'form', t: 'Add buses by hand' },
   ]
+  const m = method ?? 'upload'
   return (
     <div>
-      <div className="meth" role="group" aria-label="How to add buses">
-        {methods.map((m) => (
-          <button key={m.id} className="meth-b" aria-pressed={method === m.id} onClick={() => onMethod(method === m.id ? null : m.id)}>
-            <b>{m.t}</b><span>{m.d}</span>
-          </button>
-        ))}
+      <div className="seg tabs" role="group" aria-label="How to add buses">
+        {methods.map((x) => <button key={x.id} aria-pressed={m === x.id} onClick={() => onMethod(x.id)}>{x.t}</button>)}
       </div>
-      {method === 'upload' && <UploadPanel ctx={ctx} onIntake={onIntake} />}
-      {method === 'paste' && <PastePanel ctx={ctx} onIntake={onIntake} />}
-      {method === 'form' && <BatchForm ctx={ctx} fleet={fleet} onIntake={onIntake} />}
+      {m === 'upload' && <UploadPanel ctx={ctx} onIntake={onIntake} />}
+      {m === 'paste' && <PastePanel ctx={ctx} onIntake={onIntake} />}
+      {m === 'form' && <BatchForm ctx={ctx} fleet={fleet} onIntake={onIntake} />}
     </div>
   )
 }
@@ -43,7 +40,7 @@ function Templates() {
   return (
     <p className="note">
       Templates: <button className="lnk" onClick={() => download('roster-template.csv', rosterTemplate())}>roster CSV</button> · <button className="lnk" onClick={() => download('duty-log-template.csv', logTemplate())}>duty-log CSV</button>.
-      Only <code>bus_id</code> is required; every other column is optional, and what is missing is shown to you before anything is added. A roster carries duty, bus type, zone, pack size and battery price; replacement threshold, electricity tariff and charger settings come from the bus on screen, and the fleet file keeps everything. Files are read in this browser and never uploaded.
+      Only <code>bus_id</code> is required; what is missing is shown to you before anything is added.
     </p>
   )
 }
@@ -55,6 +52,7 @@ function Problems({ errors }: { errors: string[] }) {
 function UploadPanel({ ctx, onIntake }: { ctx: Context | null; onIntake: (i: Intake) => void }) {
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [over, setOver] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const onFile = async (f: File | undefined) => {
     if (!f || !ctx) return
@@ -77,10 +75,11 @@ function UploadPanel({ ctx, onIntake }: { ctx: Context | null; onIntake: (i: Int
   }
   return (
     <div className="csvp meth-p">
-      <div className="csvp-act">
+      <div className={`drop${over ? ' over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={(e) => { e.preventDefault(); setOver(false); onFile(e.dataTransfer.files?.[0]) }}>
+        <b>Drop a file here</b>
         <button className="btn sm primary" disabled={!ctx || busy} onClick={() => input.current?.click()}>{busy ? 'Reading…' : 'Choose a file'}</button>
         <input ref={input} type="file" accept=".csv,.tsv,.txt,.json,text/csv,application/json" hidden aria-label="Fleet file" onChange={(e) => onFile(e.target.files?.[0])} />
-        <span className="src">CSV (roster or duty log) or a fleet file saved from this page</span>
+        <span className="src">A roster or duty-log CSV, or a fleet file saved from this page. Read in this browser, never uploaded.</span>
       </div>
       <Templates />
       <Problems errors={errors} />

@@ -39,6 +39,8 @@ export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { se
   const b: Box = { ...H, xMax: n }
   const slot = (H.w - G.L - G.R) / n, bw = slot * 0.62
   const fmtV = (v: number) => (inr ? rupees(v) : v < 10 ? v.toFixed(1) : String(Math.round(v)))
+  // Axis ticks are short so they fit the left margin; the headline, tooltip and table keep the full wording.
+  const tick = (v: number) => (!inr ? fmtV(v) : v === 0 ? '₹0' : v >= 1e7 ? `₹${+(v / 1e7).toFixed(v < 1e8 ? 1 : 0)} cr` : v >= 1e5 ? `₹${+(v / 1e5).toFixed(v < 1e6 ? 1 : 0)} L` : rupees(v))
   const isOther = (i: number) => !!stack?.other && i === names.length - 1
   const isUnknown = (i: number) => stack?.unknownIndex === i
   const col = (i: number) => (isOther(i) ? OTHER : isUnknown(i) ? '#E4E4E7' : COLORS[i % COLORS.length])
@@ -66,7 +68,7 @@ export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { se
           <>
             <div className="bscroll"><svg className="ch" viewBox={`0 0 ${H.w} ${H.h}`} role="img" aria-label={`${inr ? 'Expected pack spend' : 'Expected buses reaching the line'} in each of the next ${n} financial years. ${head.text}`}>
               <defs><pattern id={`${id}-hatch`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#27272A" /><rect width="2.5" height="6" fill="#E4E4E7" /></pattern></defs>
-              <Grid b={b} ticks={[0, top / 2, top]} lo={0} hi={top} fmt={fmtV} />
+              <Grid b={b} ticks={[0, top / 2, top]} lo={0} hi={top} fmt={tick} />
               {series.labels.map((l, i) => {
                 const cx = X(b, i + 0.5), x0 = cx - bw / 2
                 let acc = 0

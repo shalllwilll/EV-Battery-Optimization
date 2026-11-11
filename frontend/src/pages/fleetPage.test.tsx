@@ -23,14 +23,14 @@ describe('Fleet page: ways in and the gate', () => {
   it('starts empty with every way in listed, and the app still works without a fleet', async () => {
     await open()
     expect(screen.getByRole('heading', { name: 'Where do you want to start?' })).toBeInTheDocument()
-    for (const n of [/Upload a file/, /Paste from a spreadsheet/, /Add buses by hand/, /Load the sample fleet/, /Import a CSV/]) expect(await screen.findByRole('button', { name: n })).toBeInTheDocument()
+    for (const n of [/Upload a file/, /Paste from a spreadsheet/, /Add buses by hand/, /Try the sample fleet/]) expect(await screen.findByRole('button', { name: n })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Just one bus/ })).toHaveAttribute('href', expect.stringContaining('/health'))
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
   it('the sample fleet goes through the gate, is labelled synthetic, and only then joins', async () => {
     await open()
-    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     expect(within(gate()).getByText(/60 buses in \d+ duty classes/)).toBeInTheDocument()
     expect(localStorage.getItem('ph.fleet.v1')).toBeNull()
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
@@ -141,7 +141,7 @@ describe('Fleet page: the roster', () => {
 describe('Fleet page: the forecast blocks', () => {
   const withSample = async () => {
     const m = mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     await screen.findByRole('table')
     return m
@@ -150,15 +150,34 @@ describe('Fleet page: the forecast blocks', () => {
 
   it('offers the report and both CSVs once there is a forecast, and a CSV click downloads a file named for the fleet', async () => {
     await withSample()
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
     const pdf = await screen.findByRole('button', { name: 'Fleet report (PDF)' })
     await waitFor(() => expect(pdf).toBeEnabled())
     const names: string[] = []
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
     await userEvent.click(screen.getByRole('button', { name: 'Forecast CSV' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
     await userEvent.click(screen.getByRole('button', { name: 'Budget CSV' }))
     click.mockRestore()
+    expect(screen.queryByRole('button', { name: 'Budget CSV' })).not.toBeInTheDocument()
     expect(names).toEqual(['sample-fleet-synthetic-for-demonstration-forecast.csv', 'sample-fleet-synthetic-for-demonstration-budget.csv'])
+  })
+
+  it('the Export panel closes on Escape, and removing the fleet asks first', async () => {
+    await withSample()
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    expect(screen.getByRole('button', { name: 'Roster CSV' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('button', { name: 'Roster CSV' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'More fleet actions' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove fleet' }))
+    expect(screen.getByText(/Remove all 60 buses\?/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Keep it' }))
+    expect(screen.queryByText(/Remove all/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove fleet' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove fleet' }))
+    expect(await screen.findByRole('heading', { name: 'Where do you want to start?' })).toBeInTheDocument()
   })
 
   it('writes the budget sentence for the next full financial year, from the whole fleet, with the model assumptions stated', async () => {
@@ -280,7 +299,7 @@ describe('Fleet page: the forecast blocks', () => {
   it('a failed forecast leaves the roster working and says so', async () => {
     mockApi({ '/fleet': () => ({ status: 500, body: { error: { code: 'x', message: 'down', fields: [] } } }) })
     renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     expect(await screen.findByText(/The forecast could not be worked out/)).toBeInTheDocument()
     expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(60)
@@ -315,7 +334,7 @@ describe('Fleet page: accessibility', () => {
 
   it('has no violations with the forecast blocks, a group open, and the lever block loaded', async () => {
     mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     const tl = await screen.findByRole('region', { name: 'When each duty class reaches the line' })
     await waitFor(() => expect(within(tl).queryByRole('status')).not.toBeInTheDocument())
@@ -330,7 +349,7 @@ describe('Fleet page: accessibility', () => {
 describe('Fleet and the analysis pages: one app', () => {
   const sample = async () => {
     mockApi(); renderApp('/fleet'); await screen.findByRole('heading', { level: 1, name: 'Fleet' })
-    await userEvent.click(await screen.findByRole('button', { name: /Load the sample fleet/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Try the sample fleet/ }))
     await userEvent.click(within(gate()).getByRole('button', { name: 'Use this fleet' }))
     await screen.findByRole('table')
   }

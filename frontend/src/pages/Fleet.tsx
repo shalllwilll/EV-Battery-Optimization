@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AddBuses, sampleIntake, type Method } from '../components/fleet/AddBuses'
+import { FleetActions } from '../components/fleet/FleetActions'
 import { FleetGate } from '../components/fleet/FleetGate'
 import { BudgetBlock } from '../components/fleet/BudgetBlock'
 import { FleetLevers } from '../components/fleet/FleetLevers'
@@ -55,20 +56,18 @@ export default function FleetPage() {
         {fleet && (
           <div className="c12 fleet-head">
             <div className="fh-l">
-              <h2>{fleet.name}</h2>
+              <h2>{fleet.kind === 'sample' ? 'Sample fleet' : fleet.name}</h2>
               {fleet.kind === 'sample' && <span className="tag assumption">Synthetic, for demonstration</span>}
-              <span className="chip"><i />{fleet.buses.length.toLocaleString('en-IN')} {fleet.buses.length === 1 ? 'bus' : 'buses'}</span>
-              <span className="chip"><i />{fleet.classes.length} duty {fleet.classes.length === 1 ? 'class' : 'classes'}</span>
+              <span className="fh-n">{fleet.buses.length.toLocaleString('en-IN')} {fleet.buses.length === 1 ? 'bus' : 'buses'} · {fleet.classes.length} duty {fleet.classes.length === 1 ? 'class' : 'classes'}</span>
             </div>
-            <div className="fh-r">
-              <button className="btn sm primary" aria-expanded={adding} onClick={() => { setAdding((a) => !a); setMethod(null) }}>Add buses</button>
-              <button className="btn sm" onClick={() => download(`${slug}.json`, serializeFleet(fleet), 'application/json')}>Save fleet file</button>
-              <button className="btn sm" onClick={() => download(`${slug}-roster.csv`, rosterCsv(fleet))}>Roster CSV</button>
-              <button className="btn sm" disabled={pdfBusy || !blocks.series} onClick={fleetPdf}>{pdfBusy ? 'Making the report…' : 'Fleet report (PDF)'}</button>
-              <button className="btn sm" disabled={!blocks.series} onClick={() => download(`${slug}-forecast.csv`, forecastCsv(rows, blocks.series, blocks.asOf))}>Forecast CSV</button>
-              <button className="btn sm" disabled={!blocks.series} onClick={() => blocks.series && download(`${slug}-budget.csv`, budgetCsv(blocks.series))}>Budget CSV</button>
-              <button className="btn sm" onClick={() => { setFleet(null); close(); toast('Fleet removed') }}>Remove fleet</button>
-            </div>
+            <FleetActions adding={adding} onAdd={() => { setAdding((a) => !a); setMethod(null) }} buses={fleet.buses.length} onRemove={() => { setFleet(null); close(); toast('Fleet removed') }}
+              saveFile={{ label: 'Save fleet file', hint: 'Everything, to open again here', onClick: () => download(`${slug}.json`, serializeFleet(fleet), 'application/json') }}
+              exports={[
+                { label: 'Fleet report (PDF)', hint: 'Budget by year, classes, assumptions and limits', busy: pdfBusy ? 'Making the report…' : undefined, disabled: pdfBusy || !blocks.series, onClick: fleetPdf },
+                { label: 'Forecast CSV', hint: 'One row per bus: months to the line, year, risk', disabled: !blocks.series, onClick: () => download(`${slug}-forecast.csv`, forecastCsv(rows, blocks.series, blocks.asOf)) },
+                { label: 'Budget CSV', hint: 'Spend and buses per financial year', disabled: !blocks.series, onClick: () => blocks.series && download(`${slug}-budget.csv`, budgetCsv(blocks.series)) },
+                { label: 'Roster CSV', hint: 'Your buses, to edit and load back', onClick: () => download(`${slug}-roster.csv`, rosterCsv(fleet)) },
+              ]} />
           </div>
         )}
         {fleet && saveStatus !== 'saved' && (
@@ -81,18 +80,20 @@ export default function FleetPage() {
         {!intake && !fleet && (
           <section className="card c12 first" aria-labelledby="first-h">
             <h2 id="first-h">Where do you want to start?</h2>
-            <div className="sub">Plan battery replacements for a whole fleet, or look at one bus. Nothing is stored until you confirm it.</div>
-            <div className="meth doors">
-              <button className="meth-b" disabled={!ctx} onClick={() => ctx && setIntake(sampleIntake(ctx))}><b>Load the sample fleet</b><span>60 synthetic buses across 3 depots, to see every block working. Labelled as synthetic everywhere.</span></button>
-              <button className="meth-b" aria-pressed={method === 'upload'} onClick={() => setMethod(method === 'upload' ? null : 'upload')}><b>Import a CSV</b><span>A roster with one row per bus, or a duty log. Read in this browser, never uploaded.</span></button>
-              <Link className="meth-b" to={`/health${window.location.search}`}><b>Just one bus</b><span>Skip the fleet and look at a single bus: its health, range and cost.</span></Link>
+            <div className="sub">Plan battery replacements for a whole fleet, or look at one bus. You see a preview before anything is added.</div>
+            <div className="first-g">
+              <div className="first-m"><h3>Bring your buses</h3><AddBuses ctx={ctx} fleet={fleet} method={method} onMethod={setMethod} onIntake={setIntake} /></div>
+              <div className="first-s">
+                <button className="meth-b" disabled={!ctx} onClick={() => ctx && setIntake(sampleIntake(ctx))}><b>Try the sample fleet</b><span>60 synthetic buses, to see every block working. Labelled as synthetic.</span></button>
+                <Link className="meth-b" to={`/health${window.location.search}`}><b>Just one bus</b><span>Skip the fleet: its health, range and cost.</span></Link>
+              </div>
             </div>
           </section>
         )}
-        {!intake && (!fleet || adding) && (
+        {!intake && fleet && adding && (
           <div className="card c12">
-            <h2>{fleet ? 'Add buses' : 'Other ways in'}</h2>
-            <div className="sub">{fleet ? 'Pick a way in. You will see what changes before anything is added.' : 'Every way in ends at the same preview, and the last change can be undone.'}</div>
+            <h2>Add buses</h2>
+            <div className="sub">Pick a way in. You will see what changes before anything is added.</div>
             <AddBuses ctx={ctx} fleet={fleet} method={method} onMethod={setMethod} onIntake={setIntake} />
           </div>
         )}
