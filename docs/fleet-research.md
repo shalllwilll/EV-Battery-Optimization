@@ -112,7 +112,8 @@ not retain a URL for either, so they are **not used** anywhere in the product or
 7. **CSV columns** (bus id, depot, route, bus type, in-service month, optional km/day, optional reported SOH) are standard fleet-register fields; no source constrains them. They stay, and every one beyond bus id and bus type stays optional.
 8. **Charger count** stays out of scope (no source for ratios).
 
-## 6. Not decided here
+## 6. Decisions
 
-Whether to add the contract-rate field and the warranty flag. Both are small, but they change the data model and
-the Fleet page's content, so they wait for your answer. Nothing in phases 4–7 has started.
+Decided 11 November 2026: **neither** the optional contract-rate-per-km field **nor** the "past 5-year battery warranty" flag
+will be added. The data model and the Fleet page stay as planned in `docs/fleet-and-ui-plan.md`. The cost-per-km ranking by
+route and depot stays; it is not turned into a margin. Nothing in phases 4–7 has started.
