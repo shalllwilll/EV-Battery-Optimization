@@ -50,20 +50,29 @@ export function useLeverSweep(variants: Scenario[], enabled: boolean, delay = 60
   const qc = useQueryClient()
   const list = useDebounced(key(variants), delay)
   const arr = (JSON.parse(list) as Scenario[]) ?? []
-  return useQueries({
-    queries: arr.map((s, i) => {
-      const prev = i === 0 ? 'success' : qc.getQueryState(['predict', key(arr[i - 1])])?.status
+  const { uniq, at } = dedupe(arr)
+  const res = useQueries({
+    queries: uniq.map((s, i) => {
+      const prev = i === 0 ? 'success' : qc.getQueryState(['predict', key(uniq[i - 1])])?.status
       return {
         queryKey: ['predict', key(s)], queryFn: ({ signal }: { signal: AbortSignal }) => api.post<PredictionResult>('/predict', { scenario: s, n_draws: N_DRAWS }, signal),
         enabled: enabled && (prev === 'success' || prev === 'error'), placeholderData: keepPreviousData, staleTime: Infinity, retry: false,
       }
     }),
   })
+  return at.map((i) => res[i])
 }
 
 /** Whether this server can send the report by email (it needs mail credentials in its environment). */
 export function useReportStatus() {
   return useQuery({ queryKey: ['report-status'], queryFn: ({ signal }) => api.get<{ email_enabled: boolean }>('/report/status', signal), staleTime: Infinity, retry: false })
+}
+
+/** Identical requests asked once: the same query twice in one `useQueries` is a warning and wasted work. `at` maps each original position to its place in `uniq`. */
+function dedupe<T>(arr: T[]): { uniq: T[]; at: number[] } {
+  const seen = new Map<string, number>(), uniq: T[] = []
+  const at = arr.map((x) => { const k = key(x); let i = seen.get(k); if (i === undefined) { i = uniq.length; seen.set(k, i); uniq.push(x) } return i })
+  return { uniq, at }
 }
 
 export const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -88,13 +97,15 @@ export function useFleetBatch(requests: FleetRequest[], enabled: boolean, delay 
   const qc = useQueryClient()
   const list = useDebounced(key(requests), delay)
   const arr = (JSON.parse(list) as FleetRequest[]) ?? []
-  return useQueries({
-    queries: arr.map((req, i) => {
-      const prev = i === 0 ? 'success' : qc.getQueryState(['fleet', key(arr[i - 1])])?.status
+  const { uniq, at } = dedupe(arr)
+  const res = useQueries({
+    queries: uniq.map((req, i) => {
+      const prev = i === 0 ? 'success' : qc.getQueryState(['fleet', key(uniq[i - 1])])?.status
       return {
         queryKey: ['fleet', key(req)], queryFn: ({ signal }: { signal: AbortSignal }) => api.post<FleetForecast>('/fleet', req, signal),
         enabled: enabled && (prev === 'success' || prev === 'error'), staleTime: Infinity, retry: false,
       }
     }),
   })
+  return at.map((i) => res[i])
 }

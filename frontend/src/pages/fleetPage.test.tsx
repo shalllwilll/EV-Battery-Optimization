@@ -256,10 +256,11 @@ describe('Fleet page: the forecast blocks', () => {
     expect(within(sec).getAllByText(/per km$/).length).toBeGreaterThan(0)
   })
 
-  it('measures the levers for the largest classes in rupees, and says how many classes that covers', async () => {
+  it('measures the levers for each class in rupees, and says how many buses that covers', async () => {
     await withSample()
     const sec = await screen.findByRole('region', { name: 'What to do first, in rupees' })
-    expect(await within(sec).findByText(/largest classes\b.* cover \d+ of 60 buses|class cover \d+ of 60 buses/, undefined, { timeout: 4000 })).toBeInTheDocument()
+    expect(await within(sec).findByText(/All 60 buses are covered/, undefined, { timeout: 4000 })).toBeInTheDocument()
+    expect(within(sec).queryByText(/not measured/)).not.toBeInTheDocument()
   })
 
   it('a failed forecast leaves the roster working and says so', async () => {

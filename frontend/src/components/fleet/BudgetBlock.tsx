@@ -20,7 +20,8 @@ const niceTop = (v: number) => {
 /** What to budget, by financial year. The bars are the expected pack spend (or bus count without a battery price), stacked by depot; the whiskers are the
  *  10th to 90th percentile of the whole fleet's total, which does not split by depot, so it sits on the total only. */
 export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { series: Series; depots: Part[]; unknown: Part | null; moreDepots: boolean; stale: boolean }) {
-  const id = useId()
+  const rid = useId()
+  const id = rid.replace(/:/g, '')           // React's ids contain colons, which are not safe inside an SVG url(#…) reference
   const [hov, setHov] = useState<number | null>(null)
   const head = budgetHeadline(series)
   const peak = peakPeriod(series)
@@ -89,7 +90,7 @@ export function BudgetBlock({ series, depots, unknown, moreDepots, stale }: { se
         head={head2} rows={rows} />
       <p className="note">
         {split && !stack ? 'Working out the split by depot. ' : ''}{unknown ? `${unknown.buses} ${unknown.buses === 1 ? 'bus has' : 'buses have'} no in-service month, so ${unknown.buses === 1 ? 'it is' : 'they are'} counted as new, which pushes ${unknown.buses === 1 ? 'its' : 'their'} replacement later than it may be; ${unknown.buses === 1 ? 'it is' : 'they are'} hatched and kept apart so ${unknown.buses === 1 ? 'it' : 'they'} cannot pass as known. ` : ''}The model’s line is 80 % of a new pack’s capacity; the figures are about that line, not about how your buses are driven or what their health reports say.
-        The two published models are mixed 50/50, which is an assumption. The whiskers are for the whole fleet’s total and do not split by depot. A running total has no band, so none is shown.
+        The two published models are mixed 50/50, which is an assumption, and it is the main reason the whiskers are wide: each model puts the whole fleet on its own ageing curve, so the spread comes mostly from the models disagreeing, not from a fleet this size scattering. The whiskers are for the whole fleet’s total and do not split by depot. A running total has no band, so none is shown.
         {series.beyond >= 0.05 && ` About ${series.beyond.toFixed(1)} buses are not expected to reach the line inside the forecast.`} Not yet validated on buses.
       </p>
     </section>
